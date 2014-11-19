@@ -11,3 +11,5 @@ sudo apt-get update
 sudo apt-get install oracle-java7-installer
 java -version
 
+sudo /etc/init.d/elasticsearch start
+

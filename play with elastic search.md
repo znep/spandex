@@ -1,10 +1,15 @@
-# how to add an index, not required 
+how to add an index, not required  
+```
 curl -XPUT 'eel:9200/chicago?pretty'
+```
 
-# how to add a field specifically, not allowed 
-# curl -XPUT 'eel:9200/chicago/crime_type?pretty'
+how to add a field specifically, not allowed  
+```
+curl -XPUT 'eel:9200/chicago/crime_type?pretty'
+```
 
-# how to add element by id
+how to add element by id  
+```
 john@Kraken:~$ curl -XPUT 'eel:9200/chicago/crime_type/1?pretty' -d '{"name":"Hello World"}'
 {
   "_index" : "chicago",
@@ -13,8 +18,10 @@ john@Kraken:~$ curl -XPUT 'eel:9200/chicago/crime_type/1?pretty' -d '{"name":"He
   "_version" : 1,
   "created" : true
 }
+```
 
-# how to add element, and pick up id from the response 
+how to add element, and pick up id from the response  
+```
 john@Kraken:~$ curl -XPOST 'eel:9200/chicago/crime_type?pretty' -d '{"name":"NARCOTICS"}'
 {
   "_index" : "chicago",
@@ -23,5 +30,5 @@ john@Kraken:~$ curl -XPOST 'eel:9200/chicago/crime_type?pretty' -d '{"name":"NAR
   "_version" : 1,
   "created" : true
 }
-
+```
 
