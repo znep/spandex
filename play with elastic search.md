@@ -5,8 +5,9 @@ epoch      timestamp cluster       status node.total node.data shards pri relo i
 1416425022 14:23:42  elasticsearch yellow          1         1     15  15    0    0       15 
 
 john@Kraken:/usr/local/src/socrata/spandex$ curl 'eel:9200/_cat/nodes?v'
-host ip        heap.percent ram.percent load node.role master name 
-Eel  127.0.1.1            7          13 0.00 d         *      Ahab 
+host ip        heap.percent ram.percent load node.role master name                  
+Eel  127.0.1.1            7          14 0.00 d         *      Ahab                  
+ayu  127.0.1.1            3          50 0.19 d         m      Radion the Atomic Man 
 
 john@Kraken:/usr/local/src/socrata/spandex$ curl 'eel:9200/_cat/indices?v'
 health status index    pri rep docs.count docs.deleted store.size pri.store.size 
