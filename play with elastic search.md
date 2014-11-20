@@ -23,9 +23,6 @@ john@Kraken:/usr/local/src/socrata/spandex$ curl -XPUT 'eel:9200/portland?pretty
   "acknowledged" : true
 }
 
-john@Kraken:/usr/local/src/socrata/spandex$ curl 'eel:9200/_cat/nodes?v'
-host ip        heap.percent ram.percent load node.role master name 
-Eel  127.0.1.1            7          13 0.00 d         *      Ahab 
 john@Kraken:/usr/local/src/socrata/spandex$ curl -XDELETE 'eel:9200/portland?pretty'
 {
   "acknowledged" : true
@@ -107,4 +104,4 @@ john@Kraken:/usr/local/src/socrata/spandex$ curl -XDELETE 'eel:9200/chicago/crim
 ```
 
 _bulk is available for all create update delete operations  
-
+definitely use bulk operations. inserting 2M documents individually took 387 minutes overnight. On the plus side the index load was very low.  
