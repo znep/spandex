@@ -105,3 +105,4 @@ john@Kraken:/usr/local/src/socrata/spandex$ curl -XDELETE 'eel:9200/chicago/crim
 
 _bulk is available for all create update delete operations  
 definitely use bulk operations. inserting 2M documents individually took 387 minutes overnight. On the plus side the index load was very low.  
+bulk inserting 2M documents in one request took 34 seconds. Constructing the document took 21 seconds.  
