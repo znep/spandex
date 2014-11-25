@@ -2,6 +2,8 @@ import sbt._
 import Keys._
 import org.scalatra.sbt._
 import org.scalatra.sbt.PluginKeys._
+import com.earldouglas.xsbtwebplugin.PluginKeys._
+import com.earldouglas.xsbtwebplugin.WebPlugin._
 import com.mojolly.scalate.ScalatePlugin._
 import ScalateKeys._
 
@@ -11,6 +13,8 @@ object SpandexBuild extends Build {
   val Version = "0.1.0-SNAPSHOT"
   val ScalaVersion = "2.10.3"
   val ScalatraVersion = "2.2.2"
+  val Conf = config("container")
+  val ListenPort = 8042
 
   lazy val project = Project (
     "spandex",
@@ -20,6 +24,7 @@ object SpandexBuild extends Build {
       name := Name,
       version := Version,
       scalaVersion := ScalaVersion,
+      port in Conf := ListenPort,
       resolvers += Classpaths.typesafeReleases,
       libraryDependencies ++= Seq(
         "org.scalatra" %% "scalatra" % ScalatraVersion,
