@@ -2,10 +2,11 @@
 ### initialize elasticsearch with mock data for autocomplete experimentation
 
 NODE0="eel:9200"
+ITER=$1
 
-curl -XPUT "$NODE0/chicago"
+curl -XPUT "$NODE0/chicago$ITER"
 
-CRIMES="ChicagoCrimes2014-PrimaryType.csv"
+CRIMES="data/ChicagoCrimes2014-PrimaryType.csv"
 tmpsert="/tmp/${$}_elasticsearch_upsert.json"
 if [ -e $tmpsert ]; then
   rm $tmpsert
@@ -25,5 +26,5 @@ done <$CRIMES
 #read -n 1
 
 tmpresult="/tmp/${$}_elasticsearch_upsert.log"
-curl -XPOST "${NODE0}/chicago/crime_type/_bulk" --data-binary @$tmpsert 1>$tmpresult
+curl -XPOST "${NODE0}/chicago$ITER/crime_type/_bulk" --data-binary @$tmpsert 1>$tmpresult
 

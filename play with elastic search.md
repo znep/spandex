@@ -106,3 +106,14 @@ john@Kraken:/usr/local/src/socrata/spandex$ curl -XDELETE 'eel:9200/chicago/crim
 _bulk is available for all create update delete operations  
 definitely use bulk operations. inserting 2M documents individually took 387 minutes overnight. On the plus side the index load was very low.  
 bulk inserting 2M documents in one request took 34 seconds. Constructing the document took 21 seconds.  
+
+additional meta data from elasticsearch service.  
+```
+curl 'eel:9200/_cat/shards?v'
+curl 'eel:9200/_cluster/health?pretty'
+curl 'eel:9200/_nodes?pretty'
+```
+
+SPIKE time. Creating a new index if 2M versus adding 2M to an existing index.  
+it seems to take longer (~2x) to create a new index, but consumes less store space.  
+my two vm cluster topped out at 79 shards over 8 indices.  
