@@ -11,6 +11,7 @@ sudo apt-get update
 sudo apt-get install oracle-java7-installer 
 java -version 
 
+### start directly, or add service startup
 sudo /etc/init.d/elasticsearch start 
 # sudo update-rc.d elasticsearch defaults 95 10 
 
