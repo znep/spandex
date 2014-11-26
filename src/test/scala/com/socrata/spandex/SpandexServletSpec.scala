@@ -17,6 +17,42 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
       status should equal (HttpStatus.NotFound)
     }
   }
+
+  test("addindex new customer"){
+    get("/addindex/chicago"){
+      status should equal (HttpStatus.Success)
+    }
+  }
+
+  test("addcol new column"){
+    post("/addcol/chicago/qnmj-8ku6","crimeType"){
+      status should equal (HttpStatus.Success)
+    }
+  }
+
+  test("version upsert"){
+    post(
+      "/version/chicago/qnmj-8ku6",
+      "{\"crimeType\": \"NARCOTICS\"}"
+    ){
+      status should equal (HttpStatus.Success)
+    }
+  }
+
+  test("resync"){
+    post(
+      "/resync/chicago/gnmj-8ku6",
+      ""
+    ){
+      status should equal (HttpStatus.Success)
+    }
+  }
+
+  test("suggest"){
+    get("/suggest/chicago/qnmj-8ku6/crimeType/nar"){
+      status should equal (HttpStatus.Success)
+    }
+  }
 }
 
 object HttpStatus {
