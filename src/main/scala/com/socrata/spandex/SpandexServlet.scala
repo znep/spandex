@@ -13,5 +13,5 @@ class SpandexServlet extends SpandexStack {
       </body>
     </html>
   }
-  
+
 }
