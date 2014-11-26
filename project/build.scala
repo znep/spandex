@@ -7,7 +7,7 @@ import com.earldouglas.xsbtwebplugin.WebPlugin._
 import com.mojolly.scalate.ScalatePlugin._
 import ScalateKeys._
 
-object SpandexBuild extends Build {
+object BuildParameters {
   val Organization = "com.socrata"
   val Name = "spandex"
   val Version = "0.1.0-SNAPSHOT"
@@ -15,6 +15,11 @@ object SpandexBuild extends Build {
   val ScalatraVersion = "2.2.2"
   val Conf = config("container")
   val ListenPort = 8042
+}
+
+object SpandexBuild extends Build {
+  import BuildParameters._
+  import Dependencies._
 
   lazy val project = Project (
     "spandex",
@@ -26,15 +31,7 @@ object SpandexBuild extends Build {
       scalaVersion := ScalaVersion,
       port in Conf := ListenPort,
       resolvers += Classpaths.typesafeReleases,
-      libraryDependencies ++= Seq(
-        "org.scalatra" %% "scalatra" % ScalatraVersion,
-        "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
-        "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
-        "ch.qos.logback" % "logback-classic" % "1.1.2" % "runtime",
-        "org.eclipse.jetty" % "jetty-webapp" % "9.1.5.v20140505" % "container",
-        "org.eclipse.jetty" % "jetty-plus" % "9.1.5.v20140505" % "container",
-        "javax.servlet" % "javax.servlet-api" % "3.1.0"
-      ),
+      libraryDependencies ++= socrataDeps ++ scalatraDeps ++ jettyDeps ++ testDeps,
       scalacOptions ++= Seq("-Xlint", "-deprecation", "-Xfatal-warnings", "-feature"),
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(
@@ -49,5 +46,26 @@ object SpandexBuild extends Build {
         )
       }
     )
+  )
+}
+
+object Dependencies {
+  import BuildParameters._
+
+  lazy val socrataDeps = Nil
+  lazy val scalatraDeps = Seq(
+    "org.scalatra" %% "scalatra" % ScalatraVersion,
+    "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
+    "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test"
+  )
+  lazy val jettyDeps = Seq(
+    "ch.qos.logback" % "logback-classic" % "1.1.2" % "runtime",
+    "org.eclipse.jetty" % "jetty-webapp" % "9.1.5.v20140505" % "container",
+    "org.eclipse.jetty" % "jetty-plus" % "9.1.5.v20140505" % "container",
+    "javax.servlet" % "javax.servlet-api" % "3.1.0"
+  )
+  lazy val testDeps = Seq(
+    "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
+    "org.scalatest" %% "scalatest" % "2.1.0" % "test"
   )
 }
