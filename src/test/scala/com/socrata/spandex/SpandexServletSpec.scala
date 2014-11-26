@@ -18,24 +18,38 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     }
   }
 
+  test("get health status page") {
+    get("/health"){
+      status should equal (HttpStatus.Success)
+      body should contain ("{\"health\":\"alive\"}")
+    }
+  }
+
   test("addindex new customer"){
     get("/addindex/chicago"){
       status should equal (HttpStatus.Success)
+      body should contain ("{\"acknowledged\":true}")
     }
   }
 
   test("addcol new column"){
     post("/addcol/chicago/qnmj-8ku6","crimeType"){
       status should equal (HttpStatus.Success)
+      body should contain ("{\"acknowledged\":true}")
     }
   }
 
   test("version upsert"){
     post(
       "/version/chicago/qnmj-8ku6",
-      "{\"crimeType\": \"NARCOTICS\"}"
+      "{\"_id\": \"1\", \"crimeType\": \"NARCOTICS\"}\n" +
+        "{\"_id\": \"2\", \"crimeType\": \"PUBLIC INDECENCY\"}"
     ){
       status should equal (HttpStatus.Success)
+      body should contain ("{\"create\":{\"_index\":\"chicago\",\"_type\":\"qnmj-8ku6\"," +
+        "\"_id\":\"1\",\"_version\":1,\"status\":201}}")
+      body should contain ("{\"create\":{\"_index\":\"chicago\",\"_type\":\"qnmj-8ku6\"," +
+        "\"_id\":\"2\",\"_version\":1,\"status\":201}}")
     }
   }
 
@@ -45,12 +59,14 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
       ""
     ){
       status should equal (HttpStatus.Success)
+      body should contain ("{\"acknowledged\":true}")
     }
   }
 
   test("suggest"){
     get("/suggest/chicago/qnmj-8ku6/crimeType/nar"){
       status should equal (HttpStatus.Success)
+      body should contain ("NARCOTICS")
     }
   }
 }
