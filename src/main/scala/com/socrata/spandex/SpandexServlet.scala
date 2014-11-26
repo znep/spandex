@@ -4,14 +4,17 @@ import org.scalatra._
 import scalate.ScalateSupport
 
 class SpandexServlet extends SpandexStack {
+  private val healthJson = "{\"health\":\"alive\"}"
 
   get("/") {
     <html>
       <body>
-        <h1>Hello, world!</h1>
-        Say <a href="hello-scalate">hello to Scalate</a>.
+        <h1>Hello, spandex</h1>
       </body>
     </html>
   }
 
+  get ("/health"){
+    healthJson
+  }
 }
