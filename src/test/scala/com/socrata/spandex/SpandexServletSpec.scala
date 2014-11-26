@@ -11,8 +11,15 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
       status should equal (HttpStatus.Success)
     }
   }
+
+  test("get of non-existent page") {
+    get("/goodbye-world"){
+      status should equal (HttpStatus.NotFound)
+    }
+  }
 }
 
 object HttpStatus {
   val Success = 200
+  val NotFound = 404
 }

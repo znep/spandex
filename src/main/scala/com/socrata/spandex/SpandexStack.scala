@@ -27,7 +27,7 @@ trait SpandexStack extends ScalatraServlet with ScalateSupport {
 
   notFound {
     // remove content type in case it was set through an action
-    contentType = null
+    contentType = ""
     // Try to render a ScalateTemplate if no route matched
     findTemplate(requestPath) map { path =>
       contentType = "text/html"
