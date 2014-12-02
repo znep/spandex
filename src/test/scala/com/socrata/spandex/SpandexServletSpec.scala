@@ -1,12 +1,11 @@
 package com.socrata.spandex
 
+import javax.servlet.http.{HttpServletResponse => HttpStatus}
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
 
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
-  import HttpStatus._
-
   override def beforeAll: Unit = {
     super.beforeAll
     addServlet(new SpandexServlet(), "/*")
@@ -18,7 +17,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
 
   test("get of index page") {
     get("/") {
-      status should equal (HttpStatus.Success)
+      status should equal (HttpStatus.SC_OK)
       val contentType: String = header.getOrElse("Content-Type", "")
       contentType should include ("text/html")
       body should include ("spandex")
@@ -27,27 +26,27 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
 
   test("get of non-existent page") {
     get("/goodbye-world"){
-      status should equal (HttpStatus.NotFound)
+      status should equal (HttpStatus.SC_NOT_FOUND)
     }
   }
 
   test("get health status page") {
     get("/health"){
-      status should equal (HttpStatus.Success)
+      status should equal (HttpStatus.SC_OK)
       body should include ("{\"health\":\"alive\"}")
     }
   }
 
   test("addindex new customer"){
     get("/addindex/chicago"){
-      status should equal (HttpStatus.Success)
+      status should equal (HttpStatus.SC_OK)
       body should include ("{\"acknowledged\":true}")
     }
   }
 
   test("addcol new column"){
     post("/addcol/chicago/qnmj-8ku6","crimeType"){
-      status should equal (HttpStatus.Success)
+      status should equal (HttpStatus.SC_OK)
       body should include ("{\"acknowledged\":true}")
     }
   }
@@ -58,7 +57,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
       "{\"_id\": \"1\", \"crimeType\": \"NARCOTICS\"}\n" +
         "{\"_id\": \"2\", \"crimeType\": \"PUBLIC INDECENCY\"}"
     ){
-      status should equal (HttpStatus.Success)
+      status should equal (HttpStatus.SC_OK)
       body should include ("{\"create\":{\"_index\":\"chicago\",\"_type\":\"qnmj-8ku6\"," +
         "\"_id\":\"1\",\"_version\":1,\"status\":201}}")
       body should include ("{\"create\":{\"_index\":\"chicago\",\"_type\":\"qnmj-8ku6\"," +
@@ -71,20 +70,15 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
       "/resync/chicago/gnmj-8ku6",
       ""
     ){
-      status should equal (HttpStatus.Success)
+      status should equal (HttpStatus.SC_OK)
       body should include ("{\"acknowledged\":true}")
     }
   }
 
   test("suggest"){
     get("/suggest/chicago/qnmj-8ku6/crimeType/nar"){
-      status should equal (HttpStatus.Success)
+      status should equal (HttpStatus.SC_OK)
       body should include ("NARCOTICS")
     }
   }
-}
-
-object HttpStatus {
-  val Success = 200
-  val NotFound = 404
 }
