@@ -15,6 +15,7 @@ object BuildParameters {
   val ScalatraVersion = "2.2.2"
   val Conf = config("container")
   val ListenPort = 8042
+  val DataCoordinatorVersion = "0.0.1-SNAPSHOT"
 }
 
 object SpandexBuild extends Build {
@@ -31,7 +32,7 @@ object SpandexBuild extends Build {
       scalaVersion := ScalaVersion,
       port in Conf := ListenPort,
       resolvers += Classpaths.typesafeReleases,
-      libraryDependencies ++= socrataDeps ++ scalatraDeps ++ jettyDeps ++ testDeps,
+      libraryDependencies ++= socrataDeps ++ scalatraDeps ++ jettyDeps ++ rojomaDeps ++ testDeps,
       scalacOptions ++= Seq("-Xlint", "-deprecation", "-Xfatal-warnings", "-feature"),
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(
@@ -52,7 +53,10 @@ object SpandexBuild extends Build {
 object Dependencies {
   import BuildParameters._
 
-  lazy val socrataDeps = Nil
+  lazy val socrataDeps = Seq(
+    "com.socrata" %% "secondarylib" % DataCoordinatorVersion, // % "provided"
+    "com.socrata" %% "coordinator" % DataCoordinatorVersion
+  )
   lazy val scalatraDeps = Seq(
     "org.scalatra" %% "scalatra" % ScalatraVersion,
     "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
@@ -63,6 +67,10 @@ object Dependencies {
     "org.eclipse.jetty" % "jetty-webapp" % "9.1.5.v20140505" % "container",
     "org.eclipse.jetty" % "jetty-plus" % "9.1.5.v20140505" % "container",
     "javax.servlet" % "javax.servlet-api" % "3.1.0"
+  )
+  lazy val rojomaDeps = Seq(
+    "com.rojoma" %% "rojoma-json" % "2.4.3",
+    "com.rojoma" %% "simple-arm" % "1.2.0"
   )
   lazy val testDeps = Seq(
     "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",

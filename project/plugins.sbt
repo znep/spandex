@@ -1,4 +1,7 @@
-resolvers += "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases"
+resolvers ++= Seq(
+  "socrata releases" at "http://repository-socrata-oss.forge.cloudbees.com/release",
+  "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases"
+)
 
 addSbtPlugin("com.mojolly.scalate" % "xsbt-scalate-generator" % "0.5.0")
 
