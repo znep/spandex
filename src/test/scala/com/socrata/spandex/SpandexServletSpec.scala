@@ -37,15 +37,15 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     }
   }
 
-  test("addindex new customer"){
-    get("/addindex/chicago"){
+  test("addindex new dataset"){
+    get("/addindex/qnmj-8ku6"){
       status should equal (HttpStatus.SC_OK)
       body should include ("{\"acknowledged\":true}")
     }
   }
 
   test("addcol new column"){
-    post("/addcol/chicago/qnmj-8ku6","crimeType"){
+    get("/addcol/qnmj-8ku6/crimeType"){
       status should equal (HttpStatus.SC_OK)
       body should include ("{\"acknowledged\":true}")
     }
@@ -53,7 +53,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
 
   test("version upsert"){
     post(
-      "/version/chicago/qnmj-8ku6",
+      "/version/qnmj-8ku6",
       "{\"_id\": \"1\", \"crimeType\": \"NARCOTICS\"}\n" +
         "{\"_id\": \"2\", \"crimeType\": \"PUBLIC INDECENCY\"}"
     ){
@@ -67,7 +67,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
 
   test("resync"){
     post(
-      "/resync/chicago/gnmj-8ku6",
+      "/resync/gnmj-8ku6",
       ""
     ){
       status should equal (HttpStatus.SC_OK)
@@ -76,7 +76,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   }
 
   test("suggest"){
-    get("/suggest/chicago/qnmj-8ku6/crimeType/nar"){
+    get("/suggest/qnmj-8ku6/crimeType/nar"){
       status should equal (HttpStatus.SC_OK)
       body should include ("NARCOTICS")
     }
