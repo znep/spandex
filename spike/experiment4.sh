@@ -5,7 +5,8 @@ pushd "$( dirname "${BASH_SOURCE[0]}" )"
 
 NODE0="eel:9200"
 
-UPSERT="data/chicago-crimes-2014-sample.json"
+UPSERT="data/chicago-crimes-2014.bak"
+#UPSERT="data/chicago-crimes-2014-sample.json"
 CONFIG_CUID="154480034"
 CONFIG_COLS="154480035 154480037 154480039 154480040 154480041"
 
@@ -27,14 +28,16 @@ for id in $upcols_ids; do
 done
 
 ctor_index_acc='{"s": {"properties": {'
-ctor_index_inn='"%s": {"type": "string"}, '
-ctor_index_suf='"suggest": {"type":"completion", "index_analyzer": "simple", "search_analyzer": "simple", "payloads": true, "preserve_separators": false, "preserve_position_increments": false, "max_input_length": 50}}}}'
+#ctor_index_inn='"%s": {"type": "string"}, '
+ctor_index_inn='"%s": {"type":"completion", "index_analyzer": "simple", "search_analyzer": "simple", "payloads": false, "preserve_separators": false, "preserve_position_increments": false, "max_input_length": 50},'
+ctor_index_suf='"blank": {"type":"boolean"} }}}'
 for id in $upcols_ids_selected; do
   if [ "$id" -gt "0" ]; then
     ctor_index_acc=`printf "$ctor_index_acc $ctor_index_inn" "$id"`
   fi
 done
 ctor_index_acc="$ctor_index_acc $ctor_index_suf"
+#echo $ctor_index_acc
 
 echo -n "delete index "
 curl -XDELETE "$NODE0/$upfour"
@@ -54,7 +57,7 @@ fi
 while read -r row; do
   row=`printf '{"row": %s}' "$row"`
   id=`echo $row |jsawk "return this.row[$upcols_ids_idposition]"`
-  printf '{"index": {"_field": "row", "_id": "%s"}}\n' "$id" >> $tmpsert
+  printf '{"index": {"_field": "s", "_id": "%s"}}\n' "$id" >> $tmpsert
   
   json=""
   position=0
@@ -70,12 +73,12 @@ while read -r row; do
   echo "{$json}" >> $tmpsert
 done <<< "$updata"
 
-cat $tmpsert
+#cat $tmpsert
 
 tmpresult="/tmp/elasticsearch_${$}_upsert.log"
 curl -XPOST "${NODE0}/$upfour/s/_bulk" --data-binary @$tmpsert 1>$tmpresult
 
-cat $tmpresult
+#cat $tmpresult
 
 curl -XPOST "${NODE0}/$upfour/_refresh"
 
