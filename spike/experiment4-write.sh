@@ -30,7 +30,7 @@ done
 ctor_index_acc='{"s": {"properties": {'
 #ctor_index_inn='"%s": {"type": "string"}, '
 ctor_index_inn='"%s": {"type":"completion", "index_analyzer": "simple", "search_analyzer": "simple", "payloads": false, "preserve_separators": false, "preserve_position_increments": false, "max_input_length": 50},'
-ctor_index_suf='"blank": {"type":"boolean"} }}}'
+ctor_index_suf='"b": {"type":"boolean"} }}}'
 for id in $upcols_ids_selected; do
   if [ "$id" -gt "0" ]; then
     ctor_index_acc=`printf "$ctor_index_acc $ctor_index_inn" "$id"`
@@ -49,6 +49,7 @@ echo -n "add columns and analyzer "
 curl -XPUT "$NODE0/$upfour/s/_mapping" -d "$ctor_index_acc"
 echo
 
+echo "assembling bulk insert document "
 tmpsert="/tmp/elasticsearch_${$}_upsert.json"
 if [ -e $tmpsert ]; then
   rm $tmpsert
@@ -74,11 +75,12 @@ while read -r row; do
 done <<< "$updata"
 
 #cat $tmpsert
-
+echo -n "transmitting bulk insert document "
 tmpresult="/tmp/elasticsearch_${$}_upsert.log"
-curl -XPOST "${NODE0}/$upfour/s/_bulk" --data-binary @$tmpsert 1>$tmpresult
+curl -XPOST "$NODE0/$upfour/s/_bulk" --data-binary @$tmpsert 1>$tmpresult
+echo
 
 #cat $tmpresult
 
-curl -XPOST "${NODE0}/$upfour/_refresh"
+curl -XPOST "$NODE0/$upfour/_refresh"
 
