@@ -37,7 +37,7 @@ for (( i=0; i <= 10; i++ )); do
   echo -n "create index "
   curl -XPUT "$NODE1/s$i" -d @index-settings.json
   echo
-  mapping=$(cat index-mapping.json |sed 's/"s"/"s'$i'"/')
+  mapping=$(cat index-mapping.json |sed 's/"s"/"'$upfour'"/')
   echo -n "add columns and analyzer "
   curl -XPUT "$NODE1/s$i/$upfour/_mapping" -d "$mapping"
   echo
