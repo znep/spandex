@@ -58,7 +58,7 @@ fi
 while read -r row; do
   row=`printf '{"row": %s}' "$row"`
   id=`echo $row |jsawk "return this.row[$upcols_ids_idposition]"`
-  printf '{"index": {"_field": "s", "_id": "%s"}}\n' "$id" >> $tmpsert
+  printf '{"index": {"_id": "%s"}}\n' "$id" >> $tmpsert
   
   json=""
   position=0
