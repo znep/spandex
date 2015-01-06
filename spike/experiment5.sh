@@ -20,7 +20,7 @@ echo -n "create index "
 curl -XPUT "$NODE0/$upfour" -d @index-settings.json
 echo
 
-for (( i=0; i <= 10; i++ )); do
+for (( i=0; i <= 1000; i++ )); do
   mapping=$(cat index-mapping.json |sed 's/"s"/"s'$i'"/')
   echo -n "add columns and analyzer "
   curl -XPUT "$NODE0/$upfour/s$i/_mapping" -d "$mapping"
@@ -30,7 +30,7 @@ for (( i=0; i <= 10; i++ )); do
   echo
 done
 
-for (( i=0; i <= 10; i++ )); do
+for (( i=0; i <= 1000; i++ )); do
   echo -n "delete index "
   curl -XDELETE "$NODE1/s$i"
   echo
