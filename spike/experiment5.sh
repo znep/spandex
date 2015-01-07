@@ -15,18 +15,18 @@ echo -n >$tmpresult1
 
 function testa() {
   echo -n "a: delete index $upfour "
-  curl -XDELETE "$NODE0/$upfour"
+  curl -XDELETE "$NODE0/$upfour" 2>/dev/null
   echo
   echo -n "a: create index $upfour "
-  curl -XPUT "$NODE0/$upfour" -d @index-settings.json
+  curl -XPUT "$NODE0/$upfour" -d @index-settings.json 2>/dev/null
   echo
   for (( i=0; i <= 1000; i++ )); do
     mapping=$(cat index-mapping.json |sed 's/"s"/"s'$i'"/')
     echo -n "a: add columns and analyzer s$i "
-    curl -XPUT "$NODE0/$upfour/s$i/_mapping" -d "$mapping"
+    curl -XPUT "$NODE0/$upfour/s$i/_mapping" -d "$mapping" 2>/dev/null
     echo
     echo -n "a: transmitting bulk insert document s$i "
-    curl -XPOST "$NODE0/$upfour/s$i/_bulk" --data-binary @$tmpsert 1>>$tmpresult0
+    curl -XPOST "$NODE0/$upfour/s$i/_bulk" --data-binary @$tmpsert 1>>$tmpresult0 2>/dev/null
     echo
   done
 }
@@ -34,17 +34,17 @@ function testa() {
 function testb() {
   for (( i=0; i <= 1000; i++ )); do
     echo -n "b: delete index s$i "
-    curl -XDELETE "$NODE1/s$i"
+    curl -XDELETE "$NODE1/s$i" 2>/dev/null
     echo
     echo -n "b: create index s$i "
-    curl -XPUT "$NODE1/s$i" -d @index-settings.json
+    curl -XPUT "$NODE1/s$i" -d @index-settings.json 2>/dev/null
     echo
     mapping=$(cat index-mapping.json |sed 's/"s"/"'$upfour'"/')
     echo -n "b: add columns and analyzer s$i "
-    curl -XPUT "$NODE1/s$i/$upfour/_mapping" -d "$mapping"
+    curl -XPUT "$NODE1/s$i/$upfour/_mapping" -d "$mapping" 2>/dev/null
     echo
     echo -n "b: transmitting bulk insert document s$i "
-    curl -XPOST "$NODE1/s$i/$upfour/_bulk" --data-binary @$tmpsert 1>>$tmpresult1
+    curl -XPOST "$NODE1/s$i/$upfour/_bulk" --data-binary @$tmpsert 1>>$tmpresult1 2>/dev/null
     echo
   done
 }
