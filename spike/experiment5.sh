@@ -13,36 +13,43 @@ tmpresult1="/tmp/elasticsearch_${$}_upsert1.log"
 echo -n >$tmpresult0
 echo -n >$tmpresult1
 
-echo -n "delete index "
-curl -XDELETE "$NODE0/$upfour"
-echo
-echo -n "create index "
-curl -XPUT "$NODE0/$upfour" -d @index-settings.json
-echo
+function testa() {
+  echo -n "a: delete index $upfour "
+  curl -XDELETE "$NODE0/$upfour"
+  echo
+  echo -n "a: create index $upfour "
+  curl -XPUT "$NODE0/$upfour" -d @index-settings.json
+  echo
+  for (( i=0; i <= 1000; i++ )); do
+    mapping=$(cat index-mapping.json |sed 's/"s"/"s'$i'"/')
+    echo -n "a: add columns and analyzer s$i "
+    curl -XPUT "$NODE0/$upfour/s$i/_mapping" -d "$mapping"
+    echo
+    echo -n "a: transmitting bulk insert document s$i "
+    curl -XPOST "$NODE0/$upfour/s$i/_bulk" --data-binary @$tmpsert 1>>$tmpresult0
+    echo
+  done
+}
 
-for (( i=0; i <= 1000; i++ )); do
-  mapping=$(cat index-mapping.json |sed 's/"s"/"s'$i'"/')
-  echo -n "add columns and analyzer "
-  curl -XPUT "$NODE0/$upfour/s$i/_mapping" -d "$mapping"
-  echo
-  echo -n "transmitting bulk insert document "
-  curl -XPOST "$NODE0/$upfour/s$i/_bulk" --data-binary @$tmpsert 1>>$tmpresult0
-  echo
-done
+function testb() {
+  for (( i=0; i <= 1000; i++ )); do
+    echo -n "b: delete index s$i "
+    curl -XDELETE "$NODE1/s$i"
+    echo
+    echo -n "b: create index s$i "
+    curl -XPUT "$NODE1/s$i" -d @index-settings.json
+    echo
+    mapping=$(cat index-mapping.json |sed 's/"s"/"'$upfour'"/')
+    echo -n "b: add columns and analyzer s$i "
+    curl -XPUT "$NODE1/s$i/$upfour/_mapping" -d "$mapping"
+    echo
+    echo -n "b: transmitting bulk insert document s$i "
+    curl -XPOST "$NODE1/s$i/$upfour/_bulk" --data-binary @$tmpsert 1>>$tmpresult1
+    echo
+  done
+}
 
-for (( i=0; i <= 1000; i++ )); do
-  echo -n "delete index "
-  curl -XDELETE "$NODE1/s$i"
-  echo
-  echo -n "create index "
-  curl -XPUT "$NODE1/s$i" -d @index-settings.json
-  echo
-  mapping=$(cat index-mapping.json |sed 's/"s"/"'$upfour'"/')
-  echo -n "add columns and analyzer "
-  curl -XPUT "$NODE1/s$i/$upfour/_mapping" -d "$mapping"
-  echo
-  echo -n "transmitting bulk insert document "
-  curl -XPOST "$NODE1/s$i/$upfour/_bulk" --data-binary @$tmpsert 1>>$tmpresult1
-  echo
-done
+time testa &
+time testb &
+wait
 
