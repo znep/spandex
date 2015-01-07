@@ -1,5 +1,6 @@
 {
     "s": {
+        "_all": {"enabled": false},
         "properties": {
             "154480035": {
                 "type": "completion",
