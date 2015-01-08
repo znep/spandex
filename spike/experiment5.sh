@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 ### initialize elasticsearch with mock data for autocomplete experimentation
 
+start=$1
+if [ -z "$start" ]; then start=0; fi
+count=$2
+if [ -z "$count" ]; then count=1000; fi
+
 pushd "$( dirname "${BASH_SOURCE[0]}" )"
 
 NODE0="54.186.54.239:9200"  #Guppy
@@ -20,7 +25,7 @@ function testa() {
   echo -n "a: create index $upfour "
   curl -XPUT "$NODE0/$upfour" -d @index-settings.json 2>/dev/null
   echo
-  for (( i=0; i <= 1000; i++ )); do
+  for (( i=start; i < count; i++ )); do
     mapping=$(cat index-mapping.json |sed 's/"s"/"s'$i'"/')
     echo -n "a: add columns and analyzer s$i "
     curl -XPUT "$NODE0/$upfour/s$i/_mapping" -d "$mapping" 2>/dev/null
@@ -32,7 +37,7 @@ function testa() {
 }
 
 function testb() {
-  for (( i=0; i <= 1000; i++ )); do
+  for (( i=start; i < count; i++ )); do
     echo -n "b: delete index s$i "
     curl -XDELETE "$NODE1/s$i" 2>/dev/null
     echo
