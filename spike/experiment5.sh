@@ -35,7 +35,7 @@ function testa() {
   curl -XPUT "$NODE0/$upfour/s$i/_mapping" -d "$mapping" 2>/dev/null
   echo
   echo -n "a: transmitting bulk insert document s$i "
-  curl -XPOST "$NODE0/$upfour/s$i/_bulk" --data-binary @$tmpsert 1>>$tmpresult0 2>/dev/null
+  curl -XPOST "$NODE0/$upfour/s$i/_bulk" --data-binary @$tmpsert 1>>$tmpresult0 2>/dev/null &
   echo
 }
 
@@ -52,7 +52,7 @@ function testb() {
   curl -XPUT "$NODE1/s$i/$upfour/_mapping" -d "$mapping" 2>/dev/null
   echo
   echo -n "b: transmitting bulk insert document s$i "
-  curl -XPOST "$NODE1/s$i/$upfour/_bulk" --data-binary @$tmpsert 1>>$tmpresult1 2>/dev/null
+  curl -XPOST "$NODE1/s$i/$upfour/_bulk" --data-binary @$tmpsert 1>>$tmpresult1 2>/dev/null &
   echo
 }
 
@@ -61,7 +61,7 @@ threads=0
 for (( i=start; i< count; i++ )); do
   if [ $threads -ge $parallel ]; then wait; threads=0; fi
   threads=$(($threads+1))
-  testa $i &
-  testb $i &
+  testa $i
+  testb $i
 done
 
