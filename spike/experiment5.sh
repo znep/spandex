@@ -5,7 +5,7 @@ start=$1
 if [ -z "$start" ]; then start=0; fi
 count=$2
 if [ -z "$count" ]; then count=1000; fi
-$parallel=10
+parallel=10
 
 pushd "$( dirname "${BASH_SOURCE[0]}" )"
 
@@ -57,11 +57,11 @@ function testb() {
 }
 
 if [ "$start" -eq "0" ]; then time prepare; fi
+threads=0
 for (( i=start; i< count; i++ )); do
-  threads=0
-  if [ "$threads" -ge "$parallel" ]; then wait; threads=0; fi
+  if [ $threads -ge $parallel ]; then wait; threads=0; fi
   threads=$(($threads+1))
-  testa $i
-  testb $i
+  testa $i &
+  testb $i &
 done
 
