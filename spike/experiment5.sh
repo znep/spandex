@@ -59,8 +59,8 @@ function testb() {
 if [ "$start" -eq "0" ]; then time prepare; fi
 for (( i=start; i< count; i++ )); do
   threads=0
-  if [ "$procs" -ge "$parallel" ]; then wait; procs=0; fi
-  procs=$(($procs+1))
+  if [ "$threads" -ge "$parallel" ]; then wait; threads=0; fi
+  threads=$(($threads+1))
   testa $i
   testb $i
 done
