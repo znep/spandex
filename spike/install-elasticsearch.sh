@@ -13,6 +13,7 @@ sudo apt-get update
 sudo apt-get install elasticsearch oracle-java7-installer
 java -version
 
+echo 'action.disable_delete_all_indices: true' | sudo tee -a $ES_CONF >/dev/null
 echo 'bootstrap.mlockall: true' | sudo tee -a $ES_CONF >/dev/null
 cat $ES_INIT | sed "s/^#ES_HEAP_SIZE=.*$/ES_HEAP_SIZE=$ES_HEAP/" | sudo tee $ES_INIT >/dev/null
 
