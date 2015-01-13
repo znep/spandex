@@ -7,7 +7,7 @@ ES_INIT=/etc/init.d/elasticsearch
 ES_HEAP='31g'
 
 wget -qO - http://packages.elasticsearch.org/GPG-KEY-elasticsearch | sudo apt-key add -
-echo $ES_PACK | sudo tee -a /etc/apt/sources.list >/dev/null
+sudo add-apt-repository $ES_PACK
 sudo add-apt-repository ppa:webupd8team/java
 sudo apt-get update
 sudo apt-get install elasticsearch oracle-java7-installer
