@@ -1,8 +1,5 @@
 package com.socrata.spandex
 
-import org.scalatra._
-import scalate.ScalateSupport
-
 class SpandexServlet extends SpandexStack {
   private val healthJson = "{\"health\":\"alive\"}"
 

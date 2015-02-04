@@ -1,6 +1,7 @@
 package com.socrata.spandex
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
+
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
 
