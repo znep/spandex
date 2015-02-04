@@ -1,0 +1,17 @@
+{
+  "settings": {
+    "index": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1,
+      "refresh_interval": "-1",
+      "translog": {
+        "flush_threshold_size": "1g"
+      }
+    }
+  },
+  "mappings": {
+    "s": {
+      "_source": {"enabled": true}
+    }
+  }
+}

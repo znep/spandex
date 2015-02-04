@@ -1,11 +1,13 @@
 import sbt._
 import Keys._
+import org.scalastyle.sbt.ScalastylePlugin.scalastyle
 import org.scalatra.sbt._
 import org.scalatra.sbt.PluginKeys._
 import com.earldouglas.xsbtwebplugin.PluginKeys._
 import com.earldouglas.xsbtwebplugin.WebPlugin._
 import com.mojolly.scalate.ScalatePlugin._
 import ScalateKeys._
+import sbtassembly.Plugin.AssemblyKeys
 
 object BuildParameters {
   val Organization = "com.socrata"
@@ -20,6 +22,8 @@ object BuildParameters {
 object SpandexBuild extends Build {
   import BuildParameters._
   import Dependencies._
+
+  lazy val styletask = taskKey[Unit]("a task that wraps 'scalastyle' with no input parameters")
 
   lazy val project = Project (
     "spandex",
@@ -44,7 +48,9 @@ object SpandexBuild extends Build {
             Some("templates")
           )
         )
-      }
+      },
+      styletask := { val _ = (scalastyle in Compile).toTask("").value },
+      (Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styletask
     )
   )
 }
