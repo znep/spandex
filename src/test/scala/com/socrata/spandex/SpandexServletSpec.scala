@@ -7,13 +7,13 @@ import org.scalatra.test.scalatest._
 
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
-  override def beforeAll: Unit = {
-    super.beforeAll
+  override def beforeAll(): Unit = {
+    super.beforeAll()
     addServlet(new SpandexServlet(), "/*")
   }
 
-  override def afterAll: Unit = {
-    super.afterAll
+  override def afterAll(): Unit = {
+    super.afterAll()
   }
 
   test("get of index page") {
