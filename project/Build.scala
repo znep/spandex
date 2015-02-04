@@ -15,7 +15,6 @@ object BuildParameters {
   val ScalatraVersion = "2.2.2"
   val Conf = config("container")
   val ListenPort = 8042
-  val DataCoordinatorVersion = "0.0.1-SNAPSHOT"
 }
 
 object SpandexBuild extends Build {
@@ -54,8 +53,6 @@ object Dependencies {
   import BuildParameters._
 
   lazy val socrataDeps = Seq(
-    "com.socrata" %% "secondarylib" % DataCoordinatorVersion, // % "provided"
-    "com.socrata" %% "coordinator" % DataCoordinatorVersion
   )
   lazy val scalatraDeps = Seq(
     "org.scalatra" %% "scalatra" % ScalatraVersion,
