@@ -7,6 +7,8 @@ import org.scalatra.test.scalatest._
 
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
+  val acknowledged = "\"acknowledged\":true"
+
   override def beforeAll(): Unit = {
     super.beforeAll()
     addServlet(new SpandexServlet(), "/*")
@@ -38,41 +40,40 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     }
   }
 
-  test("addindex new dataset"){
-    get("/addindex/qnmj-8ku6"){
+  test("add new dataset"){
+    get("/add/qnmj-8ku6"){
       status should equal (HttpStatus.SC_OK)
-      body should include ("{\"acknowledged\":true}")
+      body should include (acknowledged)
+      body should include ("\"4x4\":\"qnmj-8ku6\"")
     }
   }
 
-  test("addcol new column"){
-    get("/addcol/qnmj-8ku6/crimeType"){
+  test("add new column"){
+    get("/add/qnmj-8ku6/crimeType"){
       status should equal (HttpStatus.SC_OK)
-      body should include ("{\"acknowledged\":true}")
+      body should include (acknowledged)
+      body should include ("\"4x4\":\"qnmj-8ku6\"")
+      body should include ("\"col\":\"crimeType\"")
     }
   }
 
   test("version upsert"){
-    post(
-      "/version/qnmj-8ku6",
-      "{\"_id\": \"1\", \"crimeType\": \"NARCOTICS\"}\n" +
-        "{\"_id\": \"2\", \"crimeType\": \"PUBLIC INDECENCY\"}"
+    post("/ver/qnmj-8ku6",
+      "{\"_id\":\"1\", \"crimeType\":\"NARCOTICS\"}\n" +
+        "{\"_id\":\"2\", \"crimeType\":\"PUBLIC INDECENCY\"}"
     ){
       status should equal (HttpStatus.SC_OK)
-      body should include ("{\"create\":{\"_index\":\"chicago\",\"_type\":\"qnmj-8ku6\"," +
-        "\"_id\":\"1\",\"_version\":1,\"status\":201}}")
-      body should include ("{\"create\":{\"_index\":\"chicago\",\"_type\":\"qnmj-8ku6\"," +
-        "\"_id\":\"2\",\"_version\":1,\"status\":201}}")
+      body should include (acknowledged)
+      body should include ("\"qnmj-8ku6\"")
+      body should include ("\"_id\":\"1\"")
+      body should include ("\"_id\":\"2\"")
     }
   }
 
   test("resync"){
-    post(
-      "/resync/gnmj-8ku6",
-      ""
-    ){
+    get("/syn/gnmj-8ku6"){
       status should equal (HttpStatus.SC_OK)
-      body should include ("{\"acknowledged\":true}")
+      body should include (acknowledged)
     }
   }
 
@@ -80,6 +81,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     get("/suggest/qnmj-8ku6/crimeType/nar"){
       status should equal (HttpStatus.SC_OK)
       body should include ("NARCOTICS")
+      body shouldNot include ("PUBLIC INDECENCY")
     }
   }
 }
