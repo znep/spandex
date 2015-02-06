@@ -13,7 +13,7 @@ object BuildParameters {
   val Organization = "com.socrata"
   val Name = "spandex"
   val Version = "0.1.0-SNAPSHOT"
-  val ScalaVersion = "2.10.3"
+  val ScalaVersion = "2.10.4"
   val ScalatraVersion = "2.2.2"
   val Conf = config("container")
   val ListenPort = 8042
