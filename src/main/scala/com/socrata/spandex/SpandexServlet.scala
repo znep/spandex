@@ -1,8 +1,11 @@
 package com.socrata.spandex
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
+import scala.concurrent.duration.Duration
+import scala.concurrent.Await
+import wabisabi.{Client => ElasticsearchClient}
 
-class SpandexServlet extends SpandexStack {
+class SpandexServlet(elasticsearch: ElasticsearchClient) extends SpandexStack {
 
   get("//?") {
     // TODO: spandex getting started and/or quick reference
@@ -14,8 +17,8 @@ class SpandexServlet extends SpandexStack {
   }
 
   get ("/health/?"){
-    // TODO: report health
-    "{\"health\":\"alive\"}"
+    val response = Await.result(elasticsearch.health(level = Some("cluster")), Duration("1s"))
+    response.getResponseBody
   }
 
   get ("/add/:4x4/?"){

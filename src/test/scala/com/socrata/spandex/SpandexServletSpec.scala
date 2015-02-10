@@ -4,6 +4,7 @@ import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
+import wabisabi.{Client => ElasticsearchClient}
 
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
@@ -11,7 +12,9 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    addServlet(new SpandexServlet(), "/*")
+    // TODO: config value for elasticsearch cluster url
+    val elasticsearch = new ElasticsearchClient("http://eel:9200")
+    addServlet(new SpandexServlet(elasticsearch), "/*")
   }
 
   override def afterAll(): Unit = {
@@ -36,7 +39,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   test("get health status page") {
     get("/health"){
       status should equal (HttpStatus.SC_OK)
-      body should include ("{\"health\":\"alive\"}")
+      body should include ("\"status\":\"green\"")
     }
   }
 
