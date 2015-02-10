@@ -1,4 +1,5 @@
-resolvers ++= Seq(
+resolvers ++= Seq(Classpaths.sbtPluginReleases, Classpaths.typesafeReleases,
+  "gphat" at "https://raw.github.com/gphat/mvn-repo/master/releases/",
   "socrata releases" at "http://repository-socrata-oss.forge.cloudbees.com/release",
   "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases"
 )

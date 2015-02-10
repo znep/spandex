@@ -34,8 +34,8 @@ object SpandexBuild extends Build {
       version := Version,
       scalaVersion := ScalaVersion,
       port in Conf := ListenPort,
-      resolvers += Classpaths.typesafeReleases,
-      libraryDependencies ++= socrataDeps ++ scalatraDeps ++ jettyDeps ++ rojomaDeps ++ testDeps,
+      resolvers ++= resolverList,
+      libraryDependencies ++= socrataDeps ++ scalatraDeps ++ jettyDeps ++ testDeps ++ miscDeps,
       scalacOptions ++= Seq("-Xlint", "-deprecation", "-Xfatal-warnings", "-feature"),
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(
@@ -58,7 +58,17 @@ object SpandexBuild extends Build {
 object Dependencies {
   import BuildParameters._
 
+  lazy val resolverList = Seq(
+    "gphat" at "https://raw.github.com/gphat/mvn-repo/master/releases/",
+    "socrata releases" at "http://repository-socrata-oss.forge.cloudbees.com/release",
+    "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases",
+    Classpaths.sbtPluginReleases,
+    Classpaths.typesafeReleases
+  )
+
   lazy val socrataDeps = Seq(
+    "com.rojoma" %% "rojoma-json" % "2.4.3",
+    "com.rojoma" %% "simple-arm" % "1.2.0"
   )
   lazy val scalatraDeps = Seq(
     "org.scalatra" %% "scalatra" % ScalatraVersion,
@@ -71,12 +81,11 @@ object Dependencies {
     "org.eclipse.jetty" % "jetty-plus" % "9.1.5.v20140505" % "container",
     "javax.servlet" % "javax.servlet-api" % "3.1.0"
   )
-  lazy val rojomaDeps = Seq(
-    "com.rojoma" %% "rojoma-json" % "2.4.3",
-    "com.rojoma" %% "simple-arm" % "1.2.0"
-  )
   lazy val testDeps = Seq(
     "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
     "org.scalatest" %% "scalatest" % "2.1.0" % "test"
+  )
+  lazy val miscDeps = Seq(
+    "wabisabi" %% "wabisabi" % "2.0.11"
   )
 }
