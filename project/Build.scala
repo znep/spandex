@@ -67,7 +67,7 @@ object Dependencies {
   )
 
   lazy val socrataDeps = Seq(
-    "com.rojoma" %% "rojoma-json" % "2.4.3",
+    "com.rojoma" %% "rojoma-json-v3" % "3.2.2",
     "com.rojoma" %% "simple-arm" % "1.2.0"
   )
   lazy val scalatraDeps = Seq(
