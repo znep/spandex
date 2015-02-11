@@ -89,6 +89,10 @@ class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
     response.getResponseBody
   }
 
+  get ("/mapping"){
+    Await.result(esc.getMapping(indices,Seq.empty), Duration("1s")).getResponseBody
+  }
+
   get ("/add/:4x4/?"){
     val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
     // TODO: elasticsearch add index routing

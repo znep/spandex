@@ -43,10 +43,21 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     }
   }
 
+  test("get all spandex mappings") {
+    get("/mapping") {
+      status should equal (HttpStatus.SC_OK)
+      body should include ("spandex")
+    }
+  }
+
   test("add new dataset"){
     get("/add/qnmj-8ku6"){
       status should equal (HttpStatus.SC_OK)
       body should include (acknowledged)
+    }
+    get("/mapping") {
+      status should equal (HttpStatus.SC_OK)
+      body should include ("qnmj-8ku6")
     }
   }
 
@@ -54,6 +65,10 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     get("/add/qnmj-8ku6/crimeType"){
       status should equal (HttpStatus.SC_OK)
       body should include (acknowledged)
+    }
+    get("/mapping") {
+      status should equal (HttpStatus.SC_OK)
+      body should include ("crimeType")
     }
   }
 
