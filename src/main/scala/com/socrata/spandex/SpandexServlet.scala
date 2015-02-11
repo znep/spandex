@@ -1,8 +1,14 @@
 package com.socrata.spandex
 
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.io.JsonReader
+import com.rojoma.json.v3.jpath.JPath
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
+import scala.util.Try
+
 import wabisabi.{Client => ElasticsearchClient}
 
 class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
@@ -56,8 +62,18 @@ class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
       |    "max_input_length": 30720
       |}
     """.stripMargin
-  private def mapping(fourbyfour: String, columns: Seq[String]): String =
-     mappingBase.format(fourbyfour, columns.map(mappingCol.format(_)).mkString(","))
+  private def updateMapping(fourbyfour: String, column: String = null): String = {
+    val _ = indices.map(ensureIndex)
+
+    val previousMapping = Await.result(esc.getMapping(indices, Seq(fourbyfour)), Duration("1s")).getResponseBody
+    val cs: List[String] = Try(new JPath(JsonReader.fromString(previousMapping)).*.*.down(fourbyfour).
+      down("properties").finish.collect { case JObject(fields) => fields.keys.toList }.head).getOrElse(Nil)
+
+    val newColumns = if (column == null || cs.contains(column)) cs else column :: cs
+    val newMapping = mappingBase.format(fourbyfour, newColumns.map(mappingCol.format(_)).mkString(","))
+
+    Await.result(esc.putMapping(indices, fourbyfour, newMapping), Duration("1s")).getResponseBody
+  }
 
   get("//?") {
     // TODO: spandex getting started and/or quick reference
@@ -76,29 +92,13 @@ class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
   get ("/add/:4x4/?"){
     val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
     // TODO: elasticsearch add index routing
-    indices.map(ensureIndex)
-    val previousMapping = Await.result(esc.getMapping(indices, Seq(fourbyfour)), Duration("1s")).getResponseBody
-    val newMapping = mapping(fourbyfour, Seq.empty)
-    if (previousMapping != newMapping) {
-      Await.result(esc.putMapping(indices, fourbyfour, newMapping), Duration("1s")).getResponseBody
-    } else {
-      """{
-        | "acknowledged":true
-        |}
-      """.stripMargin.format(fourbyfour)
-    }
+    updateMapping(fourbyfour)
   }
 
   get ("/add/:4x4/:col/?"){
     val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
     val column = params.getOrElse("col", halt(HttpStatus.SC_BAD_REQUEST))
-    // TODO: elasticsearch add mappings
-    """{
-      | "acknowledged":true,
-      | "4x4":"%s",
-      | "col":"%s"
-      |}
-    """.stripMargin.format(fourbyfour, column)
+    updateMapping(fourbyfour, column)
   }
 
   get ("/syn/:4x4"){

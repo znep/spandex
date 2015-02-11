@@ -54,8 +54,6 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     get("/add/qnmj-8ku6/crimeType"){
       status should equal (HttpStatus.SC_OK)
       body should include (acknowledged)
-      body should include ("\"4x4\":\"qnmj-8ku6\"")
-      body should include ("\"col\":\"crimeType\"")
     }
   }
 
