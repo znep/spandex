@@ -42,7 +42,7 @@ class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
     """
       |{
       |    "%s": {
-      |        "_source": {"enabled": false},
+      |        "_source": {"enabled": true},
       |        "_all": {"enabled": false},
       |        "properties": {
       |            %s

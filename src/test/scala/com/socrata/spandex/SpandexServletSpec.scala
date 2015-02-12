@@ -88,6 +88,43 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     }
   }
 
+  test("version delete") {
+    post("/ver/qnmj-8ku6",
+      """
+        |{"index": {"_id": "3"} }
+        |{"crimeType": "NARCOTICS"}
+      """.stripMargin
+    ) { }
+    post("/ver/qnmj-8ku6",
+      """
+        |{"delete": {"_id": "3"}
+      """.stripMargin
+    ) {
+      status should equal(HttpStatus.SC_OK)
+      body should include("\"errors\":false")
+      body should include("\"delete\":{\"_index\":\"spandex\",\"_type\":\"qnmj-8ku6\",\"_id\":\"3\"")
+    }
+  }
+
+  test("version update") {
+    post("/ver/qnmj-8ku6",
+    """
+      |{"index": {"_id": "4"} }
+      |{"crimeType": "NARCOTICS"}
+    """.stripMargin
+    ) { }
+    post("/ver/qnmj-8ku6",
+      """
+        |{"update": {"_id": "4"} }
+        |{"doc": {"crime": "Littering and smoking the reefer"} }
+      """.stripMargin
+    ) {
+      status should equal(HttpStatus.SC_OK)
+      body should include("\"errors\":false")
+      body should include("\"update\":{\"_index\":\"spandex\",\"_type\":\"qnmj-8ku6\",\"_id\":\"4\"")
+    }
+  }
+
   test("resync"){
     get("/syn/gnmj-8ku6"){
       status should equal (HttpStatus.SC_OK)
