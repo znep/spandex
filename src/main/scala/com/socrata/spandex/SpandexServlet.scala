@@ -107,12 +107,8 @@ class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
 
   get ("/syn/:4x4"){
     val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
-    // TODO: elasticsearch delete mappings and documents
-    """{
-      | "acknowledged":true,
-      | "4x4":"%s"
-      |}
-    """.stripMargin.format(fourbyfour)
+    val matchall = "{\"query\": { \"match_all\": {} } }"
+    Await.result(esc.deleteByQuery(indices, Seq(fourbyfour), matchall), Duration("1d")).getResponseBody
   }
 
   get ("/suggest/:4x4/:col/:txt") {

@@ -88,7 +88,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   test("resync"){
     get("/syn/gnmj-8ku6"){
       status should equal (HttpStatus.SC_OK)
-      body should include (acknowledged)
+      body should include ("\"failed\":0}")
     }
   }
 
