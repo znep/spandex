@@ -72,16 +72,19 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     }
   }
 
-  test("version upsert"){
+  test("version insert") {
     post("/ver/qnmj-8ku6",
-      "{\"_id\":\"1\", \"crimeType\":\"NARCOTICS\"}\n" +
-        "{\"_id\":\"2\", \"crimeType\":\"PUBLIC INDECENCY\"}"
-    ){
-      status should equal (HttpStatus.SC_OK)
-      body should include (acknowledged)
-      body should include ("\"qnmj-8ku6\"")
-      body should include ("\"_id\":\"1\"")
-      body should include ("\"_id\":\"2\"")
+    """
+      |{"index": {"_id": "1"} }
+      |{"crimeType": "NARCOTICS"}
+      |{"index": {"_id": "2"} }
+      |{"crimeType": "PUBLIC INDECENCY"}
+    """.stripMargin
+    ) {
+      status should equal(HttpStatus.SC_OK)
+      body should include("\"errors\":false")
+      body should include("\"index\":{\"_index\":\"spandex\",\"_type\":\"qnmj-8ku6\",\"_id\":\"1\"")
+      body should include("\"index\":{\"_index\":\"spandex\",\"_type\":\"qnmj-8ku6\",\"_id\":\"2\"")
     }
   }
 

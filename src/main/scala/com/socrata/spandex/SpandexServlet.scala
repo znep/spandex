@@ -128,13 +128,7 @@ class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
 
   post("/ver/:4x4") {
     val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
-    // TODO: elasticsearch add documents to index
     val updates = request.body
-    """{
-      | "acknowledged":true,
-      | "4x4":"%s",
-      | "updates:" [%s]
-      |}
-    """.stripMargin.format(fourbyfour, updates)
+    indices.map(i => Await.result(esc.bulk(Some(i), Some(fourbyfour), updates), Duration("1d")).getResponseBody)
   }
 }
