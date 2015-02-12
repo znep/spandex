@@ -62,14 +62,14 @@ class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
       |    "max_input_length": 30720
       |}
     """.stripMargin
-  private def updateMapping(fourbyfour: String, column: String = null): String = {
+  private def updateMapping(fourbyfour: String, column: Option[String] = None): String = {
     val _ = indices.map(ensureIndex)
 
     val previousMapping = Await.result(esc.getMapping(indices, Seq(fourbyfour)), Duration("1s")).getResponseBody
     val cs: List[String] = Try(new JPath(JsonReader.fromString(previousMapping)).*.*.down(fourbyfour).
       down("properties").finish.collect { case JObject(fields) => fields.keys.toList }.head).getOrElse(Nil)
 
-    val newColumns = if (column == null || cs.contains(column)) cs else column :: cs
+    val newColumns = if (column == None || cs.contains(column)) cs else column.get :: cs
     val newMapping = mappingBase.format(fourbyfour, newColumns.map(mappingCol.format(_)).mkString(","))
 
     Await.result(esc.putMapping(indices, fourbyfour, newMapping), Duration("1s")).getResponseBody
@@ -102,7 +102,7 @@ class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
   get ("/add/:4x4/:col/?"){
     val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
     val column = params.getOrElse("col", halt(HttpStatus.SC_BAD_REQUEST))
-    updateMapping(fourbyfour, column)
+    updateMapping(fourbyfour, Some(column))
   }
 
   get ("/syn/:4x4"){
