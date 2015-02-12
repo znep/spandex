@@ -59,7 +59,7 @@ class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
       |    "payloads": false,
       |    "preserve_separators": false,
       |    "preserve_position_increments": false,
-      |    "max_input_length": 30720
+      |    "max_input_length": 50
       |}
     """.stripMargin
   private def updateMapping(fourbyfour: String, column: Option[String] = None): String = {
@@ -114,16 +114,13 @@ class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
   get ("/suggest/:4x4/:col/:txt") {
     val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
     val column = params.getOrElse("col", halt(HttpStatus.SC_BAD_REQUEST))
-    val querytext = params.getOrElse("txt", halt(HttpStatus.SC_BAD_REQUEST))
-    // TODO: elasticsearch query
-    val expectedanswer = """{"phrase":"NARCOTICS", "weight":1.0}"""
-    """{
-      | "4x4":"%s",
-      | "col":"%s",
-      | "text":"%s",
-      | "suggestions": [%s]
-      |}
-    """.stripMargin.format(fourbyfour, column, querytext, expectedanswer)
+    val text = params.getOrElse("txt", halt(HttpStatus.SC_BAD_REQUEST))
+    val query =
+      """
+        |{"suggest": {"text":"%s", "completion": {"field": "%s", "fuzzy": {"fuzziness": 2} } } }
+      """.stripMargin.format(text, column)
+    // TODO: get wabisabi to implement suggest endpoint
+    indices.map(i => Await.result(esc.search(i, query), Duration("10s")).getResponseBody)
   }
 
   post("/ver/:4x4") {

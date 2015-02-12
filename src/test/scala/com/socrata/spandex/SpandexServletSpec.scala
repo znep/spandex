@@ -107,6 +107,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   }
 
   test("version update") {
+    get("/add/qnmj-8ku6/crime") { }
     post("/ver/qnmj-8ku6",
     """
       |{"index": {"_id": "4"} }
