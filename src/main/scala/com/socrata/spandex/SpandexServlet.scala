@@ -119,7 +119,7 @@ class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
       """
         |{"suggest": {"text":"%s", "completion": {"field": "%s", "fuzzy": {"fuzziness": 2} } } }
       """.stripMargin.format(text, column)
-    // TODO: get wabisabi to implement suggest endpoint
+    // TODO: wabisabi pull request https://github.com/gphat/wabisabi/pull/18
     indices.map(i => Await.result(esc.search(i, query), Duration("10s")).getResponseBody)
   }
 
