@@ -86,6 +86,7 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % "2.1.0" % "test"
   )
   lazy val miscDeps = Seq(
+    "com.typesafe" % "config" % "1.2.1",
     "wabisabi" %% "wabisabi" % "2.0.11"
   )
 }

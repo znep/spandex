@@ -2,6 +2,7 @@ package com.socrata.spandex
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
+import com.typesafe.config.{ConfigFactory, Config}
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
 import wabisabi.{Client => ElasticsearchClient}
@@ -12,8 +13,9 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    // TODO: config value for elasticsearch cluster url
-    val elasticsearch = new ElasticsearchClient("http://eel:9200")
+    val conf: Config = ConfigFactory.load()
+    val esUrl: String = conf.getString("spandex.elasticsearch.url")
+    val elasticsearch = new ElasticsearchClient(esUrl)
     addServlet(new SpandexServlet(elasticsearch), "/*")
   }
 
@@ -39,7 +41,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   test("get health status page") {
     get("/health"){
       status should equal (HttpStatus.SC_OK)
-      body should include ("\"status\":\"green\"")
+      body should include ("\"status\"")
     }
   }
 
