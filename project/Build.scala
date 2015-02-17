@@ -87,6 +87,6 @@ object Dependencies {
   )
   lazy val miscDeps = Seq(
     "com.typesafe" % "config" % "1.2.1",
-    "wabisabi" %% "wabisabi" % "2.0.11"
+    "wabisabi" %% "wabisabi" % "2.0.15"
   )
 }
