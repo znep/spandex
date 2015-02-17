@@ -11,7 +11,8 @@ import scala.util.Try
 
 import wabisabi.{Client => ElasticsearchClient}
 
-class SpandexServlet(esc: ElasticsearchClient) extends SpandexStack {
+class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
+  private val esc: ElasticsearchClient = new ElasticsearchClient(conf.esUrl)
   private val indices = Seq("spandex")
   private val indexSettings =
     """

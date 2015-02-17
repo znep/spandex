@@ -6,12 +6,9 @@ import org.scalatra._
 import wabisabi.{Client => ElasticsearchClient}
 
 class ScalatraBootstrap extends LifeCycle {
-  val conf: Config = ConfigFactory.load()
-  val esUrl: String = conf.getString("spandex.elasticsearch.url")
-
-  val elasticsearch = new ElasticsearchClient(esUrl)
+  val conf: SpandexConfig = new SpandexConfig(ConfigFactory.load())
 
   override def init(context: ServletContext) {
-    context.mount(new SpandexServlet(elasticsearch), "/*")
+    context.mount(new SpandexServlet(conf), "/*")
   }
 }

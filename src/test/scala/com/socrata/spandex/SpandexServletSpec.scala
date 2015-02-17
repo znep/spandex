@@ -13,10 +13,8 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val conf: Config = ConfigFactory.load()
-    val esUrl: String = conf.getString("spandex.elasticsearch.url")
-    val elasticsearch = new ElasticsearchClient(esUrl)
-    addServlet(new SpandexServlet(elasticsearch), "/*")
+    val conf: SpandexConfig = new SpandexConfig(ConfigFactory.load())
+    addServlet(new SpandexServlet(conf), "/*")
   }
 
   override def afterAll(): Unit = {
