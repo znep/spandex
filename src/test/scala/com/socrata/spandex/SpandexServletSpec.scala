@@ -97,7 +97,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     ) { }
     post("/ver/qnmj-8ku6",
       """
-        |{"delete": {"_id": "3"}
+        |{"delete": {"_id": "3"} }
       """.stripMargin
     ) {
       status should equal(HttpStatus.SC_OK)
