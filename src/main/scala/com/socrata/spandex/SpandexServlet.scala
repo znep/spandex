@@ -20,7 +20,7 @@ class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
   private def ensureIndex(index: String): String = {
     val indexResponse = Await.result(esc.verifyIndex(index), conf.escTimeoutFast)
     val resultHttpCode = indexResponse.getStatusCode
-    if (resultHttpCode == HttpStatus.SC_NOT_FOUND) {
+    if (resultHttpCode != HttpStatus.SC_OK) {
       Await.result(esc.createIndex(index, Some(indexSettings)), conf.escTimeoutFast).getResponseBody
     } else {
       indexResponse.getResponseBody
