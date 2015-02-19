@@ -51,7 +51,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   }
 
   test("add new dataset"){
-    get("/add/qnmj-8ku6"){
+    post("/add/qnmj-8ku6"){
       status should equal (HttpStatus.SC_OK)
       body should include (acknowledged)
     }
@@ -62,7 +62,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   }
 
   test("add new column"){
-    get("/add/qnmj-8ku6/crimeType"){
+    post("/add/qnmj-8ku6/crimeType"){
       status should equal (HttpStatus.SC_OK)
       body should include (acknowledged)
     }
@@ -107,7 +107,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   }
 
   test("version update") {
-    get("/add/qnmj-8ku6/crime") { }
+    post("/add/qnmj-8ku6/crime") { }
     post("/ver/qnmj-8ku6",
     """
       |{"index": {"_id": "4"} }
@@ -127,7 +127,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   }
 
   test("resync"){
-    get("/syn/gnmj-8ku6"){
+    post("/syn/gnmj-8ku6"){
       status should equal (HttpStatus.SC_OK)
       body should include ("\"failed\":0}")
     }
