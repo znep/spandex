@@ -9,11 +9,11 @@ class ScalatraBootstrap extends LifeCycle {
   val conf = new SpandexConfig
 
   override def init(context: ServletContext) {
-    val _ = ensureIndex
+    val _ = ensureIndex()
     context.mount(new SpandexServlet(conf), "/*")
   }
 
-  private def ensureIndex: String = {
+  private def ensureIndex(): String = {
     val esc = new ElasticsearchClient(conf.esUrl)
     val indexResponse = Await.result(esc.verifyIndex(conf.index), conf.escTimeoutFast)
     val resultHttpCode = indexResponse.getStatusCode
