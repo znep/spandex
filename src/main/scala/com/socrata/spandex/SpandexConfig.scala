@@ -7,7 +7,7 @@ import scala.concurrent.duration.Duration
 class SpandexConfig(conf: Config = ConfigFactory.load()) {
   val port: Int = conf.getInt("spandex.port")
   val esUrl: String = conf.getString("spandex.elasticsearch.url")
-  val indices: List[String] = conf.getStringList("spandex.elasticsearch.indices").toList
+  val index: String = conf.getString("spandex.elasticsearch.index")
   val indexSettings: String = conf.getString("spandex.elasticsearch.indexSettings")
   val indexBaseMapping: String = conf.getString("spandex.elasticsearch.indexBaseMapping")
   val indexColumnMapping: String = conf.getString("spandex.elasticsearch.indexColumnMapping")

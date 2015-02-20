@@ -12,7 +12,8 @@ import wabisabi.{Client => ElasticsearchClient}
 
 class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
   private val esc: ElasticsearchClient = new ElasticsearchClient(conf.esUrl)
-  private val indices = conf.indices
+  private val index = conf.index
+  private val indices = List(index)
   private val indexSettings = conf.indexSettings
   private val mappingBase = conf.indexBaseMapping
   private val mappingCol = conf.indexColumnMapping
@@ -28,7 +29,7 @@ class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
   }
 
   private def updateMapping(fourbyfour: String, column: Option[String] = None): String = {
-    val _ = indices.map(ensureIndex)
+    ensureIndex(index)
 
     val previousMapping = Await.result(esc.getMapping(indices, Seq(fourbyfour)), conf.escTimeoutFast).getResponseBody
     val cs: List[String] = Try(new JPath(JsonReader.fromString(previousMapping)).*.*.down(fourbyfour).
@@ -84,12 +85,12 @@ class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
       """
         |{"suggest": {"text":"%s", "completion": {"field": "%s", "fuzzy": {"fuzziness": 2} } } }
       """.stripMargin.format(text, column)
-    indices.map(i => Await.result(esc.suggest(i, query), conf.escTimeoutFast).getResponseBody)
+    Await.result(esc.suggest(index, query), conf.escTimeoutFast).getResponseBody
   }
 
   post("/ver/:4x4") {
     val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
     val updates = request.body
-    indices.map(i => Await.result(esc.bulk(Some(i), Some(fourbyfour), updates), conf.escTimeout).getResponseBody)
+    Await.result(esc.bulk(Some(index), Some(fourbyfour), updates), conf.escTimeout).getResponseBody
   }
 }
