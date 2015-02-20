@@ -9,7 +9,7 @@ object Spandex extends App {
   val conf = new SpandexConfig
 
   override def main(args: Array[String]): Unit = {
-    val port = 8042
+    val port = conf.port
 
     val context = new WebAppContext
     context.setContextPath("/")
