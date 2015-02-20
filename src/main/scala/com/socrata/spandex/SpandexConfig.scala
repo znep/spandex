@@ -1,10 +1,10 @@
 package com.socrata.spandex
 
-import com.typesafe.config.Config
+import com.typesafe.config.{ConfigFactory, Config}
 import scala.collection.JavaConversions._
 import scala.concurrent.duration.Duration
 
-class SpandexConfig(conf: Config) {
+class SpandexConfig(conf: Config = ConfigFactory.load()) {
   val esUrl: String = conf.getString("spandex.elasticsearch.url")
   val indices: List[String] = conf.getStringList("spandex.elasticsearch.indices").toList
   val indexSettings: String = conf.getString("spandex.elasticsearch.indexSettings")

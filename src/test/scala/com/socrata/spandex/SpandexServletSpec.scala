@@ -2,10 +2,8 @@ package com.socrata.spandex
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
-import com.typesafe.config.{ConfigFactory, Config}
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
-import wabisabi.{Client => ElasticsearchClient}
 
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
@@ -13,7 +11,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val conf: SpandexConfig = new SpandexConfig(ConfigFactory.load())
+    val conf: SpandexConfig = new SpandexConfig
     addServlet(new SpandexServlet(conf), "/*")
   }
 
