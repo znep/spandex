@@ -11,7 +11,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val conf: SpandexConfig = new SpandexConfig
+    val conf = new SpandexConfig
     addServlet(new SpandexServlet(conf), "/*")
   }
 
