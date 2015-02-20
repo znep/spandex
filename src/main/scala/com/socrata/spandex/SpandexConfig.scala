@@ -10,6 +10,7 @@ class SpandexConfig(conf: Config = ConfigFactory.load().getConfig("com.socrata.s
   val indexSettings: String = conf.getString("elasticsearch.indexSettings")
   val indexBaseMapping: String = conf.getString("elasticsearch.indexBaseMapping")
   val indexColumnMapping: String = conf.getString("elasticsearch.indexColumnMapping")
+  // TODO: use socrata-thirdparty-utils ConfigClass getDuration
   val escTimeoutFast: Duration = Duration(conf.getString("elasticsearch.esClientTimeoutFast"))
   val escTimeout: Duration = Duration(conf.getString("elasticsearch.esClientTimeoutContent"))
 }
