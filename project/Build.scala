@@ -1,12 +1,12 @@
 import sbt._
-import Keys._
+import sbt.Keys._
 import org.scalastyle.sbt.ScalastylePlugin.scalastyle
 import org.scalatra.sbt._
 import org.scalatra.sbt.PluginKeys._
 import com.earldouglas.xsbtwebplugin.PluginKeys._
 import com.earldouglas.xsbtwebplugin.WebPlugin._
 import com.mojolly.scalate.ScalatePlugin._
-import ScalateKeys._
+import com.mojolly.scalate.ScalatePlugin.ScalateKeys._
 import sbtassembly.Plugin.AssemblyKeys
 
 object BuildParameters {
@@ -16,7 +16,7 @@ object BuildParameters {
   val ScalaVersion = "2.10.4"
   val ScalatraVersion = "2.2.2"
   val Conf = config("container")
-  val ListenPort = 8042
+  val ListenPort = 8042 // required for container embedded jetty
 }
 
 object SpandexBuild extends Build {
@@ -72,8 +72,7 @@ object Dependencies {
   )
   lazy val scalatraDeps = Seq(
     "org.scalatra" %% "scalatra" % ScalatraVersion,
-    "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
-    "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test"
+    "org.scalatra" %% "scalatra-scalate" % ScalatraVersion
   )
   lazy val jettyDeps = Seq(
     "ch.qos.logback" % "logback-classic" % "1.1.2" % "runtime",
@@ -82,6 +81,7 @@ object Dependencies {
     "javax.servlet" % "javax.servlet-api" % "3.1.0"
   )
   lazy val testDeps = Seq(
+    "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
     "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
     "org.scalatest" %% "scalatest" % "2.1.0" % "test"
   )

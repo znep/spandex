@@ -5,6 +5,7 @@ import scala.collection.JavaConversions._
 import scala.concurrent.duration.Duration
 
 class SpandexConfig(conf: Config = ConfigFactory.load()) {
+  val port: Int = conf.getInt("spandex.port")
   val esUrl: String = conf.getString("spandex.elasticsearch.url")
   val indices: List[String] = conf.getStringList("spandex.elasticsearch.indices").toList
   val indexSettings: String = conf.getString("spandex.elasticsearch.indexSettings")
