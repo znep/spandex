@@ -14,23 +14,10 @@ class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
   private val esc: ElasticsearchClient = new ElasticsearchClient(conf.esUrl)
   private val index = conf.index
   private val indices = List(index)
-  private val indexSettings = conf.indexSettings
   private val mappingBase = conf.indexBaseMapping
   private val mappingCol = conf.indexColumnMapping
 
-  private def ensureIndex(index: String): String = {
-    val indexResponse = Await.result(esc.verifyIndex(index), conf.escTimeoutFast)
-    val resultHttpCode = indexResponse.getStatusCode
-    if (resultHttpCode != HttpStatus.SC_OK) {
-      Await.result(esc.createIndex(index, Some(indexSettings)), conf.escTimeoutFast).getResponseBody
-    } else {
-      indexResponse.getResponseBody
-    }
-  }
-
   private def updateMapping(fourbyfour: String, column: Option[String] = None): String = {
-    ensureIndex(index)
-
     val previousMapping = Await.result(esc.getMapping(indices, Seq(fourbyfour)), conf.escTimeoutFast).getResponseBody
     val cs: List[String] = Try(new JPath(JsonReader.fromString(previousMapping)).*.*.down(fourbyfour).
       down("properties").finish.collect { case JObject(fields) => fields.keys.toList }.head).getOrElse(Nil)
