@@ -2,19 +2,19 @@ import sbt._
 import sbt.Keys._
 import org.scalastyle.sbt.ScalastylePlugin.scalastyle
 import org.scalatra.sbt._
-import org.scalatra.sbt.PluginKeys._
-import com.earldouglas.xsbtwebplugin.PluginKeys._
-import com.earldouglas.xsbtwebplugin.WebPlugin._
+import com.earldouglas.xsbtwebplugin.PluginKeys.port
 import com.mojolly.scalate.ScalatePlugin._
 import com.mojolly.scalate.ScalatePlugin.ScalateKeys._
-import sbtassembly.Plugin.AssemblyKeys
+import sbtassembly.AssemblyKeys._
+import sbtassembly.MergeStrategy
 
 object BuildParameters {
   val Organization = "com.socrata"
   val Name = "spandex"
   val Version = "0.1.0-SNAPSHOT"
   val ScalaVersion = "2.10.4"
-  val ScalatraVersion = "2.2.2"
+  val ScalatraVersion = "2.3.0"
+  val JettyVersion = "9.2.1.v20140609" // pinned to this version in Scalatra
   val Conf = config("container")
   val ListenPort = 8042 // required for container embedded jetty
 }
@@ -49,7 +49,25 @@ object SpandexBuild extends Build {
           )
         )
       },
+      test in assembly := {},
+      assemblyMergeStrategy in assembly := {
+          case "about.html" => MergeStrategy.first
+          case x =>
+            val old = (assemblyMergeStrategy in assembly).value
+            old(x)
+      },
+      resourceGenerators in Compile <+= (resourceManaged, baseDirectory) map {
+        (managed, base) =>
+          val webappBase = base / "src" / "main" / "webapp"
+          for {
+            (from, to) <- webappBase ** "*" pair rebase(webappBase, managed / "main" / "webapp")
+          } yield {
+            Sync.copy(from,to)
+            to
+          }
+      },
       styletask := { val _ = (scalastyle in Compile).toTask("").value },
+      assembly <<= assembly dependsOn styletask,
       (Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styletask
     )
   )
@@ -76,8 +94,8 @@ object Dependencies {
   )
   lazy val jettyDeps = Seq(
     "ch.qos.logback" % "logback-classic" % "1.1.2" % "runtime",
-    "org.eclipse.jetty" % "jetty-webapp" % "9.1.5.v20140505" % "container",
-    "org.eclipse.jetty" % "jetty-plus" % "9.1.5.v20140505" % "container",
+    "org.eclipse.jetty" % "jetty-webapp" % JettyVersion % "container;compile",
+    "org.eclipse.jetty" % "jetty-plus" % JettyVersion % "container",
     "javax.servlet" % "javax.servlet-api" % "3.1.0"
   )
   lazy val testDeps = Seq(
