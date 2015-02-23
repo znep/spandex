@@ -9,7 +9,7 @@ object Spandex extends App {
   val conf = new SpandexConfig
 
   override def main(args: Array[String]): Unit = {
-    SpandexBootstrap.ensureIndex(conf)
+     SpandexBootstrap.ensureIndex(conf)
 
     val port = conf.port
 

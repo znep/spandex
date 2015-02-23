@@ -25,18 +25,37 @@ object SpandexBuild extends Build {
 
   lazy val styletask = taskKey[Unit]("a task that wraps 'scalastyle' with no input parameters")
 
-  lazy val project = Project (
-    "spandex",
-    file("."),
-    settings = ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ Seq(
-      organization := Organization,
-      name := Name,
-      version := Version,
-      scalaVersion := ScalaVersion,
-      port in Conf := ListenPort,
-      resolvers ++= resolverList,
+  lazy val commonSettings = Seq(
+    organization := Organization,
+    name := Name,
+    version := Version,
+    scalaVersion := ScalaVersion,
+    resolvers ++= resolverList,
+    scalacOptions ++= Seq("-Xlint", "-deprecation", "-Xfatal-warnings", "-feature"),
+    test in assembly := {},
+    assemblyMergeStrategy in assembly := {
+      case "about.html" => MergeStrategy.first
+      case x =>
+        val old = (assemblyMergeStrategy in assembly).value
+        old(x)
+    },
+    styletask := { val _ = (scalastyle in Compile).toTask("").value },
+    assembly <<= assembly dependsOn styletask,
+    (Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styletask
+  )
+
+  lazy val spandexCommon = Project (
+    "spandex-common",
+    file("./spandex-common/"),
+    settings = commonSettings ++ Seq(libraryDependencies ++= socrataDeps ++ testDeps ++ miscDeps)
+  )
+
+  lazy val spandexHttp = Project (
+    "spandex-http",
+    file("./spandex-http/"),
+    settings = commonSettings ++ ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ Seq(
       libraryDependencies ++= socrataDeps ++ scalatraDeps ++ jettyDeps ++ testDeps ++ miscDeps,
-      scalacOptions ++= Seq("-Xlint", "-deprecation", "-Xfatal-warnings", "-feature"),
+      port in Conf := ListenPort,
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(
           TemplateConfig(
@@ -49,13 +68,6 @@ object SpandexBuild extends Build {
           )
         )
       },
-      test in assembly := {},
-      assemblyMergeStrategy in assembly := {
-          case "about.html" => MergeStrategy.first
-          case x =>
-            val old = (assemblyMergeStrategy in assembly).value
-            old(x)
-      },
       resourceGenerators in Compile <+= (resourceManaged, baseDirectory) map {
         (managed, base) =>
           val webappBase = base / "src" / "main" / "webapp"
@@ -65,11 +77,14 @@ object SpandexBuild extends Build {
             Sync.copy(from,to)
             to
           }
-      },
-      styletask := { val _ = (scalastyle in Compile).toTask("").value },
-      assembly <<= assembly dependsOn styletask,
-      (Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styletask
+      }
     )
+  )
+
+  lazy val spandexSecondary = Project (
+    "spandex-secondary",
+    file("./spandex-secondary/"),
+    settings = commonSettings ++ Seq(libraryDependencies ++= socrataDeps ++ testDeps ++ miscDeps)
   )
 }
 
