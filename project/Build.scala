@@ -84,7 +84,7 @@ object SpandexBuild extends Build {
   lazy val spandexSecondary = Project (
     "spandex-secondary",
     file("./spandex-secondary/"),
-    settings = commonSettings ++ Seq(libraryDependencies ++= socrataDeps ++ testDeps ++ miscDeps)
+    settings = commonSettings ++ Seq(libraryDependencies ++= socrataDeps ++ testDeps ++ miscDeps ++ secondaryDeps)
   )
 }
 
@@ -93,7 +93,7 @@ object Dependencies {
 
   lazy val resolverList = Seq(
     "gphat" at "https://raw.github.com/gphat/mvn-repo/master/releases/",
-    "socrata releases" at "http://repository-socrata-oss.forge.cloudbees.com/release",
+    "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release",
     "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases",
     Classpaths.sbtPluginReleases,
     Classpaths.typesafeReleases
@@ -121,5 +121,9 @@ object Dependencies {
   lazy val miscDeps = Seq(
     "com.typesafe" % "config" % "1.2.1",
     "wabisabi" %% "wabisabi" % "2.0.15"
+  )
+  lazy val secondaryDeps = Seq(
+    "com.socrata" %% "secondarylib" % "0.3.1",
+    "com.socrata" %% "coordinator" % "0.3.1"
   )
 }
