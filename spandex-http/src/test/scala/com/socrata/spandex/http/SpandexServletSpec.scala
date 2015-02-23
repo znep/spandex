@@ -1,7 +1,8 @@
-package com.socrata.spandex
+package com.socrata.spandex.http
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
+import com.socrata.spandex.common._
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
 
@@ -42,10 +43,10 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     }
   }
 
-  test("get all spandex mappings") {
+  test("get all com.socrata.spandex.secondary mappings") {
     get("/mapping") {
       status should equal (HttpStatus.SC_OK)
-      body should include ("spandex")
+      body should include ("com.socrata.spandex.secondary")
     }
   }
 
@@ -82,8 +83,8 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     ) {
       status should equal(HttpStatus.SC_OK)
       body should include("\"errors\":false")
-      body should include("\"index\":{\"_index\":\"spandex\",\"_type\":\"qnmj-8ku6\",\"_id\":\"1\"")
-      body should include("\"index\":{\"_index\":\"spandex\",\"_type\":\"qnmj-8ku6\",\"_id\":\"2\"")
+      body should include("\"index\":{\"_index\":\"com.socrata.spandex.secondary\",\"_type\":\"qnmj-8ku6\",\"_id\":\"1\"")
+      body should include("\"index\":{\"_index\":\"com.socrata.spandex.secondary\",\"_type\":\"qnmj-8ku6\",\"_id\":\"2\"")
     }
   }
 
@@ -101,7 +102,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     ) {
       status should equal(HttpStatus.SC_OK)
       body should include("\"errors\":false")
-      body should include("\"delete\":{\"_index\":\"spandex\",\"_type\":\"qnmj-8ku6\",\"_id\":\"3\"")
+      body should include("\"delete\":{\"_index\":\"com.socrata.spandex.secondary\",\"_type\":\"qnmj-8ku6\",\"_id\":\"3\"")
     }
   }
 
@@ -121,7 +122,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     ) {
       status should equal(HttpStatus.SC_OK)
       body should include("\"errors\":false")
-      body should include("\"update\":{\"_index\":\"spandex\",\"_type\":\"qnmj-8ku6\",\"_id\":\"4\"")
+      body should include("\"update\":{\"_index\":\"com.socrata.spandex.secondary\",\"_type\":\"qnmj-8ku6\",\"_id\":\"4\"")
     }
   }
 

@@ -1,6 +1,7 @@
 import javax.servlet.ServletContext
 
-import com.socrata.spandex._
+import com.socrata.spandex.common._
+import com.socrata.spandex.http._
 import org.scalatra._
 
 class ScalatraBootstrap extends LifeCycle {

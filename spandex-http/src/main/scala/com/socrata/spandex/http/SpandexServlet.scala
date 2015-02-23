@@ -1,14 +1,15 @@
-package com.socrata.spandex
+package com.socrata.spandex.http
+
+import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.jpath.JPath
-import javax.servlet.http.{HttpServletResponse => HttpStatus}
+import com.socrata.spandex.common._
+import wabisabi.{Client => ElasticsearchClient}
 
 import scala.concurrent.Await
 import scala.util.Try
-
-import wabisabi.{Client => ElasticsearchClient}
 
 class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
   private val esc: ElasticsearchClient = new ElasticsearchClient(conf.esUrl)
@@ -42,7 +43,7 @@ class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
   }
 
   get("//?") {
-    // TODO: spandex getting started and/or quick reference
+    // TODO: com.socrata.spandex.secondary getting started and/or quick reference
     <html>
       <body>
         <h1>Hello, spandex</h1>

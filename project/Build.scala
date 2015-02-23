@@ -1,16 +1,16 @@
-import sbt._
-import sbt.Keys._
+import com.earldouglas.xsbtwebplugin.PluginKeys.port
+import com.mojolly.scalate.ScalatePlugin.ScalateKeys._
+import com.mojolly.scalate.ScalatePlugin._
 import org.scalastyle.sbt.ScalastylePlugin.scalastyle
 import org.scalatra.sbt._
-import com.earldouglas.xsbtwebplugin.PluginKeys.port
-import com.mojolly.scalate.ScalatePlugin._
-import com.mojolly.scalate.ScalatePlugin.ScalateKeys._
+import sbt.Keys._
+import sbt._
 import sbtassembly.AssemblyKeys._
 import sbtassembly.MergeStrategy
 
 object BuildParameters {
   val Organization = "com.socrata"
-  val Name = "spandex"
+  val Name = "com.socrata.spandex"
   val Version = "0.1.0-SNAPSHOT"
   val ScalaVersion = "2.10.4"
   val ScalatraVersion = "2.3.0"
@@ -27,7 +27,6 @@ object SpandexBuild extends Build {
 
   lazy val commonSettings = Seq(
     organization := Organization,
-    name := Name,
     version := Version,
     scalaVersion := ScalaVersion,
     resolvers ++= resolverList,
@@ -44,17 +43,24 @@ object SpandexBuild extends Build {
     (Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styletask
   )
 
+  lazy val build = Project(
+    "spandex",
+    file(".")
+  ).settings(SpandexBuild.commonSettings: _*).
+    aggregate(spandexCommon, spandexHttp, spandexSecondary).
+    dependsOn(spandexCommon, spandexHttp, spandexSecondary)
+
   lazy val spandexCommon = Project (
     "spandex-common",
     file("./spandex-common/"),
-    settings = commonSettings ++ Seq(libraryDependencies ++= socrataDeps ++ testDeps ++ miscDeps)
+    settings = commonSettings ++ Seq(libraryDependencies ++= socrataDeps ++ testDeps ++ commonDeps)
   )
 
   lazy val spandexHttp = Project (
     "spandex-http",
     file("./spandex-http/"),
     settings = commonSettings ++ ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ Seq(
-      libraryDependencies ++= socrataDeps ++ scalatraDeps ++ jettyDeps ++ testDeps ++ miscDeps,
+      libraryDependencies ++= socrataDeps ++ scalatraDeps ++ jettyDeps ++ testDeps ++ commonDeps,
       port in Conf := ListenPort,
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(
@@ -79,13 +85,13 @@ object SpandexBuild extends Build {
           }
       }
     )
-  )
+  ).dependsOn(spandexCommon)
 
   lazy val spandexSecondary = Project (
     "spandex-secondary",
     file("./spandex-secondary/"),
-    settings = commonSettings ++ Seq(libraryDependencies ++= socrataDeps ++ testDeps ++ miscDeps ++ secondaryDeps)
-  )
+    settings = commonSettings ++ Seq(libraryDependencies ++= socrataDeps ++ testDeps ++ commonDeps ++ secondaryDeps)
+  ).dependsOn(spandexCommon)
 }
 
 object Dependencies {
@@ -110,15 +116,15 @@ object Dependencies {
   lazy val jettyDeps = Seq(
     "ch.qos.logback" % "logback-classic" % "1.1.2" % "runtime",
     "org.eclipse.jetty" % "jetty-webapp" % JettyVersion % "container;compile",
-    "org.eclipse.jetty" % "jetty-plus" % JettyVersion % "container",
-    "javax.servlet" % "javax.servlet-api" % "3.1.0"
+    "org.eclipse.jetty" % "jetty-plus" % JettyVersion % "container"
   )
   lazy val testDeps = Seq(
     "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
     "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
     "org.scalatest" %% "scalatest" % "2.1.0" % "test"
   )
-  lazy val miscDeps = Seq(
+  lazy val commonDeps = Seq(
+    "javax.servlet" % "javax.servlet-api" % "3.1.0",
     "com.typesafe" % "config" % "1.2.1",
     "wabisabi" %% "wabisabi" % "2.0.15"
   )

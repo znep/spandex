@@ -1,4 +1,4 @@
-package com.socrata.spandex
+package com.socrata.spandex.http
 
 import javax.servlet.http.HttpServletRequest
 
