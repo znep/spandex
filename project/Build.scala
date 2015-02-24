@@ -60,7 +60,7 @@ object SpandexBuild extends Build {
     "spandex-http",
     file("./spandex-http/"),
     settings = commonSettings ++ ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ Seq(
-      libraryDependencies ++= socrataDeps ++ scalatraDeps ++ jettyDeps ++ testDeps ++ commonDeps,
+      libraryDependencies ++= socrataDeps ++ httpDeps ++ testDeps ++ commonDeps,
       port in Conf := ListenPort,
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(
@@ -109,11 +109,9 @@ object Dependencies {
     "com.rojoma" %% "rojoma-json-v3" % "3.2.2",
     "com.rojoma" %% "simple-arm" % "1.2.0"
   )
-  lazy val scalatraDeps = Seq(
+  lazy val httpDeps = Seq(
     "org.scalatra" %% "scalatra" % ScalatraVersion,
-    "org.scalatra" %% "scalatra-scalate" % ScalatraVersion
-  )
-  lazy val jettyDeps = Seq(
+    "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
     "ch.qos.logback" % "logback-classic" % "1.1.2" % "runtime",
     "org.eclipse.jetty" % "jetty-webapp" % JettyVersion % "container;compile",
     "org.eclipse.jetty" % "jetty-plus" % JettyVersion % "container"
