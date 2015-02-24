@@ -33,24 +33,6 @@ class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
     Await.result(esc.getMapping(indices,Seq.empty), conf.escTimeoutFast).getResponseBody
   }
 
-  post ("/add/:4x4/?"){
-    val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
-    // TODO: elasticsearch add index routing
-    updateMapping(fourbyfour)
-  }
-
-  post ("/add/:4x4/:col/?"){
-    val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
-    val column = params.getOrElse("col", halt(HttpStatus.SC_BAD_REQUEST))
-    updateMapping(fourbyfour, Some(column))
-  }
-
-  post ("/syn/:4x4"){
-    val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
-    val matchall = "{\"query\": { \"match_all\": {} } }"
-    Await.result(esc.deleteByQuery(indices, Seq(fourbyfour), matchall), conf.escTimeout).getResponseBody
-  }
-
   get ("/suggest/:4x4/:col/:txt") {
     val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
     val column = params.getOrElse("col", halt(HttpStatus.SC_BAD_REQUEST))
@@ -60,11 +42,5 @@ class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
         |{"suggest": {"text":"%s", "completion": {"field": "%s", "fuzzy": {"fuzziness": 2} } } }
       """.stripMargin.format(text, column)
     Await.result(esc.suggest(index, query), conf.escTimeoutFast).getResponseBody
-  }
-
-  post("/ver/:4x4") {
-    val fourbyfour = params.getOrElse("4x4", halt(HttpStatus.SC_BAD_REQUEST))
-    val updates = request.body
-    Await.result(esc.bulk(Some(index), Some(fourbyfour), updates), conf.escTimeout).getResponseBody
   }
 }

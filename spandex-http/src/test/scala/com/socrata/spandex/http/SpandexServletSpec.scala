@@ -5,6 +5,9 @@ import javax.servlet.http.{HttpServletResponse => HttpStatus}
 import com.socrata.spandex.common._
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
+import wabisabi.{Client => ElasticsearchClient}
+
+import scala.concurrent.Await
 
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
@@ -14,6 +17,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     super.beforeAll()
     val conf = new SpandexConfig
     SpandexBootstrap.ensureIndex(conf)
+    imagineSomeMockData(conf)
     addServlet(new SpandexServlet(conf), "/*")
   }
 
@@ -21,12 +25,55 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     super.afterAll()
   }
 
+  def imagineSomeMockData(conf: SpandexConfig): Unit = {
+    val esc = new ElasticsearchClient(conf.esUrl)
+    val fourbyfour = "qnmj-8ku6"
+
+    val newMapping =
+      """{
+        |  "%s":{
+        |    "_all":{"enabled":false},
+        |    "properties":{
+        |      "crime":{
+        |        "type":"completion",
+        |        "analyzer":"simple",
+        |        "payloads":false,
+        |        "preserve_separators":false,
+        |        "preserve_position_increments":false,
+        |        "max_input_length":50
+        |      },
+        |      "crimeType":{
+        |        "type":"completion",
+        |        "analyzer":"simple",
+        |        "payloads":false,
+        |        "preserve_separators":false,
+        |        "preserve_position_increments":false,
+        |        "max_input_length":50
+        |      }
+        |    }
+        |  }
+        |}
+      """.stripMargin.format(fourbyfour)
+    val rMap = Await.result(esc.putMapping(Seq(conf.index), fourbyfour, newMapping), conf.escTimeoutFast)
+
+    val newBulkData =
+      """{"index": {"_id": "1"} }
+        |{"crimeType": "NARCOTICS"}
+        |{"index": {"_id": "2"} }
+        |{"crimeType": "PUBLIC INDECENCY"}
+      """.stripMargin
+    val rBulk = Await.result(esc.bulk(Some(conf.index), Some(fourbyfour), newBulkData), conf.escTimeoutFast)
+
+    // wait a sec for elasticsearch to process the documents into lucene
+    Thread.sleep(1000) // scalastyle:ignore magic.number
+  }
+
   test("get of index page") {
     get("/") {
       status should equal (HttpStatus.SC_OK)
       val contentType: String = header.getOrElse("Content-Type", "")
       contentType should include ("text/html")
-      body should include ("spandex")
+      body should include ("Hello, spandex")
     }
   }
 
@@ -43,93 +90,10 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     }
   }
 
-  test("get all com.socrata.spandex.secondary mappings") {
+  test("get all spandex mappings") {
     get("/mapping") {
       status should equal (HttpStatus.SC_OK)
-      body should include ("com.socrata.spandex.secondary")
-    }
-  }
-
-  test("add new dataset"){
-    post("/add/qnmj-8ku6"){
-      status should equal (HttpStatus.SC_OK)
-      body should include (acknowledged)
-    }
-    get("/mapping") {
-      status should equal (HttpStatus.SC_OK)
-      body should include ("qnmj-8ku6")
-    }
-  }
-
-  test("add new column"){
-    post("/add/qnmj-8ku6/crimeType"){
-      status should equal (HttpStatus.SC_OK)
-      body should include (acknowledged)
-    }
-    get("/mapping") {
-      status should equal (HttpStatus.SC_OK)
-      body should include ("crimeType")
-    }
-  }
-
-  test("version insert") {
-    post("/ver/qnmj-8ku6",
-    """
-      |{"index": {"_id": "1"} }
-      |{"crimeType": "NARCOTICS"}
-      |{"index": {"_id": "2"} }
-      |{"crimeType": "PUBLIC INDECENCY"}
-    """.stripMargin
-    ) {
-      status should equal(HttpStatus.SC_OK)
-      body should include("\"errors\":false")
-      body should include("\"index\":{\"_index\":\"com.socrata.spandex.secondary\",\"_type\":\"qnmj-8ku6\",\"_id\":\"1\"")
-      body should include("\"index\":{\"_index\":\"com.socrata.spandex.secondary\",\"_type\":\"qnmj-8ku6\",\"_id\":\"2\"")
-    }
-  }
-
-  test("version delete") {
-    post("/ver/qnmj-8ku6",
-      """
-        |{"index": {"_id": "3"} }
-        |{"crimeType": "NARCOTICS"}
-      """.stripMargin
-    ) { }
-    post("/ver/qnmj-8ku6",
-      """
-        |{"delete": {"_id": "3"} }
-      """.stripMargin
-    ) {
-      status should equal(HttpStatus.SC_OK)
-      body should include("\"errors\":false")
-      body should include("\"delete\":{\"_index\":\"com.socrata.spandex.secondary\",\"_type\":\"qnmj-8ku6\",\"_id\":\"3\"")
-    }
-  }
-
-  test("version update") {
-    post("/add/qnmj-8ku6/crime") { }
-    post("/ver/qnmj-8ku6",
-    """
-      |{"index": {"_id": "4"} }
-      |{"crimeType": "NARCOTICS"}
-    """.stripMargin
-    ) { }
-    post("/ver/qnmj-8ku6",
-      """
-        |{"update": {"_id": "4"} }
-        |{"doc": {"crime": "Littering and smoking the reefer"} }
-      """.stripMargin
-    ) {
-      status should equal(HttpStatus.SC_OK)
-      body should include("\"errors\":false")
-      body should include("\"update\":{\"_index\":\"com.socrata.spandex.secondary\",\"_type\":\"qnmj-8ku6\",\"_id\":\"4\"")
-    }
-  }
-
-  test("resync"){
-    post("/syn/gnmj-8ku6"){
-      status should equal (HttpStatus.SC_OK)
-      body should include ("\"failed\":0}")
+      body should include ("mappings")
     }
   }
 

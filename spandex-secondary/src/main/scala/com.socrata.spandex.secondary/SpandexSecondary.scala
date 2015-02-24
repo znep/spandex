@@ -74,6 +74,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     // TODO: handle version number invalid -> resync
     if (newDataVersion == -1) ???
 
+    // TODO: elasticsearch add index routing
     remainingEvents.foreach {
       case Truncated => dropCopy(fourbyfour, truncate = true)
       case ColumnCreated(secColInfo) => updateMapping(fourbyfour, Some(secColInfo.systemId.underlying.toString))
