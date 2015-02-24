@@ -2,14 +2,10 @@ package com.socrata.spandex.http
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
-import com.rojoma.json.v3.ast._
-import com.rojoma.json.v3.io.JsonReader
-import com.rojoma.json.v3.jpath.JPath
 import com.socrata.spandex.common._
 import wabisabi.{Client => ElasticsearchClient}
 
 import scala.concurrent.Await
-import scala.util.Try
 
 class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
   private val esc: ElasticsearchClient = new ElasticsearchClient(conf.esUrl)
@@ -18,29 +14,6 @@ class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
   private val indexSettings = conf.indexSettings
   private val mappingBase = conf.indexBaseMapping
   private val mappingCol = conf.indexColumnMapping
-
-  private def ensureIndex(index: String): String = {
-    val indexResponse = Await.result(esc.verifyIndex(index), conf.escTimeoutFast)
-    val resultHttpCode = indexResponse.getStatusCode
-    if (resultHttpCode != HttpStatus.SC_OK) {
-      Await.result(esc.createIndex(index, Some(indexSettings)), conf.escTimeoutFast).getResponseBody
-    } else {
-      indexResponse.getResponseBody
-    }
-  }
-
-  private def updateMapping(fourbyfour: String, column: Option[String] = None): String = {
-    ensureIndex(index)
-
-    val previousMapping = Await.result(esc.getMapping(indices, Seq(fourbyfour)), conf.escTimeoutFast).getResponseBody
-    val cs: List[String] = Try(new JPath(JsonReader.fromString(previousMapping)).*.*.down(fourbyfour).
-      down("properties").finish.collect { case JObject(fields) => fields.keys.toList }.head).getOrElse(Nil)
-
-    val newColumns = if (column == None || cs.contains(column)) cs else column.get :: cs
-    val newMapping = mappingBase.format(fourbyfour, newColumns.map(mappingCol.format(_)).mkString(","))
-
-    Await.result(esc.putMapping(indices, fourbyfour, newMapping), conf.escTimeoutFast).getResponseBody
-  }
 
   get("//?") {
     // TODO: com.socrata.spandex.secondary getting started and/or quick reference
