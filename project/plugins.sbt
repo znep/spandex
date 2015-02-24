@@ -1,7 +1,6 @@
-resolvers ++= Seq(Classpaths.sbtPluginReleases, Classpaths.typesafeReleases,
+resolvers ++= Seq(
   "gphat" at "https://raw.github.com/gphat/mvn-repo/master/releases/",
-  "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release",
-  "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases"
+  "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release"
 )
 
 addSbtPlugin("com.mojolly.scalate" % "xsbt-scalate-generator" % "0.5.0")

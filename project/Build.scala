@@ -1,67 +1,42 @@
 import com.earldouglas.xsbtwebplugin.PluginKeys.port
 import com.mojolly.scalate.ScalatePlugin.ScalateKeys._
 import com.mojolly.scalate.ScalatePlugin._
-import org.scalastyle.sbt.ScalastylePlugin.scalastyle
 import org.scalatra.sbt._
 import sbt.Keys._
 import sbt._
-import sbtassembly.AssemblyKeys._
-import sbtassembly.MergeStrategy
-
-object BuildParameters {
-  val Organization = "com.socrata"
-  val Name = "com.socrata.spandex"
-  val Version = "0.1.0-SNAPSHOT"
-  val ScalaVersion = "2.10.4"
-  val ScalatraVersion = "2.3.0"
-  val JettyVersion = "9.2.1.v20140609" // pinned to this version in Scalatra
-  val Conf = config("container")
-  val ListenPort = 8042 // required for container embedded jetty
-}
 
 object SpandexBuild extends Build {
-  import BuildParameters._
-  import Dependencies._
-
-  lazy val styletask = taskKey[Unit]("a task that wraps 'scalastyle' with no input parameters")
+  val Name = "com.socrata.spandex"
+  val ScalaVersion = "2.10.4"
+  val JettyConf = config("container")
+  val JettyListenPort = 8042 // required for container embedded jetty
 
   lazy val commonSettings = Seq(
-    organization := Organization,
-    version := Version,
     scalaVersion := ScalaVersion,
-    resolvers ++= resolverList,
-    scalacOptions ++= Seq("-Xlint", "-deprecation", "-Xfatal-warnings", "-feature"),
-    test in assembly := {},
-    assemblyMergeStrategy in assembly := {
-      case "about.html" => MergeStrategy.first
-      case x =>
-        val old = (assemblyMergeStrategy in assembly).value
-        old(x)
-    },
-    styletask := { val _ = (scalastyle in Compile).toTask("").value },
-    assembly <<= assembly dependsOn styletask,
-    (Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styletask
+    resolvers ++= Dependencies.resolverList
   )
 
   lazy val build = Project(
     "spandex",
-    file(".")
-  ).settings(SpandexBuild.commonSettings: _*).
-    aggregate(spandexCommon, spandexHttp, spandexSecondary).
+    file("."),
+    settings = commonSettings
+  ).aggregate(spandexCommon, spandexHttp, spandexSecondary).
     dependsOn(spandexCommon, spandexHttp, spandexSecondary)
 
   lazy val spandexCommon = Project (
     "spandex-common",
     file("./spandex-common/"),
-    settings = commonSettings ++ Seq(libraryDependencies ++= socrataDeps ++ testDeps ++ commonDeps)
+    settings = commonSettings ++ Seq(
+      libraryDependencies ++= Dependencies.socrataDeps ++ Dependencies.testDeps ++ Dependencies.commonDeps
+    )
   )
 
   lazy val spandexHttp = Project (
     "spandex-http",
     file("./spandex-http/"),
     settings = commonSettings ++ ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ Seq(
-      libraryDependencies ++= socrataDeps ++ httpDeps ++ testDeps ++ commonDeps,
-      port in Conf := ListenPort,
+      libraryDependencies ++= Dependencies.socrataDeps ++ Dependencies.httpDeps ++ Dependencies.testDeps ++ Dependencies.commonDeps,
+      port in JettyConf := JettyListenPort,
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(
           TemplateConfig(
@@ -90,19 +65,17 @@ object SpandexBuild extends Build {
   lazy val spandexSecondary = Project (
     "spandex-secondary",
     file("./spandex-secondary/"),
-    settings = commonSettings ++ Seq(libraryDependencies ++= socrataDeps ++ testDeps ++ commonDeps ++ secondaryDeps)
+    settings = commonSettings ++ Seq(libraryDependencies ++= Dependencies.socrataDeps ++ Dependencies.testDeps ++ Dependencies.commonDeps ++ Dependencies.secondaryDeps)
   ).dependsOn(spandexCommon)
 }
 
 object Dependencies {
-  import BuildParameters._
+  val ScalatraVersion = "2.3.0"
+  val JettyVersion = "9.2.1.v20140609" // pinned to this version in Scalatra
 
   lazy val resolverList = Seq(
     "gphat" at "https://raw.github.com/gphat/mvn-repo/master/releases/",
-    "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release",
-    "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases",
-    Classpaths.sbtPluginReleases,
-    Classpaths.typesafeReleases
+    "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release"
   )
 
   lazy val socrataDeps = Seq(
