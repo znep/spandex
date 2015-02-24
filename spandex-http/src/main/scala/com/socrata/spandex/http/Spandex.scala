@@ -13,12 +13,13 @@ object Spandex extends App {
      SpandexBootstrap.ensureIndex(conf)
 
     val port = conf.port
+    val pathRoot = "/"
 
     val context = new WebAppContext
-    context.setContextPath("/")
+    context.setContextPath(pathRoot)
     context.setResourceBase("src/main/webapp")
     context.addEventListener(new ScalatraListener)
-    context.addServlet(classOf[DefaultServlet], "/")
+    context.addServlet(classOf[DefaultServlet], pathRoot)
 
     val server = new Server(port)
     server.setHandler(context)
