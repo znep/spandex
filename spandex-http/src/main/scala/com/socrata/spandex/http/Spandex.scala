@@ -9,21 +9,19 @@ import org.scalatra.servlet.ScalatraListener
 object Spandex extends App {
   val conf = new SpandexConfig
 
-  override def main(args: Array[String]): Unit = {
-     SpandexBootstrap.ensureIndex(conf)
+  SpandexBootstrap.ensureIndex(conf)
 
-    val port = conf.port
-    val pathRoot = "/"
+  val port = conf.port
+  val pathRoot = "/"
 
-    val context = new WebAppContext
-    context.setContextPath(pathRoot)
-    context.setResourceBase("src/main/webapp")
-    context.addEventListener(new ScalatraListener)
-    context.addServlet(classOf[DefaultServlet], pathRoot)
+  val context = new WebAppContext
+  context.setContextPath(pathRoot)
+  context.setResourceBase("src/main/webapp")
+  context.addEventListener(new ScalatraListener)
+  context.addServlet(classOf[DefaultServlet], pathRoot)
 
-    val server = new Server(port)
-    server.setHandler(context)
-    server.start()
-    server.join()
-  }
+  val server = new Server(port)
+  server.setHandler(context)
+  server.start()
+  server.join()
 }

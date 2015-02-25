@@ -26,7 +26,6 @@ trait SpandexStack extends ScalatraServlet with ScalateSupport {
     super.templateAttributes ++ MutableMap.empty // Add extra attributes here, they need bindings in the build file
   }
 
-
   notFound {
     // remove content type in case it was set through an action
     contentType = ""

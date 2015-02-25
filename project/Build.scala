@@ -4,6 +4,7 @@ import com.mojolly.scalate.ScalatePlugin._
 import org.scalatra.sbt._
 import sbt.Keys._
 import sbt._
+import scoverage.ScoverageSbtPlugin.ScoverageKeys.{coverageExcludedPackages, coverageMinimum, coverageFailOnMinimum}
 
 object SpandexBuild extends Build {
   val Name = "com.socrata.spandex"
@@ -12,6 +13,8 @@ object SpandexBuild extends Build {
   val JettyListenPort = 8042 // required for container embedded jetty
 
   lazy val commonSettings = Seq(
+    coverageMinimum := 80,
+    coverageFailOnMinimum := false,
     scalaVersion := ScalaVersion,
     resolvers ++= Deps.resolverList
   )
@@ -37,6 +40,7 @@ object SpandexBuild extends Build {
     settings = commonSettings ++ ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ Seq(
       libraryDependencies ++= Deps.socrata ++ Deps.http ++ Deps.test ++ Deps.common,
       port in JettyConf := JettyListenPort,
+      coverageExcludedPackages := "<empty>;templates.*",
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(
           TemplateConfig(
