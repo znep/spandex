@@ -14,7 +14,7 @@ object SpandexBuild extends Build {
 
   lazy val commonSettings = Seq(
     coverageMinimum := 80,
-    coverageFailOnMinimum := false,
+    coverageFailOnMinimum := true,
     scalaVersion := ScalaVersion,
     resolvers ++= Deps.resolverList
   )

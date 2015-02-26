@@ -36,7 +36,6 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     Await.result(esc.deleteByQuery(indices, Seq(datasetInternalName), matchall), conf.escTimeout).getResponseBody
   }
 
-  @deprecated("Out of scope", since = "forever")
   def snapshots(datasetInternalName: String, cookie: Cookie): Set[Long] = Set.empty
 
   def dropCopy(datasetInternalName: String, copyNumber: Long, cookie: Cookie): Cookie = cookie
@@ -72,7 +71,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     updateMapping(fourbyfour)
 
     // TODO: handle version number invalid -> resync
-    if (newDataVersion == -1) ???
+    if (newDataVersion == -1) throw new UnsupportedOperationException(s"version $newDataVersion already assigned")
 
     // TODO: elasticsearch add index routing
     remainingEvents.foreach {
@@ -84,7 +83,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
       case WorkingCopyPublished => ??? // working copy
       case SnapshotDropped(info) => dropCopy(fourbyfour)
       case WorkingCopyDropped => dropCopy(fourbyfour)
-      case _ => "k thx bye"
+      case i: Any => throw new UnsupportedOperationException(s"event not supported: '$i'")
     }
 
     // TODO: set new version number
