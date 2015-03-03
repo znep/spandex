@@ -6,7 +6,7 @@ import org.eclipse.jetty.webapp.WebAppContext
 import org.scalatra.servlet.ScalatraListener
 
 object Spandex extends App {
-  val conf = new SpandexConfig
+  lazy val conf = new SpandexConfig
 
   override def main(args: Array[String]): Unit = {
     SpandexBootstrap.ensureIndex(conf)
