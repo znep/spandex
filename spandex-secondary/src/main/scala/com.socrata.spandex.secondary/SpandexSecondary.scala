@@ -15,14 +15,14 @@ import scala.concurrent.Await
 import scala.util.Try
 
 class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValue] {
-  private val esc = new ElasticSearchClient(conf.esUrl)
-  private val index = conf.index
-  private val indices = List(index)
-  private val indexSettings = conf.indexSettings
-  private val mappingBase = conf.indexBaseMapping
-  private val mappingCol = conf.indexColumnMapping
-  private val bulkBatchSize = conf.bulkBatchSize
-  private val matchall = "{\"query\": { \"match_all\": {} } }"
+  private[this] val esc = new ElasticSearchClient(conf.esUrl)
+  private[this] val index = conf.index
+  private[this] val indices = List(index)
+  private[this] val indexSettings = conf.indexSettings
+  private[this] val mappingBase = conf.indexBaseMapping
+  private[this] val mappingCol = conf.indexColumnMapping
+  private[this] val bulkBatchSize = conf.bulkBatchSize
+  private[this] val matchall = "{\"query\": { \"match_all\": {} } }"
 
   init()
 
@@ -97,7 +97,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     doResync(datasetInfo, copyInfo, schema, cookie, rows)
   }
 
-  private def doResync(secondaryDatasetInfo: DatasetInfo, secondaryCopyInfo: CopyInfo,
+  private[this] def doResync(secondaryDatasetInfo: DatasetInfo, secondaryCopyInfo: CopyInfo,
                       newSchema: ColumnIdMap[ColumnInfo[SoQLType]], cookie: Cookie,
                       rows: Managed[Iterator[ColumnIdMap[SoQLValue]]]): Cookie = {
     val fourbyfour = secondaryDatasetInfo.internalName
@@ -123,7 +123,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     cookie
   }
 
-  private def updateMapping(fourbyfour: String, column: Option[String] = None): String = {
+  private[this] def updateMapping(fourbyfour: String, column: Option[String] = None): String = {
     val previousMapping = Await.result(esc.getMapping(indices, Seq(fourbyfour)), conf.escTimeoutFast).getResponseBody
     val cs: List[String] = Try(new JPath(JsonReader.fromString(previousMapping)).*.*.down(fourbyfour).
       down("properties").finish.collect { case JObject(fields) => fields.keys.toList }.head).getOrElse(Nil)
@@ -134,7 +134,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     Await.result(esc.putMapping(indices, fourbyfour, newMapping), conf.escTimeoutFast).getResponseBody
   }
 
-  private def dropCopy(fourbyfour: String, truncate: Boolean = false): Unit = {
+  private[this] def dropCopy(fourbyfour: String, truncate: Boolean = false): Unit = {
     Await.result(esc.deleteByQuery(indices, Seq(fourbyfour), matchall), conf.escTimeout).getResponseBody
     if (!truncate) {
       // TODO: remove dataset mapping as well

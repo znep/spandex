@@ -8,12 +8,12 @@ import wabisabi.{Client => ElasticsearchClient}
 import scala.concurrent.Await
 
 class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
-  private val esc: ElasticsearchClient = new ElasticsearchClient(conf.esUrl)
-  private val index = conf.index
-  private val indices = List(index)
-  private val indexSettings = conf.indexSettings
-  private val mappingBase = conf.indexBaseMapping
-  private val mappingCol = conf.indexColumnMapping
+  private[this] val esc: ElasticsearchClient = new ElasticsearchClient(conf.esUrl)
+  private[this] val index = conf.index
+  private[this] val indices = List(index)
+  private[this] val indexSettings = conf.indexSettings
+  private[this] val mappingBase = conf.indexBaseMapping
+  private[this] val mappingCol = conf.indexColumnMapping
 
   get("//?") {
     // TODO: com.socrata.spandex.secondary getting started and/or quick reference
