@@ -13,8 +13,6 @@ object SpandexBuild extends Build {
   val JettyListenPort = 8042 // required for container embedded jetty
 
   lazy val commonSettings = Seq(
-    coverageMinimum := 80,
-    coverageFailOnMinimum := true,
     scalaVersion := ScalaVersion,
     resolvers ++= Deps.resolverList
   )
