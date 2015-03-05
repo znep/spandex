@@ -78,13 +78,13 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   }
 
   test("get of non-existent page") {
-    get("/goodbye-world"){
+    get("/goodbye-world") {
       status should equal (HttpStatus.SC_NOT_FOUND)
     }
   }
 
   test("get health status page") {
-    get("/health"){
+    get("/health") {
       status should equal (HttpStatus.SC_OK)
       body should include ("\"status\"")
     }
@@ -97,11 +97,23 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     }
   }
 
-  test("suggest"){
-    get("/suggest/qnmj-8ku6/crimeType/nar"){
+  test("suggest") {
+    get("/suggest/qnmj-8ku6/crimeType/nar") {
       status should equal (HttpStatus.SC_OK)
       body should include ("NARCOTICS")
       body shouldNot include ("PUBLIC INDECENCY")
+    }
+  }
+
+  test("suggest without required params should return 404") {
+    get("/suggest/qnmj-8ku6/crimeType/") {
+      status should equal (HttpStatus.SC_NOT_FOUND)
+    }
+    test("/suggest/qnmj-8ku6/") {
+      status should equal (HttpStatus.SC_NOT_FOUND)
+    }
+    test("/suggest/") {
+      status should equal (HttpStatus.SC_NOT_FOUND)
     }
   }
 }
