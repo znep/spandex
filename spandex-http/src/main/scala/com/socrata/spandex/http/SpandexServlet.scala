@@ -34,9 +34,9 @@ class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
   }
 
   get ("/suggest/:4x4/:col/:txt") {
-    val fourbyfour = params.get("4x4")
-    val column = params.get("col")
-    val text = params.get("txt")
+    val fourbyfour: String = params.getOrElse("4x4", "")
+    val column: String = params.getOrElse("col", "")
+    val text: String = params.getOrElse("txt", "")
     val query =
       """
         |{"suggest": {"text":"%s", "completion": {"field": "%s", "fuzzy": {"fuzziness": 2} } } }
