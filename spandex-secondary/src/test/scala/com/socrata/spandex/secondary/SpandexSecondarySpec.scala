@@ -89,21 +89,19 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers {
     val _ = sec.version(datasetinfo, 0, None, Iterator(Truncated))
   }
 
+  val col0 = ColumnInfo[SoQLType](new ColumnId(0), new UserColumnId("col0"), SoQLText,
+    isSystemPrimaryKey = false, isUserPrimaryKey = false, isVersion = false)
   test("version column create") {
     val sec = new SpandexSecondary(new SpandexConfig)
     val _ = sec.version(datasetinfo, 0, None, Iterator(
-      new ColumnCreated(
-        new ColumnInfo[SoQLType](new ColumnId(0), new UserColumnId("col0"), SoQLText, false, false, false)
-      )
+      new ColumnCreated(col0)
     ))
   }
 
   test("version column remove") {
     val sec = new SpandexSecondary(new SpandexConfig)
     val _ = sec.version(datasetinfo, 0, None, Iterator(
-      new ColumnRemoved(
-        new ColumnInfo[SoQLType](new ColumnId(0), new UserColumnId("col0"), SoQLText, false, false, false)
-      )
+      new ColumnRemoved(col0)
     ))
   }
 
@@ -143,14 +141,13 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers {
     }
   }
 
+  val colSysid = ColumnInfo[SoQLType](new ColumnId(0), new UserColumnId("sysid"), SoQLText,
+    isSystemPrimaryKey = true, isUserPrimaryKey =  false, isVersion =  false)
   test("resync") {
     val sec = new SpandexSecondary(new SpandexConfig)
     val _ = sec.resync(datasetinfo,
       new CopyInfo(new CopyId(0), 0, LifecycleStage.Unpublished, 0, DateTime.now),
-      ColumnIdMap((new ColumnId(0), ColumnInfo[SoQLType](
-        new ColumnId(0), new UserColumnId("col0"), SoQLText,
-        isSystemPrimaryKey = true, isUserPrimaryKey =  false, isVersion =  false
-      ))),
+      ColumnIdMap((new ColumnId(0), colSysid)),
       None,
       new SimpleArm[Iterator[ColumnIdMap[SoQLValue]]] {
         def flatMap[A](f: Iterator[ColumnIdMap[SoQLValue]] => A): A = { f(Iterator.empty) }
@@ -163,10 +160,7 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers {
     val sec = new SpandexSecondary(new SpandexConfig)
     val _ = sec.resync(datasetinfo,
       new CopyInfo(new CopyId(0), 0, LifecycleStage.Unpublished, 0, DateTime.now),
-      ColumnIdMap((new ColumnId(0), ColumnInfo[SoQLType](
-        new ColumnId(0), new UserColumnId("col0"), SoQLText,
-        isSystemPrimaryKey = true, isUserPrimaryKey =  false, isVersion =  false
-      ))),
+      ColumnIdMap((new ColumnId(0), colSysid)),
       None,
       new SimpleArm[Iterator[ColumnIdMap[SoQLValue]]] {
         def flatMap[A](f: Iterator[ColumnIdMap[SoQLValue]] => A): A = { f(Iterator(
