@@ -107,7 +107,8 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     val columns = newSchema.filter((_, i) => i.typ == SoQLText).keySet
     columns.foreach { i => updateMapping(fourbyfour, Some(i.underlying.toString)) }
 
-    val sysIdCol = newSchema.values.find(_.isSystemPrimaryKey).get.systemId
+    val sysIdCol = newSchema.values.find(_.isSystemPrimaryKey).
+      getOrElse(throw new RuntimeException("missing system primary key")).systemId
 
     for {iter <- rows} {
       iter.grouped(bulkBatchSize).foreach { bi =>
@@ -128,7 +129,10 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     val cs: List[String] = Try(new JPath(JsonReader.fromString(previousMapping)).*.*.down(fourbyfour).
       down("properties").finish.collect { case JObject(fields) => fields.keys.toList }.head).getOrElse(Nil)
 
-    val newColumns = if (column == None || cs.contains(column)) cs else column.get :: cs
+    val newColumns = column match {
+      case Some(c) if !cs.contains(c) => c::cs
+      case _ => cs
+    }
     val newMapping = mappingBase.format(fourbyfour, newColumns.map(mappingCol.format(_)).mkString(","))
 
     Await.result(esc.putMapping(indices, fourbyfour, newMapping), conf.escTimeoutFast).getResponseBody
