@@ -109,10 +109,10 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     get("/suggest/qnmj-8ku6/crimeType/") {
       status should equal (HttpStatus.SC_NOT_FOUND)
     }
-    test("/suggest/qnmj-8ku6/") {
+    get("/suggest/qnmj-8ku6/") {
       status should equal (HttpStatus.SC_NOT_FOUND)
     }
-    test("/suggest/") {
+    get("/suggest/") {
       status should equal (HttpStatus.SC_NOT_FOUND)
     }
   }
