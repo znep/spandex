@@ -78,11 +78,12 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
       case Truncated => dropCopy(fourbyfour, truncate = true)
       case ColumnCreated(secColInfo) => updateMapping(fourbyfour, Some(secColInfo.systemId.underlying.toString))
       case ColumnRemoved(secColInfo) => { /* TODO: remove column */ }
-      case RowDataUpdated(ops) => ???
-      case DataCopied => ??? // working copy
-      case WorkingCopyPublished => ??? // working copy
-      case SnapshotDropped(info) => dropCopy(fourbyfour)
+      case LastModifiedChanged(lastModified) => ???
       case WorkingCopyDropped => dropCopy(fourbyfour)
+      case DataCopied => ??? // working copy
+      case SnapshotDropped(info) => dropCopy(fourbyfour)
+      case WorkingCopyPublished => ??? // working copy
+      case RowDataUpdated(ops) => ???
       case i: Any => throw new UnsupportedOperationException(s"event not supported: '$i'")
     }
 
