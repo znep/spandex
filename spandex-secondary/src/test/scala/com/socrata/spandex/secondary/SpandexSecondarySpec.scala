@@ -1,7 +1,7 @@
 package com.socrata.spandex.secondary
 
 import com.rojoma.simplearm.SimpleArm
-import com.socrata.datacoordinator.id.{ColumnId, UserColumnId, CopyId}
+import com.socrata.datacoordinator.id.{ColumnId, CopyId, UserColumnId}
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types.{SoQLText, SoQLType, SoQLValue}
@@ -9,11 +9,9 @@ import com.socrata.spandex.common._
 import org.joda.time.DateTime
 import org.scalatest.{FunSuiteLike, Matchers}
 
-import scala.util.{Success, Failure, Try}
-
 class SpandexSecondarySpec extends FunSuiteLike with Matchers {
-  val fourbyfour = "qnmj-8ku6"
-  val datasetinfo = new DatasetInfo(fourbyfour, "en-us", Array.empty)
+  val fxf = "qnmj-8ku6"
+  val datasetinfo = new DatasetInfo(fxf, "en-us", Array.empty)
 
   test("ctor") {
     val sec = new SpandexSecondary(new SpandexConfig)
@@ -26,17 +24,17 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers {
 
   test("drop dataset") {
     val sec = new SpandexSecondary(new SpandexConfig)
-    sec.dropDataset(fourbyfour, None)
+    sec.dropDataset(fxf, None)
   }
 
   test("snapshots") {
     val sec = new SpandexSecondary(new SpandexConfig)
-    val _ = sec.snapshots(fourbyfour, None)
+    val _ = sec.snapshots(fxf, None)
   }
 
   test("current copy num") {
     val sec = new SpandexSecondary(new SpandexConfig)
-    val _ = sec.currentCopyNumber(fourbyfour, None)
+    val _ = sec.currentCopyNumber(fxf, None)
   }
 
   test("wants working copies") {
@@ -46,7 +44,7 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers {
 
   test("get current version") {
     val sec = new SpandexSecondary(new SpandexConfig)
-    val _ = sec.currentVersion(fourbyfour, None)
+    val _ = sec.currentVersion(fxf, None)
   }
 
   test("version") {
