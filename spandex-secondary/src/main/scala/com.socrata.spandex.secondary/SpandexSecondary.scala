@@ -145,7 +145,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
         )
       }
       case WorkingCopyDropped => doDropCopy(fxf, copy)
-      case DataCopied => ??? // working copy
+      case DataCopied => { /* TODO: figure out what is required */ }
       case SnapshotDropped(info) => doDropCopy(fxf, copy)
       case WorkingCopyPublished => { /* TODO: pay attention to working copy lifecycle */ }
       case RowDataUpdated(ops) => ???
