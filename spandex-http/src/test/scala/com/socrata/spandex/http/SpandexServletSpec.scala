@@ -11,7 +11,9 @@ import scala.concurrent.Await
 
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
-  val acknowledged = "\"acknowledged\":true"
+  val fxf = "dead-beef"
+  val copy = "1"
+  val fxfCopy = s"$fxf-$copy"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -27,7 +29,10 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
 
   def imagineSomeMockData(conf: SpandexConfig): Unit = {
     val esc = new ElasticsearchClient(conf.esUrl)
-    val fourbyfour = "qnmj-8ku6"
+
+    Await.result(
+      esc.index(conf.index, fxf, Some(copy), "{\"copy\":\"%s\", \"version\":\"0\"}".format(fxfCopy)),
+      conf.escTimeoutFast)
 
     val newMapping =
       """{
@@ -53,8 +58,8 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
         |    }
         |  }
         |}
-      """.stripMargin.format(fourbyfour)
-    val rMap = Await.result(esc.putMapping(Seq(conf.index), fourbyfour, newMapping), conf.escTimeoutFast)
+      """.stripMargin.format(fxfCopy)
+    val rMap = Await.result(esc.putMapping(Seq(conf.index), fxfCopy, newMapping), conf.escTimeoutFast)
 
     val newBulkData =
       """{"index": {"_id": "1"} }
@@ -62,7 +67,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
         |{"index": {"_id": "2"} }
         |{"crimeType": "PUBLIC INDECENCY"}
       """.stripMargin
-    val rBulk = Await.result(esc.bulk(Some(conf.index), Some(fourbyfour), newBulkData), conf.escTimeoutFast)
+    val rBulk = Await.result(esc.bulk(Some(conf.index), Some(fxfCopy), newBulkData), conf.escTimeoutFast)
 
     // wait a sec for elasticsearch to process the documents into lucene
     Thread.sleep(1000) // scalastyle:ignore magic.number
@@ -98,7 +103,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   }
 
   test("suggest") {
-    get("/suggest/qnmj-8ku6/crimeType/nar") {
+    get(s"/suggest/$fxf/crimeType/nar") {
       status should equal (HttpStatus.SC_OK)
       body should include ("NARCOTICS")
       body shouldNot include ("PUBLIC INDECENCY")
@@ -106,10 +111,10 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
   }
 
   test("suggest without required params should return 404") {
-    get("/suggest/qnmj-8ku6/crimeType/") {
+    get(s"/suggest/$fxf/crimeType/") {
       status should equal (HttpStatus.SC_NOT_FOUND)
     }
-    get("/suggest/qnmj-8ku6/") {
+    get(s"/suggest/$fxf/") {
       status should equal (HttpStatus.SC_NOT_FOUND)
     }
     get("/suggest/") {
