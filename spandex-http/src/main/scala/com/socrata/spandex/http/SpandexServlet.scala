@@ -7,8 +7,8 @@ import wabisabi.{Client => ElasticsearchClient}
 
 import scala.concurrent.Await
 
-class SpandexServlet(conf: SpandexConfig) extends SpandexStack {
-  private[this] val esc: ElasticsearchClient = new ElasticsearchClient(conf.esUrl)
+class SpandexServlet(conf: SpandexConfig, esPort: Int) extends SpandexStack {
+  private[this] val esc: ElasticsearchClient = new ElasticsearchClient(conf.esUrl(esPort))
   private[this] val index = conf.index
   private[this] val indices = List(index)
   private[this] val indexSettings = conf.indexSettings

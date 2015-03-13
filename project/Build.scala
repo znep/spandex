@@ -101,6 +101,8 @@ object Deps {
   lazy val common = Seq(
     "javax.servlet" % "javax.servlet-api" % "3.1.0",
     "com.typesafe" % "config" % "1.2.1",
+    "commons-io" % "commons-io" % "2.4",
+    "org.elasticsearch" % "elasticsearch" % "1.4.4",
     "wabisabi" %% "wabisabi" % "2.0.18"
   )
   lazy val secondary = Seq(

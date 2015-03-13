@@ -13,6 +13,11 @@ import wabisabi.{Client => ElasticsearchClient}
 import scala.concurrent.Await
 
 class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfterAll {
+  val conf = new SpandexConfig
+  val localMasterPort = 9213
+  val esMaster = new ElasticsearchServer(localMasterPort, true)
+  lazy val sec = new SpandexSecondary(conf, localMasterPort)
+
   val fxf = "qnmj-8ku6"
   val dataSetInfo = DatasetInfo(fxf, "en-us", Array.empty)
   val copyNum42 = 42
@@ -31,9 +36,8 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
     CopyInfo(new CopyId(id), id, LifecycleStage.Unpublished, ver, DateTime.now)
 
   private[this] def bootstrapImaginaryData(): Unit = {
-    val conf = new SpandexConfig
-    val esc = new ElasticsearchClient(conf.esUrl)
-    SpandexBootstrap.ensureIndex(conf)
+    val esc = new ElasticsearchClient(conf.esUrl(localMasterPort))
+    SpandexBootstrap.ensureIndex(conf, localMasterPort)
     Await.result(
       esc.index(conf.index, fxf, Some(copyNum42.toString),
         s"""
@@ -48,49 +52,49 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
+    esMaster.start()
+    esMaster.waitForReady()
     bootstrapImaginaryData()
   }
 
+  override protected def afterAll(): Unit = {
+    esMaster.stop()
+    super.afterAll()
+  }
+
   test("ctor") {
-    val sec = new SpandexSecondary(new SpandexConfig)
+    sec
   }
 
   test("add dataset: version with working copy event") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     val cookie = sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
       new WorkingCopyCreated(copyInfo())
     ))
   }
 
   test("snapshots") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     val copies = sec.snapshots(fxf, None)
     copies should contain(copyNum42)
   }
 
   test("current copy num") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.currentCopyNumber(fxf, None)
   }
 
   test("wants working copies") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.wantsWorkingCopies
   }
 
   test("get current version") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.currentVersion(fxf, None)
   }
 
   test("version") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.version(dataSetInfo, version, None, Iterator.empty)
   }
 
   test("version with too many working copy event throws") {
     a[UnsupportedOperationException] should be thrownBy {
-      val sec = new SpandexSecondary(new SpandexConfig)
       sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
         new WorkingCopyCreated(copyInfo()),
         new WorkingCopyCreated(copyInfo())
@@ -100,7 +104,6 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
 
   test("version with invalid data copy number") {
     a[UnsupportedOperationException] should be thrownBy {
-      val sec = new SpandexSecondary(new SpandexConfig)
       sec.version(dataSetInfo, version, None, Iterator(
         WorkingCopyCreated(copyInfo(id = -1))
       ))
@@ -109,7 +112,6 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
 
   test("version with already used copy number") {
     a[UnsupportedOperationException] should be thrownBy {
-      val sec = new SpandexSecondary(new SpandexConfig)
       sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
         new WorkingCopyCreated(copyInfo(id = copyNum42))
       ))
@@ -118,14 +120,12 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
 
   test("version with invalid data version number") {
     a[UnsupportedOperationException] should be thrownBy {
-      val sec = new SpandexSecondary(new SpandexConfig)
       sec.version(dataSetInfo, -1, None, Iterator.empty)
     }
   }
 
   test("version with already used version number") {
     a[UnsupportedOperationException] should be thrownBy {
-      val sec = new SpandexSecondary(new SpandexConfig)
       sec.version(dataSetInfo, versionNum1234, None, Iterator(
         new WorkingCopyCreated(copyInfo())
       ))
@@ -133,65 +133,55 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
   }
 
   test("version truncate") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(Truncated))
   }
 
   val col0 = ColumnInfo[SoQLType](new ColumnId(0), new UserColumnId("col0"), SoQLText,
     isSystemPrimaryKey = false, isUserPrimaryKey = false, isVersion = false)
   test("version column create") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
       new ColumnCreated(col0)
     ))
   }
 
   test("version column remove") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
       new ColumnRemoved(col0)
     ))
   }
 
   test("version last modified") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
       new LastModifiedChanged(DateTime.now())
     ))
   }
 
   test("version row data updated") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
       new RowDataUpdated(Seq.empty)
     ))
   }
 
   test("version data copied") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(DataCopied))
   }
 
   test("version working copy published") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(WorkingCopyPublished))
   }
 
   test("version snapshot dropped") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
       new SnapshotDropped(copyInfo())
     ))
   }
 
   test("version working copy dropped") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(WorkingCopyDropped))
   }
 
   test("version unsupported event throws") {
     a[UnsupportedOperationException] should be thrownBy {
-      val sec = new SpandexSecondary(new SpandexConfig)
       sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(RollupCreatedOrUpdated(
         new RollupInfo("roll", "select *")
       )))
@@ -201,7 +191,6 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
   val colSysid = ColumnInfo[SoQLType](new ColumnId(0), new UserColumnId("sysid"), SoQLText,
     isSystemPrimaryKey = true, isUserPrimaryKey =  false, isVersion =  false)
   test("resync") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.resync(dataSetInfo,
       copyInfo(),
       ColumnIdMap((new ColumnId(0), colSysid)),
@@ -214,7 +203,6 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
   }
 
   test("resync with data") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.resync(dataSetInfo,
       copyInfo(),
       ColumnIdMap((new ColumnId(0), colSysid)),
@@ -229,12 +217,10 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
   }
 
   test("drop dataset") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.dropDataset(fxf, None)
   }
 
   test("shutdown") {
-    val sec = new SpandexSecondary(new SpandexConfig)
     sec.shutdown()
   }
 }

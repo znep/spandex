@@ -6,8 +6,11 @@ class SpandexConfigSpec extends FunSuiteLike with Matchers {
   test("config has these required values") {
     val conf = new SpandexConfig
     (
-      conf.port,
-      conf.esUrl,
+      conf.spandexPort,
+      conf.esPort,
+      conf.clusterName,
+      conf.clusterTimeout,
+      conf.esUrl(0),
       conf.index,
       conf.indexSettings,
       conf.indexBaseMapping,

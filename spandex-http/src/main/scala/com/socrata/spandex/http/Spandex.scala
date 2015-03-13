@@ -8,10 +8,14 @@ import org.scalatra.servlet.ScalatraListener
 
 object Spandex extends App {
   lazy val conf = new SpandexConfig
+  var ready: Boolean = false
 
-  SpandexBootstrap.ensureIndex(conf)
+  val esRouter = new ElasticsearchServer(conf.esPort)
+  esRouter.start()
 
-  val port = conf.port
+  SpandexBootstrap.ensureIndex(conf, conf.esPort)
+
+  val port = conf.spandexPort
   val pathRoot = "/"
 
   val context = new WebAppContext
@@ -23,5 +27,9 @@ object Spandex extends App {
   val server = new Server(port)
   server.setHandler(context)
   server.start()
+  esRouter.waitForReady()
+  ready = true
   server.join()
+
+  esRouter.stop()
 }

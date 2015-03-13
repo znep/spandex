@@ -11,24 +11,28 @@ import scala.concurrent.Await
 
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
+  val conf = new SpandexConfig
+  val localMasterPort = 9211
+  val esMaster = new ElasticsearchServer(localMasterPort, true)
   val fxf = "dead-beef"
   val copy = "1"
   val fxfCopy = s"$fxf-$copy"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val conf = new SpandexConfig
-    SpandexBootstrap.ensureIndex(conf)
-    imagineSomeMockData(conf)
-    addServlet(new SpandexServlet(conf), "/*")
+    esMaster.start()
+    SpandexBootstrap.ensureIndex(conf, localMasterPort)
+    imagineSomeMockData()
+    addServlet(new SpandexServlet(conf, localMasterPort), "/*")
   }
 
   override def afterAll(): Unit = {
+    esMaster.stop()
     super.afterAll()
   }
 
-  def imagineSomeMockData(conf: SpandexConfig): Unit = {
-    val esc = new ElasticsearchClient(conf.esUrl)
+  def imagineSomeMockData(): Unit = {
+    val esc = new ElasticsearchClient(conf.esUrl(localMasterPort))
 
     Await.result(
       esc.index(conf.index, fxf, Some(copy), "{\"truthVersion\":\"0\", \"truthUpdate\":\"1234567890\"}"),

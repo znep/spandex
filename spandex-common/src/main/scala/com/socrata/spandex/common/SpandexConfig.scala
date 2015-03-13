@@ -5,8 +5,11 @@ import com.typesafe.config.{Config, ConfigFactory}
 import scala.concurrent.duration.Duration
 
 class SpandexConfig(conf: Config = ConfigFactory.load().getConfig("com.socrata.spandex")) {
-  val port: Int = conf.getInt("port")
-  val esUrl: String = conf.getString("elasticsearch.url")
+  val spandexPort: Int = conf.getInt("port")
+  val esPort: Int = conf.getInt("elasticsearch.port")
+  val clusterName: String = conf.getString("elasticsearch.clusterName")
+  val clusterTimeout: Long = conf.getLong("elasticsearch.clusterTimeout")
+  def esUrl(port: Int): String = s"http://localhost:$port"
   val index: String = conf.getString("elasticsearch.index")
   val indexSettings: String = conf.getConfig("elasticsearch.indexSettings").toString
   val indexBaseMapping: String = conf.getString("elasticsearch.indexBaseMapping")

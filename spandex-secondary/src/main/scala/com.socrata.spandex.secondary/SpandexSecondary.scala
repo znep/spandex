@@ -5,7 +5,7 @@ import com.rojoma.json.v3.ast.{JObject, JValue}
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.jpath.JPath
 import com.rojoma.simplearm.Managed
-import com.socrata.datacoordinator.id.{RowId, ColumnId}
+import com.socrata.datacoordinator.id.{ColumnId, RowId}
 import com.socrata.datacoordinator.secondary.Secondary.Cookie
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
@@ -17,8 +17,8 @@ import wabisabi.{Client => ElasticSearchClient}
 import scala.concurrent.Await
 import scala.util.Try
 
-class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValue] {
-  private[this] val esc = new ElasticSearchClient(conf.esUrl)
+class SpandexSecondary(conf: SpandexConfig, esPort: Int) extends Secondary[SoQLType, SoQLValue] {
+  private[this] val esc = new ElasticSearchClient(conf.esUrl(esPort))
   private[this] val escTimeout = conf.escTimeout
   private[this] val escTimeoutFast = conf.escTimeoutFast
   private[this] val index = conf.index
@@ -36,7 +36,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
   init()
 
   def init(): Unit = {
-    SpandexBootstrap.ensureIndex(conf)
+    SpandexBootstrap.ensureIndex(conf, esPort)
   }
 
   def shutdown(): Unit = { }

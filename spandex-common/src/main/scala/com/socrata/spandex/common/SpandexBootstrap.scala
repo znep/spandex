@@ -7,8 +7,8 @@ import wabisabi.{Client => ElasticsearchClient}
 import scala.concurrent.Await
 
 object SpandexBootstrap {
-  def ensureIndex(conf: SpandexConfig): String = {
-    val esc = new ElasticsearchClient(conf.esUrl)
+  def ensureIndex(conf: SpandexConfig, port: Int): String = {
+    val esc = new ElasticsearchClient(conf.esUrl(port))
     val indexResponse = Await.result(esc.verifyIndex(conf.index), conf.escTimeoutFast)
     val resultHttpCode = indexResponse.getStatusCode
     if (resultHttpCode != HttpStatus.SC_OK) {
