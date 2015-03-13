@@ -48,7 +48,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
   }
 
   // return list of working copies' IDs
-  def snapshots(fxf: String, cookie: Cookie): Set[Long] = doSnapshots(fxf).map(_._1)
+  def snapshots(fxf: String, cookie: Cookie): Set[Long] = doSnapshots(fxf).map(s => s._1)
 
   private[this] def doSnapshots(fxf: String): Set[(Long, Long)] = {
     val r = Await.result(esc.search(index, matchAll, `type` = Some(fxf)), escTimeout).getResponseBody
@@ -87,7 +87,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
   // get the version of the current working copy
   def currentVersion(fxf: String, cookie: Cookie): Long = {
     val copy = currentCopyNumber(fxf, cookie)
-    doSnapshots(fxf).find(s => s._1 == copy).map(_._2).getOrElse(-1)
+    doSnapshots(fxf).find(s => s._1 == copy).map(s => s._2).getOrElse(-1)
   }
 
   override def version(datasetInfo: DatasetInfo, dataVersion: Long, cookie: Cookie,
