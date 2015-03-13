@@ -107,6 +107,9 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     // got working copy event
     if (wccEvents.hasNext) {
       val WorkingCopyCreated(copyInfo) = wccEvents.next()
+      snapshots(fxf, cookie).map {s =>
+        if (newDataVersion == s) throw new UnsupportedOperationException(s"version $newDataVersion already assigned")
+      }
       doUpdateMapping(fxf, copyInfo.copyNumber.toString)
     }
 
@@ -116,9 +119,6 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     }
 
     val copy = currentCopyNumber(fxf, cookie).toString
-
-    // TODO: handle version number invalid -> resync
-    if (newDataVersion == -1) throw new UnsupportedOperationException(s"version $newDataVersion already assigned")
 
     // TODO: elasticsearch add index routing
     remainingEvents.foreach {
