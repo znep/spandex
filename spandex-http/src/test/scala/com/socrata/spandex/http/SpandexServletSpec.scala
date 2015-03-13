@@ -31,7 +31,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     val esc = new ElasticsearchClient(conf.esUrl)
 
     Await.result(
-      esc.index(conf.index, fxf, Some(copy), "{\"copy\":\"%s\", \"version\":\"0\"}".format(fxfCopy)),
+      esc.index(conf.index, fxf, Some(copy), "{\"truthVersion\":\"0\", \"truthUpdate\":\"1234567890\"}"),
       conf.escTimeoutFast)
 
     val newMapping =

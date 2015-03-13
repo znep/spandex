@@ -1,6 +1,6 @@
 package com.socrata.spandex.secondary
 
-import com.rojoma.json.v3.ast.{JValue, JObject}
+import com.rojoma.json.v3.ast.{JObject, JValue}
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.jpath.JPath
 import com.rojoma.simplearm.Managed
@@ -9,6 +9,7 @@ import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types.{SoQLText, SoQLType, SoQLValue}
 import com.socrata.spandex.common.{SpandexBootstrap, SpandexConfig}
+import org.joda.time.DateTime
 import wabisabi.{Client => ElasticSearchClient}
 
 import scala.concurrent.Await
@@ -134,7 +135,10 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
       case i: Any => throw new UnsupportedOperationException(s"event not supported: '$i'")
     }
 
-    // TODO: set new version number
+    Await.result(esc.index(conf.index, fxf, Some(copy),
+        "{\"truthVersion\":\"%d\", \"truthUpdate\":\"%d\"}".format(newDataVersion, DateTime.now().getMillis)),
+      conf.escTimeoutFast
+    )
 
     cookie
   }
