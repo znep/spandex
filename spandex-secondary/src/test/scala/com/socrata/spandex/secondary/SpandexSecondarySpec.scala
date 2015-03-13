@@ -221,7 +221,7 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
       None,
       new SimpleArm[Iterator[ColumnIdMap[SoQLValue]]] {
         def flatMap[A](f: Iterator[ColumnIdMap[SoQLValue]] => A): A = { f(Iterator(
-          ColumnIdMap((new ColumnId(0), new SoQLText("this is a test")))
+          ColumnIdMap((new ColumnId(0), new SoQLText("69")))
         )) }
       },
       Seq.empty

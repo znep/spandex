@@ -4,10 +4,11 @@ import com.rojoma.json.v3.ast.{JObject, JValue}
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.jpath.JPath
 import com.rojoma.simplearm.Managed
+import com.socrata.datacoordinator.id.{RowId, ColumnId}
 import com.socrata.datacoordinator.secondary.Secondary.Cookie
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
-import com.socrata.soql.types.{SoQLText, SoQLType, SoQLValue}
+import com.socrata.soql.types.{SoQLNumber, SoQLText, SoQLType, SoQLValue}
 import com.socrata.spandex.common.{SpandexBootstrap, SpandexConfig}
 import org.joda.time.DateTime
 import wabisabi.{Client => ElasticSearchClient}
@@ -148,7 +149,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
       case DataCopied => { /* TODO: figure out what is required */ }
       case SnapshotDropped(info) => doDropCopy(fxf, copy)
       case WorkingCopyPublished => { /* TODO: pay attention to working copy lifecycle */ }
-      case RowDataUpdated(ops) => ???
+      case RowDataUpdated(ops) => doBulkUpsert(s"$fxf-$copy", ops)
       case i: Any => throw new UnsupportedOperationException(s"event not supported: '$i'")
     }
 
@@ -158,6 +159,30 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     )
 
     cookie
+  }
+
+  // TODO: update mapping if column is not yet mapped with completion analyzer
+  private[this] def doBulkUpsert(fxfcopy: String, ops: Seq[Operation[SoQLValue]]) = {
+    ops.grouped(bulkBatchSize).foreach {
+      batch: Seq[Operation[SoQLValue]] => {
+        val bulkPayload = new StringBuilder
+        batch.foreach {
+          case Insert(id, data) =>
+            bulkPayload.append("{\"index\": {\"_id\": \"%s\"} }\n%s\n".format(id, rowToJson(data)))
+          case Update(id, data) =>
+            bulkPayload.append("{\"update\": {\"_id\": \"%s\"} }\n{\"doc\": %s}\n".format(id, rowToJson(data)))
+          case Delete(id) => bulkPayload.append("{\"delete\": {\"_id\": \"%s\"} }\n".format(id))
+        }
+        Await.result(esc.bulk(Some(conf.index), Some(fxfcopy), bulkPayload.toString()), conf.escTimeout)
+      }
+    }
+  }
+
+  private[this] def rowToJson(data: Row[SoQLValue]): String = {
+    val kvp: ColumnIdMap[String] = data.transform({ (id: ColumnId, v: SoQLValue) =>
+      "\"%s\": \"%s\"".format(id.underlying.toString, v.toString)
+    })
+    kvp.toSeq.mkString("{", ",", "}")
   }
 
   override def resync(datasetInfo: DatasetInfo, copyInfo: CopyInfo, schema: ColumnIdMap[ColumnInfo[SoQLType]],
@@ -180,16 +205,19 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     val sysIdCol = newSchema.values.find(_.isSystemPrimaryKey).
       getOrElse(throw new RuntimeException("missing system primary key")).systemId
 
-    for {iter <- rows} {
-      iter.grouped(bulkBatchSize).foreach { bi =>
-        for (row: ColumnIdMap[SoQLValue] <- bi) {
-          val docId = row(sysIdCol)
-          val kvp = columns.foreach { i =>
-            (i, row.getOrElse(i, ""))
+    val data: Seq[Operation[SoQLValue]] =
+      rows.map { bi =>
+        for {row: ColumnIdMap[SoQLValue] <- bi} yield {
+          val docId: Long = row(sysIdCol) match {
+            case SoQLNumber(n) => n.longValue()
+            case SoQLText(s) => s.toLong
+            case x => throw new NumberFormatException(s"Unknown system id column $x")
           }
+          Insert(new RowId(docId), row)
         }
-      }
-    }
+      }.toSeq
+
+    doBulkUpsert(s"$fxf-$copy", data)
 
     cookie
   }
