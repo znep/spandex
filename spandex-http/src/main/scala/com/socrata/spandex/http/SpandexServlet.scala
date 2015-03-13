@@ -29,11 +29,11 @@ class SpandexServlet(conf: SpandexConfig, esPort: Int) extends SpandexStack {
     response.getResponseBody
   }
 
-  get ("/mapping"){
+  get ("/mapping/?"){
     Await.result(esc.getMapping(indices,Seq.empty), conf.escTimeoutFast).getResponseBody
   }
 
-  get ("/suggest/:4x4/:col/:txt") {
+  get ("/suggest/:4x4/:col/:txt/?") {
     val fourbyfour: String = params.getOrElse("4x4", "")
     val column: String = params.getOrElse("col", "")
     val text: String = params.getOrElse("txt", "")
