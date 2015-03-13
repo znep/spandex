@@ -147,7 +147,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
       case WorkingCopyDropped => doDropCopy(fxf, copy)
       case DataCopied => ??? // working copy
       case SnapshotDropped(info) => doDropCopy(fxf, copy)
-      case WorkingCopyPublished => ??? // working copy
+      case WorkingCopyPublished => { /* TODO: pay attention to working copy lifecycle */ }
       case RowDataUpdated(ops) => ???
       case i: Any => throw new UnsupportedOperationException(s"event not supported: '$i'")
     }
