@@ -16,18 +16,18 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
   val fxf = "qnmj-8ku6"
   val dataSetInfo = DatasetInfo(fxf, "en-us", Array.empty)
   val copyNum42 = 42
-  private[this] var _copy = copyNum42
-  def copy = {
+  var _copy = copyNum42
+  def copy: Long = {
     _copy = _copy + 1
     _copy
   }
   val versionNum1234 = 1234
-  private[this] var _version = versionNum1234
-  def version = {
+  var _version = versionNum1234
+  def version: Long = {
     _version = _version + 1
     _version
   }
-  def copyInfo(id: Long = copy, ver: Long = version) =
+  def copyInfo(id: Long = copy, ver: Long = version): CopyInfo =
     CopyInfo(new CopyId(id), id, LifecycleStage.Unpublished, ver, DateTime.now)
 
   private[this] def bootstrapImaginaryData(): Unit = {

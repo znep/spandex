@@ -1,3 +1,4 @@
+
 package com.socrata.spandex.secondary
 
 import com.rojoma.json.v3.ast.{JObject, JValue}
@@ -27,6 +28,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
   private[this] val bulkBatchSize = conf.bulkBatchSize
   private[this] val matchAll = "{\"query\": { \"match_all\": {} } }"
   private[this] val hits = "hits"
+  private[this] val comma: String = ","
 
   private[this] val quotesRegex = "^[\"]*([^\"]+)[\"]*$".r
   private[this] def trimQuotes(s: String): String = s match {case quotesRegex(inside) => inside}
@@ -102,36 +104,14 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     val fxf = datasetInfo.internalName
     val copies = doSnapshots(fxf).toList
 
-    if (newDataVersion < 0) throw new UnsupportedOperationException(s"version $newDataVersion invalid")
+    if (newDataVersion < 0) throw new UnsupportedOperationException(s"version invalid: $newDataVersion")
     copies.map {
       case (_, ver) => if (newDataVersion <= ver) {
-        throw new UnsupportedOperationException(s"version $newDataVersion already assigned")
+        throw new UnsupportedOperationException(s"version already assigned: $newDataVersion")
       }
     }
 
-    val (wccEvents, remainingEvents) = events.span {
-      case WorkingCopyCreated(_) => true
-      case _ => false
-    }
-
-    // got working copy event
-    if (wccEvents.hasNext) {
-      val WorkingCopyCreated(copyInfo) = wccEvents.next()
-      println(s"working copy $fxf $copyInfo")
-      if (copyInfo.copyNumber < 0) throw new UnsupportedOperationException(s"copy $copyInfo invalid")
-      copies.map {
-        case (id, _) => if (copyInfo.copyNumber <= id) {
-          throw new UnsupportedOperationException(s"copy $id already assigned")
-        }
-      }
-      doUpdateMapping(fxf, copyInfo.copyNumber.toString)
-    }
-
-    if (wccEvents.hasNext) {
-      val msg = s"Got ${wccEvents.size + 1} leading WorkingCopyCreated events, only support one in a version"
-      throw new UnsupportedOperationException(msg)
-    }
-
+    val remainingEvents = doVersionWorkingCopyCreated(fxf, copies, events)
     val copy = currentCopyNumber(fxf, cookie).toString
 
     // TODO: elasticsearch add index routing
@@ -154,11 +134,39 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     }
 
     Await.result(esc.index(conf.index, fxf, Some(copy),
-        "{\"truthVersion\":\"%d\", \"truthUpdate\":\"%d\"}".format(newDataVersion, DateTime.now().getMillis)),
+        "{\"truthVersion\":\"%d\"%s \"truthUpdate\":\"%d\"}".format(newDataVersion, comma, DateTime.now().getMillis)),
       conf.escTimeoutFast
     )
 
     cookie
+  }
+
+  private[this] def doVersionWorkingCopyCreated(fxf: String, copies: List[(Long,Long)],
+                                                events: Iterator[Event[SoQLType, SoQLValue]]):
+  Iterator[Event[SoQLType, SoQLValue]] = {
+    val (wccEvents, remainingEvents) = events.span {
+      case WorkingCopyCreated(_) => true
+      case _ => false
+    }
+
+    // got working copy event
+    if (wccEvents.hasNext) {
+      val WorkingCopyCreated(copyInfo) = wccEvents.next()
+      if (copyInfo.copyNumber < 0) throw new UnsupportedOperationException(s"copy invalid: $copyInfo")
+      copies.map {
+        case (id, _) => if (copyInfo.copyNumber <= id) {
+          throw new UnsupportedOperationException(s"copy already assigned: $id")
+        }
+      }
+      doUpdateMapping(fxf, copyInfo.copyNumber.toString)
+    }
+
+    if (wccEvents.hasNext) {
+      val msg = s"Got ${wccEvents.size + 1} leading WorkingCopyCreated events$comma only support one in a version"
+      throw new UnsupportedOperationException(msg)
+    }
+
+    remainingEvents
   }
 
   // TODO: update mapping if column is not yet mapped with completion analyzer
@@ -182,7 +190,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     val kvp: ColumnIdMap[String] = data.transform({ (id: ColumnId, v: SoQLValue) =>
       "\"%s\": \"%s\"".format(id.underlying.toString, v.toString)
     })
-    kvp.toSeq.mkString("{", ",", "}")
+    kvp.toSeq.mkString("{", comma, "}")
   }
 
   override def resync(datasetInfo: DatasetInfo, copyInfo: CopyInfo, schema: ColumnIdMap[ColumnInfo[SoQLType]],
@@ -211,7 +219,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
           val docId: Long = row(sysIdCol) match {
             case SoQLNumber(n) => n.longValue()
             case SoQLText(s) => s.toLong
-            case x => throw new NumberFormatException(s"Unknown system id column $x")
+            case x: Any => throw new NumberFormatException(s"Unknown system id column $x")
           }
           Insert(new RowId(docId), row)
         }
@@ -238,7 +246,7 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
       case Some(c) if !cs.contains(c) => c::cs
       case _ => cs
     }
-    val newMapping = mappingBase.format(fxfcopy, newColumns.map(mappingCol.format(_)).mkString(","))
+    val newMapping = mappingBase.format(fxfcopy, newColumns.map(mappingCol.format(_)).mkString(comma))
 
     // put mapping
     Await.result(esc.putMapping(indices, fxfcopy, newMapping), escTimeoutFast).getResponseBody
