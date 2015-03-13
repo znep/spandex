@@ -153,6 +153,13 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
     ))
   }
 
+  test("version last modified") {
+    val sec = new SpandexSecondary(new SpandexConfig)
+    sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
+      new LastModifiedChanged(DateTime.now())
+    ))
+  }
+
   test("version row data updated") {
     val sec = new SpandexSecondary(new SpandexConfig)
     sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(

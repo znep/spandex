@@ -138,7 +138,12 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
       case Truncated => doDropCopy(fxf, copy, truncate = true)
       case ColumnCreated(colInfo) => doUpdateMapping(fxf, copy, Some(colInfo.systemId.underlying.toString))
       case ColumnRemoved(colInfo) => { /* TODO: remove column */ }
-      case LastModifiedChanged(lastModified) => ???
+      case LastModifiedChanged(lastModified) => {
+        Await.result(
+          esc.index(conf.index, fxf, Some(copy), "{\"truthUpdate\":\"%s\"}".format(lastModified)),
+          conf.escTimeout
+        )
+      }
       case WorkingCopyDropped => doDropCopy(fxf, copy)
       case DataCopied => ??? // working copy
       case SnapshotDropped(info) => doDropCopy(fxf, copy)
