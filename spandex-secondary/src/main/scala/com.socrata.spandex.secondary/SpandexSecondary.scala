@@ -99,6 +99,14 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
   private[this] def doVersion(datasetInfo: DatasetInfo, newDataVersion: Long, // scalastyle:ignore cyclomatic.complexity
                 cookie: Cookie, events: Iterator[Event[SoQLType, SoQLValue]]): Cookie = {
     val fxf = datasetInfo.internalName
+    val copies = doSnapshots(fxf).toList
+
+    if (newDataVersion < 0) throw new UnsupportedOperationException(s"version $newDataVersion invalid")
+    copies.map {
+      case (_, ver) => if (newDataVersion <= ver) {
+        throw new UnsupportedOperationException(s"version $newDataVersion already assigned")
+      }
+    }
 
     val (wccEvents, remainingEvents) = events.span {
       case WorkingCopyCreated(_) => true
@@ -108,8 +116,12 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     // got working copy event
     if (wccEvents.hasNext) {
       val WorkingCopyCreated(copyInfo) = wccEvents.next()
-      snapshots(fxf, cookie).map {s =>
-        if (newDataVersion == s) throw new UnsupportedOperationException(s"version $newDataVersion already assigned")
+      println(s"working copy $fxf $copyInfo")
+      if (copyInfo.copyNumber < 0) throw new UnsupportedOperationException(s"copy $copyInfo invalid")
+      copies.map {
+        case (id, _) => if (copyInfo.copyNumber <= id) {
+          throw new UnsupportedOperationException(s"copy $id already assigned")
+        }
       }
       doUpdateMapping(fxf, copyInfo.copyNumber.toString)
     }
