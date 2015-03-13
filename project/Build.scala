@@ -96,13 +96,12 @@ object Deps {
   )
   lazy val test = Seq(
     "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
-    "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
-    "org.scalatest" %% "scalatest" % "2.1.0" % "test"
+    "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test"
   )
   lazy val common = Seq(
     "javax.servlet" % "javax.servlet-api" % "3.1.0",
     "com.typesafe" % "config" % "1.2.1",
-    "wabisabi" %% "wabisabi" % "2.0.15"
+    "wabisabi" %% "wabisabi" % "2.0.18"
   )
   lazy val secondary = Seq(
     "com.socrata" %% "secondarylib" % "0.3.1",
