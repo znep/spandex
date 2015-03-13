@@ -1,6 +1,6 @@
 package com.socrata.spandex.secondary
 
-import com.rojoma.json.v3.ast.JObject
+import com.rojoma.json.v3.ast.{JValue, JObject}
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.jpath.JPath
 import com.rojoma.simplearm.Managed
@@ -26,6 +26,9 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
   private[this] val matchAll = "{\"query\": { \"match_all\": {} } }"
   private[this] val hits = "hits"
 
+  private[this] val quotesRegex = "^[\"]*([^\"]+)[\"]*$".r
+  private[this] def trimQuotes(s: String): String = s match {case quotesRegex(inside) => inside}
+
   init()
 
   def init(): Unit = {
@@ -50,15 +53,22 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
   private[this] def doSnapshots(fxf: String): Set[(Long, Long)] = {
     val r = Await.result(esc.search(index, matchAll, `type` = Some(fxf)), escTimeout).getResponseBody
     val t: Try[Set[(Long, Long)]] = Try {
-      new JPath(JsonReader.fromString(r)).*.down(hits).down(hits).finish.collect {
-        case JObject(fields) => (
-          fields("_id").toString().toLong,
-          fields("_source").toString().toLong
-          )
-      }.force.toSet
+      new JPath(JsonReader.fromString(r)).down(hits).down(hits).*.finish.collect {
+        case JObject(fields) => {
+          val id = trimQuotes(fields("_id").toString())
+          val src = fields("_source").toString()
+
+          val version: Long = Try {
+            new JPath(JsonReader.fromString(src)).down("truthVersion").finish.collect {
+              case s: JValue => trimQuotes(s.toString()).toLong
+            }.head
+          }.getOrElse(-1)
+
+          (id.toLong, version)
+        }
+      }.toSet
     }
     t.getOrElse(Set.empty)
-    // TODO: parse json to extract copy and version
   }
 
   // delete a working copy
@@ -70,14 +80,14 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
   // return the current working copy ID
   // TODO: figure out which working copy is current
   def currentCopyNumber(fxf: String, cookie: Cookie): Long =
-    snapshots(fxf, cookie).head
+    snapshots(fxf, cookie).headOption.getOrElse(-1)
 
   def wantsWorkingCopies: Boolean = true
 
   // get the version of the current working copy
   def currentVersion(fxf: String, cookie: Cookie): Long = {
     val copy = currentCopyNumber(fxf, cookie)
-    doSnapshots(fxf).filter(s => s._1 == copy).head._2
+    doSnapshots(fxf).find(s => s._1 == copy).map(_._2).getOrElse(-1)
   }
 
   override def version(datasetInfo: DatasetInfo, dataVersion: Long, cookie: Cookie,
@@ -88,22 +98,24 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
   private[this] def doVersion(datasetInfo: DatasetInfo, newDataVersion: Long, // scalastyle:ignore cyclomatic.complexity
                 cookie: Cookie, events: Iterator[Event[SoQLType, SoQLValue]]): Cookie = {
     val fxf = datasetInfo.internalName
-    val copy = currentCopyNumber(fxf, cookie).toString
 
     val (wccEvents, remainingEvents) = events.span {
-      case WorkingCopyCreated(copyInfo) => true
+      case WorkingCopyCreated(_) => true
       case _ => false
     }
 
     // got working copy event
-    if (wccEvents.hasNext) wccEvents.next()
+    if (wccEvents.hasNext) {
+      val WorkingCopyCreated(copyInfo) = wccEvents.next()
+      doUpdateMapping(fxf, copyInfo.copyNumber.toString)
+    }
 
     if (wccEvents.hasNext) {
       val msg = s"Got ${wccEvents.size + 1} leading WorkingCopyCreated events, only support one in a version"
       throw new UnsupportedOperationException(msg)
     }
 
-    doUpdateMapping(fxf, copy.toString)
+    val copy = currentCopyNumber(fxf, cookie).toString
 
     // TODO: handle version number invalid -> resync
     if (newDataVersion == -1) throw new UnsupportedOperationException(s"version $newDataVersion already assigned")
@@ -165,9 +177,10 @@ class SpandexSecondary(conf: SpandexConfig) extends Secondary[SoQLType, SoQLValu
     val fxfcopy = s"$fxf-$copy"
 
     // add to dataset list of working copies
-    if (column.isEmpty)
-      Await.result(esc.index(index, fxf, Some(copy), "{}"), escTimeoutFast).getResponseBody
-    
+    if (column.isEmpty) {
+      Await.result(esc.index(index, fxf, Some(copy), s"""{"copy":"$copy"}"""), escTimeoutFast).getResponseBody
+    }
+
     val previousMapping = Await.result(esc.getMapping(indices, Seq(fxfcopy)), escTimeoutFast).getResponseBody
     val cs: List[String] = Try(new JPath(JsonReader.fromString(previousMapping)).*.*.down(fxfcopy).
       down("properties").finish.collect { case JObject(fields) => fields.keys.toList }.head).getOrElse(Nil)
