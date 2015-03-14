@@ -1,7 +1,7 @@
 package com.socrata.spandex.secondary
 
 import com.rojoma.simplearm.SimpleArm
-import com.socrata.datacoordinator.id.{ColumnId, CopyId, UserColumnId}
+import com.socrata.datacoordinator.id.{ColumnId, CopyId, RowId, UserColumnId}
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types.{SoQLText, SoQLType, SoQLValue}
@@ -156,9 +156,27 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
     ))
   }
 
-  test("version row data updated") {
+  test("version row data updated insert") {
     sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
-      new RowDataUpdated(Seq.empty)
+      new RowDataUpdated(Seq(
+        Insert(new RowId(1), ColumnIdMap(new ColumnId(1) -> SoQLText("test")))
+      ))
+    ))
+  }
+
+  test("version row data updated update") {
+    sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
+      new RowDataUpdated(Seq(
+        Update(new RowId(1), ColumnIdMap(new ColumnId(1) -> SoQLText("123")))(None)
+      ))
+    ))
+  }
+
+  test("version row data updated delete") {
+    sec.version(dataSetInfo, copyInfo().dataVersion, None, Iterator(
+      new RowDataUpdated(Seq(
+        Delete(new RowId(1))(None)
+      ))
     ))
   }
 
