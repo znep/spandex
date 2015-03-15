@@ -1,4 +1,4 @@
 {
-  "class" : "com.socrata.spandex.SpandexSecondary",
+  "class" : "com.socrata.spandex.secondary.SpandexSecondary",
   "name" : "spandex"
 }
