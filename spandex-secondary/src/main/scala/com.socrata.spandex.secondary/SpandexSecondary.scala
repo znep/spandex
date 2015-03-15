@@ -9,8 +9,9 @@ import com.socrata.datacoordinator.id.{ColumnId, RowId}
 import com.socrata.datacoordinator.secondary.Secondary.Cookie
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
-import com.socrata.soql.types.{SoQLNumber, SoQLText, SoQLType, SoQLValue}
+import com.socrata.soql.types._
 import com.socrata.spandex.common.{SpandexBootstrap, SpandexConfig}
+import com.typesafe.config.Config
 import org.joda.time.DateTime
 import wabisabi.{Client => ElasticSearchClient}
 
@@ -18,6 +19,10 @@ import scala.concurrent.Await
 import scala.util.Try
 
 class SpandexSecondary(conf: SpandexConfig, esPort: Int) extends Secondary[SoQLType, SoQLValue] {
+  def this(rawConf: Config) = {
+    this(new SpandexConfig(rawConf), new SpandexConfig(rawConf).esPort)
+  }
+
   private[this] val esc = new ElasticSearchClient(conf.esUrl(esPort))
   private[this] val escTimeout = conf.escTimeout
   private[this] val escTimeoutFast = conf.escTimeoutFast
@@ -213,20 +218,19 @@ class SpandexSecondary(conf: SpandexConfig, esPort: Int) extends Secondary[SoQLT
     val sysIdCol = newSchema.values.find(_.isSystemPrimaryKey).
       getOrElse(throw new RuntimeException("missing system primary key")).systemId
 
-    val data: Seq[Operation[SoQLValue]] =
-      rows.map { bi =>
-        for {row: ColumnIdMap[SoQLValue] <- bi} yield {
+    for { iter <- rows } {
+      // TODO this multi level batching isn't entirely sane, revisit
+      iter.grouped(bulkBatchSize).foreach { bi =>
+        val batch = bi.map { row =>
           val docId: Long = row(sysIdCol) match {
-            case SoQLNumber(n) => n.longValue()
-            case SoQLText(s) => s.toLong
+            case SoQLID(n) => n
             case x: Any => throw new NumberFormatException(s"Unknown system id column $x")
           }
           Insert(new RowId(docId), row)
         }
-      }.toSeq
-
-    doBulkUpsert(s"$fxf-$copy", data)
-
+        doBulkUpsert(s"$fxf-$copy", batch)
+      }
+    }
     cookie
   }
 
