@@ -5,11 +5,13 @@ import com.rojoma.json.v3.ast.{JObject, JValue}
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.jpath.JPath
 import com.rojoma.simplearm.Managed
+import com.socrata.datacoordinator.common.soql.SoQLRep
 import com.socrata.datacoordinator.id.{ColumnId, RowId}
 import com.socrata.datacoordinator.secondary.Secondary.Cookie
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types._
+import com.socrata.soql.types.obfuscation.CryptProvider
 import com.socrata.spandex.common.{SpandexBootstrap, SpandexConfig}
 import com.typesafe.config.Config
 import org.joda.time.DateTime
@@ -181,21 +183,27 @@ class SpandexSecondary(conf: SpandexConfig, esPort: Int) extends Secondary[SoQLT
         val bulkPayload = new StringBuilder
         batch.foreach {
           case Insert(id, data) =>
-            bulkPayload.append("{\"index\": {\"_id\": \"%s\"} }\n%s\n".format(id, rowToJson(data)))
+            bulkPayload.append("{\"index\": {\"_id\": %s} }\n%s\n".format(id.underlying, rowToJson(data)))
           case Update(id, data) =>
-            bulkPayload.append("{\"update\": {\"_id\": \"%s\"} }\n{\"doc\": %s}\n".format(id, rowToJson(data)))
-          case Delete(id) => bulkPayload.append("{\"delete\": {\"_id\": \"%s\"} }\n".format(id))
+            bulkPayload.append("{\"update\": {\"_id\": %s} }\n{\"doc\": %s}\n".format(id.underlying,
+              rowToJson(data)))
+          case Delete(id) => bulkPayload.append("{\"delete\": {\"_id\": %s} }\n".format(id.underlying))
         }
         Await.result(esc.bulk(Some(conf.index), Some(fxfcopy), bulkPayload.toString()), conf.escTimeout)
       }
+
     }
   }
 
+  // TODO use actual dataset key
+  val cryptProvider = new CryptProvider("TODO".getBytes)
+  val jsonReps = SoQLRep.jsonRep(new SoQLID.StringRep(cryptProvider), new SoQLVersion.StringRep(cryptProvider))
+
   private[this] def rowToJson(data: Row[SoQLValue]): String = {
-    val kvp: ColumnIdMap[String] = data.transform({ (id: ColumnId, v: SoQLValue) =>
-      "\"%s\": \"%s\"".format(id.underlying.toString, v.toString)
-    })
-    kvp.toSeq.mkString("{", comma, "}")
+    // TODO We need the UserColumnId to actually be able to have soda fountain map, it doesn't have the SystemColumnId.
+    data.toSeq.map { case (id: ColumnId, v: SoQLValue) =>
+      "\"%s\": %s".format(id.underlying.toString, jsonReps(v.typ).toJValue(v))
+    }.mkString("{", comma, "}")
   }
 
   override def resync(datasetInfo: DatasetInfo, copyInfo: CopyInfo, schema: ColumnIdMap[ColumnInfo[SoQLType]],
