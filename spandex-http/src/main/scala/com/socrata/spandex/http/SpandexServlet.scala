@@ -9,10 +9,9 @@ import scala.concurrent.Await
 
 class SpandexServlet(conf: SpandexConfig, esPort: Int) extends SpandexStack {
   private[this] val esc: ElasticsearchClient = new ElasticsearchClient(conf.esUrl(esPort))
-  private[this] val index = conf.index
+  private[this] val index = conf.es.index
   private[this] val indices = List(index)
   private[this] val indexSettings = conf.indexSettings
-  private[this] val mappingBase = conf.indexBaseMapping
   private[this] val mappingCol = conf.indexColumnMapping
 
   get("//?") {

@@ -12,25 +12,89 @@ import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types._
 import com.socrata.soql.types.obfuscation.CryptProvider
-import com.socrata.spandex.common.{SpandexBootstrap, SpandexConfig}
+import com.socrata.spandex.common.{ElasticSearchConfig, SpandexBootstrap, SpandexConfig}
 import com.typesafe.config.Config
 import org.joda.time.DateTime
-import wabisabi.{Client => ElasticSearchClient}
 
 import scala.concurrent.Await
 import scala.util.Try
+import com.typesafe.scalalogging.slf4j.Logging
+import com.socrata.spandex.common.client.ElasticSearchClient
+import org.elasticsearch.rest.RestStatus
 
-class SpandexSecondary(conf: SpandexConfig, esPort: Int) extends Secondary[SoQLType, SoQLValue] {
-  def this(rawConf: Config) = {
-    this(new SpandexConfig(rawConf), new SpandexConfig(rawConf).esPort)
+class SpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike {
+  def this(rawConfig: Config) = this(new SpandexConfig(rawConfig).es)
+
+  val client = new ElasticSearchClient(config)
+  val index  = config.index
+}
+
+trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
+  def client: ElasticSearchClient
+  def index: String
+
+  def init(): Unit = ()
+  def shutdown(): Unit = ()
+
+  def wantsWorkingCopies: Boolean = true
+
+  def currentVersion(datasetInternalName: String, cookie: Cookie): Long =
+    throw new NotImplementedError("Not used anywhere yet") // scalastyle:ignore multiple.string.literals
+
+  def currentCopyNumber(datasetInternalName: String, cookie: Cookie): Long =
+    throw new NotImplementedError("Not used anywhere yet") // scalastyle:ignore multiple.string.literals
+
+  def snapshots(datasetInternalName: String, cookie: Cookie): Set[Long] =
+    throw new NotImplementedError("Not used anywhere yet") // scalastyle:ignore multiple.string.literals
+
+  def dropDataset(datasetInternalName: String, cookie: Cookie): Unit = {
+    val result = client.deleteByDataset(datasetInternalName)
+    checkStatus(result.status, RestStatus.OK, s"dropDataset for $datasetInternalName")
   }
 
-  private[this] val esc = new ElasticSearchClient(conf.esUrl(esPort))
+  def dropCopy(datasetInternalName: String, copyNumber: Long, cookie: Cookie): Cookie = {
+    val result = client.deleteByCopyId(datasetInternalName, copyNumber)
+    checkStatus(result.status, RestStatus.OK, s"dropCopy for $datasetInternalName copyNumber $copyNumber")
+    cookie
+  }
+
+  private def checkStatus(actual: RestStatus, expected: RestStatus, description: String): Unit = {
+    actual match {
+      case `expected` =>
+        logger.info(s"$description was successful")
+      case other: RestStatus =>
+        logger.info(s"$description failed with HTTP status $other")
+    }
+  }
+
+  def version(datasetInfo: DatasetInfo,
+              dataVersion: Long,
+              cookie: Cookie,
+              events: Iterator[Event[SoQLType, SoQLValue]]): Cookie = {
+    events.foreach(e => println(e.getClass)) // scalastyle:off
+    cookie
+  }
+
+  def resync(datasetInfo: DatasetInfo,
+             copyInfo: CopyInfo,
+             schema: ColumnIdMap[ColumnInfo[SoQLType]],
+             cookie: Cookie,
+             rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],
+             rollups: Seq[RollupInfo]): Cookie = ???
+}
+
+
+class SpandexSecondaryOld(conf: SpandexConfig, esPort: Int) extends Secondary[SoQLType, SoQLValue] {
+  def this(rawConf: Config) = {
+    this(new SpandexConfig(rawConf), new SpandexConfig(rawConf).es.port)
+  }
+
+  private[this] val esc = new wabisabi.Client(conf.esUrl(esPort))
   private[this] val escTimeout = conf.escTimeout
   private[this] val escTimeoutFast = conf.escTimeoutFast
-  private[this] val index = conf.index
+  private[this] val index = conf.es.index
   private[this] val indices = List(index)
-  private[this] val mappingBase = conf.indexBaseMapping
+  private[this] val mappingBase = "" // conf.indexBaseMapping
   private[this] val mappingCol = conf.indexColumnMapping
   private[this] val bulkBatchSize = conf.bulkBatchSize
   private[this] val matchAll = "{\"query\": { \"match_all\": {} } }"
@@ -128,7 +192,7 @@ class SpandexSecondary(conf: SpandexConfig, esPort: Int) extends Secondary[SoQLT
       case ColumnRemoved(colInfo) => { /* TODO: remove column */ }
       case LastModifiedChanged(lastModified) => {
         Await.result(
-          esc.index(conf.index, fxf, Some(copy), "{\"truthUpdate\":\"%s\"}".format(lastModified)),
+          esc.index(conf.es.index, fxf, Some(copy), "{\"truthUpdate\":\"%s\"}".format(lastModified)),
           conf.escTimeout
         )
       }
@@ -140,7 +204,7 @@ class SpandexSecondary(conf: SpandexConfig, esPort: Int) extends Secondary[SoQLT
       case i: Any => throw new UnsupportedOperationException(s"event not supported: '$i'")
     }
 
-    Await.result(esc.index(conf.index, fxf, Some(copy),
+    Await.result(esc.index(conf.es.index, fxf, Some(copy),
         "{\"truthVersion\":\"%d\"%s \"truthUpdate\":\"%d\"}".format(newDataVersion, comma, DateTime.now().getMillis)),
       conf.escTimeoutFast
     )
@@ -189,7 +253,7 @@ class SpandexSecondary(conf: SpandexConfig, esPort: Int) extends Secondary[SoQLT
               rowToJson(data)))
           case Delete(id) => bulkPayload.append("{\"delete\": {\"_id\": %s} }\n".format(id.underlying))
         }
-        Await.result(esc.bulk(Some(conf.index), Some(fxfcopy), bulkPayload.toString()), conf.escTimeout)
+        Await.result(esc.bulk(Some(conf.es.index), Some(fxfcopy), bulkPayload.toString()), conf.escTimeout)
       }
 
     }

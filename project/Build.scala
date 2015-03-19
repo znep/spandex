@@ -63,7 +63,7 @@ object SpandexBuild extends Build {
           }
       }
     )
-  ).dependsOn(spandexCommon)
+  ).dependsOn(spandexCommon % "compile->compile;test->test")
 
   lazy val spandexSecondary = Project (
     "spandex-secondary",
@@ -71,7 +71,7 @@ object SpandexBuild extends Build {
     settings = commonSettings ++ Seq(
       libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondary
     )
-  ).dependsOn(spandexCommon)
+  ).dependsOn(spandexCommon % "compile->compile;test->test")
 }
 
 object Deps {

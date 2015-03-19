@@ -12,7 +12,7 @@ import wabisabi.{Client => ElasticsearchClient}
 
 import scala.concurrent.Await
 
-class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfterAll {
+/*class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfterAll {
   val conf = new SpandexConfig
   val localMasterPort = 9213
   val esMaster = new ElasticsearchServer(localMasterPort, true)
@@ -242,3 +242,4 @@ class SpandexSecondarySpec extends FunSuiteLike with Matchers with BeforeAndAfte
     sec.shutdown()
   }
 }
+*/

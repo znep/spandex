@@ -10,10 +10,10 @@ object Spandex extends App {
   lazy val conf = new SpandexConfig
   var ready: Boolean = false
 
-  val esRouter = new ElasticsearchServer(conf.esPort)
+  val esRouter = new ElasticsearchServer(conf.es.port)
   esRouter.start()
 
-  SpandexBootstrap.ensureIndex(conf, conf.esPort)
+  SpandexBootstrap.ensureIndex(conf, conf.es.port)
 
   val port = conf.spandexPort
   val pathRoot = "/"

@@ -7,14 +7,15 @@ class SpandexConfigSpec extends FunSuiteLike with Matchers {
     val conf = new SpandexConfig
     (
       conf.spandexPort,
-      conf.esPort,
-      conf.clusterName,
+      conf.es.port,
+      conf.es.clusterName,
       conf.clusterTimeout,
       conf.esUrl(0),
-      conf.index,
+      conf.es.index,
       conf.indexSettings,
-      conf.indexBaseMapping,
+      conf.es.mappingType,
       conf.indexColumnMapping,
+      conf.es.mappingProperties,
       conf.escTimeout,
       conf.escTimeoutFast,
       conf.bulkBatchSize

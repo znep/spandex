@@ -11,7 +11,7 @@ class ElasticsearchServer(port: Int, dataMaster: Boolean = false) {
   private[this] val dataDir = Files.createTempDirectory("elasticsearch_data_").toFile
   private[this] val settings = ImmutableSettings.settingsBuilder
     .put("path.data", dataDir.toString)
-    .put("cluster.name", conf.clusterName)
+    .put("cluster.name", conf.es.clusterName)
     .put("http.port", s"$port")
     .put("node.data", s"$dataMaster")
     .put("node.master", s"$dataMaster")

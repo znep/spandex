@@ -8,6 +8,6 @@ class ScalatraBootstrap extends LifeCycle {
   val conf = new SpandexConfig
 
   override def init(context: ServletContext): Unit = {
-    context.mount(new SpandexServlet(conf, conf.esPort), "/*")
+    context.mount(new SpandexServlet(conf, conf.es.port), "/*")
   }
 }
