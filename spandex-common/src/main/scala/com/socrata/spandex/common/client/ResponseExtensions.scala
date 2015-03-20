@@ -1,14 +1,13 @@
 package com.socrata.spandex.common.client
 
+import com.rojoma.json.v3.ast.{JString, JValue}
 import com.rojoma.json.v3.codec.{DecodeError, JsonEncode, JsonDecode}
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy, JsonUtil}
+import com.socrata.datacoordinator.secondary.LifecycleStage
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 
 import scala.language.implicitConversions
-import com.socrata.datacoordinator.secondary.LifecycleStage
-import com.rojoma.json.v3.ast.{JString, JValue}
-import scala.util.{Failure, Success, Try}
 
 @JsonKeyStrategy(Strategy.Underscore)
 case class DatasetCopy(datasetId: String, copyNumber: Long, version: Long, stage: LifecycleStage)

@@ -1,21 +1,18 @@
 package com.socrata.spandex.secondary
 
-import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike, Matchers}
-import com.socrata.datacoordinator.secondary._
-import org.scalatest.prop.PropertyChecks
-import com.socrata.datacoordinator.secondary.WorkingCopyCreated
-import com.socrata.datacoordinator.secondary.DatasetInfo
 import com.socrata.datacoordinator.id.CopyId
-import org.joda.time.DateTime
+import com.socrata.datacoordinator.secondary._
 import com.socrata.spandex.common.SpandexConfig
 import com.socrata.spandex.common.client.{TestESClient, DatasetCopy}
+import org.joda.time.DateTime
+import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike, Matchers}
+import org.scalatest.prop.PropertyChecks
 
 class VersionEventsHandlerSpec extends FunSuiteLike
                                   with Matchers
                                   with BeforeAndAfterAll
                                   with BeforeAndAfterEach
-                                  with PropertyChecks
-                                  with Arbitraries {
+                                  with PropertyChecks {
   val config = new SpandexConfig
   val client = new TestESClient(config.es)
 

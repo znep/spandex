@@ -1,9 +1,9 @@
 package com.socrata.spandex.common.client
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
+import com.socrata.spandex.common.{TestESData, SpandexConfig}
 import org.elasticsearch.rest.RestStatus
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, Matchers, FunSuiteLike}
-import com.socrata.spandex.common.{TestESData, SpandexConfig}
 
 // scalastyle:off
 class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with BeforeAndAfterAll with BeforeAndAfterEach with TestESData {

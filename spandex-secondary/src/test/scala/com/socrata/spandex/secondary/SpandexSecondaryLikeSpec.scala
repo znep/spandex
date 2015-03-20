@@ -1,8 +1,8 @@
 package com.socrata.spandex.secondary
 
-import com.socrata.spandex.common.{TestESData, ElasticSearchConfig, SpandexConfig}
-import org.scalatest.{BeforeAndAfterEach, Matchers, FunSuiteLike}
+import com.socrata.spandex.common._
 import com.socrata.spandex.common.client.TestESClient
+import org.scalatest.{BeforeAndAfterEach, Matchers, FunSuiteLike}
 
 class TestSpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike {
   val client = new TestESClient(config)

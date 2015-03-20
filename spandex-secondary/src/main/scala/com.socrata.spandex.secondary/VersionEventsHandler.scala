@@ -2,10 +2,11 @@ package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.secondary._
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
-import com.typesafe.scalalogging.slf4j.Logging
 
-class VersionEventsHandler(client: SpandexElasticSearchClient) extends Logging {
-  def handle(datasetInfo: DatasetInfo, dataVersion: Long, events: Events): Unit = {
+class VersionEventsHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
+  def handle(datasetInfo: DatasetInfo, // scalastyle:ignore cyclomatic.complexity
+             dataVersion: Long,
+             events: Events): Unit = {
     require(dataVersion > 0, s"Unexpected value for data version: $dataVersion")
 
     // First, handle any working copy events
@@ -17,7 +18,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Logging {
     // Now handle everything else
     remainingEvents.foreach {
       case Truncated =>
-        logger.info(s"Event=Truncated: deleting field values for latest copy $latest of dataset ${datasetInfo.internalName}")
+        logTruncate(datasetInfo.internalName, latest)
         client.deleteFieldValuesByCopyNumber(datasetInfo.internalName, latest)
       case LastModifiedChanged(lm) =>
         // TODO : Support if-modified-since one day
@@ -52,11 +53,11 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Logging {
             throw new ResyncSecondaryException("Dataset copy already exists")
           } else {
             // Tell ES that this new copy exists
-            logger.info(s"Event=WorkingCopyCreated: registering new copy number ${copyInfo.copyNumber} for dataset ${datasetInfo.internalName}")
+            logWorkingCopyCreated(datasetInfo.internalName, copyInfo.copyNumber)
             client.putDatasetCopy(datasetInfo.internalName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage)
           }
         case other: Event[_, _] =>
-          throw new UnsupportedOperationException("Unexpected event")
+          throw new UnsupportedOperationException(s"Unexpected event ${other.getClass}")
       }
     }
 
