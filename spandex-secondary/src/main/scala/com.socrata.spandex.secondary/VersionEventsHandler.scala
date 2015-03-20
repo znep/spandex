@@ -52,7 +52,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Logging {
             throw new ResyncSecondaryException("Dataset copy already exists")
           } else {
             // Tell ES that this new copy exists
-            logger.info(s"Event=WorkingCopyCreated: deleting field values for latest copy $latest of dataset ${datasetInfo.internalName}")
+            logger.info(s"Event=WorkingCopyCreated: registering new copy number ${copyInfo.copyNumber} for dataset ${datasetInfo.internalName}")
             client.putDatasetCopy(datasetInfo.internalName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage)
           }
         case other: Event[_, _] =>
