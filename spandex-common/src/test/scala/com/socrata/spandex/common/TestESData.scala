@@ -1,6 +1,6 @@
 package com.socrata.spandex.common
 
-import com.socrata.spandex.common.client.ElasticSearchClient
+import com.socrata.spandex.common.client.SpandexElasticSearchClient
 
 trait TestESData {
   case class IndexEntry(id: String, source: String)
@@ -9,7 +9,7 @@ trait TestESData {
   val columns = Seq("col1-1111", "col2-2222", "col3-3333")
 
   def config: SpandexConfig
-  def client: ElasticSearchClient
+  def client: SpandexElasticSearchClient
 
   def bootstrapData(): Unit = {
     for {
@@ -19,9 +19,10 @@ trait TestESData {
       value  <- 1 to 5
     } {
       val entry = makeEntry(ds, copy, column, value.toString)
-      val response = client.client.prepareIndex(config.es.index, config.es.mappingType, entry.id)
-        .setSource(entry.source)
-        .execute.actionGet
+      val response = client.client.prepareIndex(
+        config.es.index, config.es.fieldValueMapping.mappingType, entry.id)
+          .setSource(entry.source)
+          .execute.actionGet
       assert(response.isCreated, s"failed to create ${entry.id}->$value")
     }
 
@@ -30,21 +31,21 @@ trait TestESData {
   }
 
   def removeBootstrapData(): Unit = {
-    datasets.foreach(client.deleteByDataset)
+    datasets.foreach(client.deleteFieldValuesByDataset)
   }
 
   private def makeEntry(datasetId: String,
-                        copyId: Long,
+                        copyNumber: Long,
                         columnId: String,
                         suffix: String): IndexEntry = {
     val fieldValue = "data" + suffix
-    val compositeId = s"$datasetId|$copyId|$columnId"
+    val compositeId = s"$datasetId|$copyNumber|$columnId"
     val entryId = s"$compositeId|$fieldValue"
 
     val source =
       s"""{
         |  "dataset_id" : "$datasetId",
-        |  "copy_id" : $copyId,
+        |  "copy_number" : $copyNumber,
         |  "column_id" : "$columnId",
         |  "composite_id" : "$compositeId",
         |  "value" : "$fieldValue"

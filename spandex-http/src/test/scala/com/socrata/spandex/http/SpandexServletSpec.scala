@@ -35,7 +35,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
     val esc = new ElasticsearchClient(conf.esUrl(localMasterPort))
 
     Await.result(
-      esc.index(conf.index, fxf, Some(copy), "{\"truthVersion\":\"0\", \"truthUpdate\":\"1234567890\"}"),
+      esc.index(conf.es.index, fxf, Some(copy), "{\"truthVersion\":\"0\", \"truthUpdate\":\"1234567890\"}"),
       conf.escTimeoutFast)
 
     val newMapping =
@@ -63,7 +63,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
         |  }
         |}
       """.stripMargin.format(fxfCopy)
-    val rMap = Await.result(esc.putMapping(Seq(conf.index), fxfCopy, newMapping), conf.escTimeoutFast)
+    val rMap = Await.result(esc.putMapping(Seq(conf.es.index), fxfCopy, newMapping), conf.escTimeoutFast)
 
     val newBulkData =
       """{"index": {"_id": "1"} }
@@ -71,7 +71,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
         |{"index": {"_id": "2"} }
         |{"crimeType": "PUBLIC INDECENCY"}
       """.stripMargin
-    val rBulk = Await.result(esc.bulk(Some(conf.index), Some(fxfCopy), newBulkData), conf.escTimeoutFast)
+    val rBulk = Await.result(esc.bulk(Some(conf.es.index), Some(fxfCopy), newBulkData), conf.escTimeoutFast)
 
     // wait a sec for elasticsearch to process the documents into lucene
     Thread.sleep(1000) // scalastyle:ignore magic.number

@@ -28,7 +28,8 @@ object SpandexBuild extends Build {
     "spandex-common",
     file("./spandex-common/"),
     settings = commonSettings ++ Seq(
-      libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common
+      libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondary,
+      fullClasspath in Runtime <+= baseDirectory map { d => Attributed.blank(d / ".." / "esconfigs") }
     )
   )
 
@@ -106,7 +107,7 @@ object Deps {
     "wabisabi" %% "wabisabi" % "2.0.18"
   )
   lazy val secondary = Seq(
-    "com.socrata" %% "secondarylib" % "0.3.1",
-    "com.socrata" %% "coordinator" % "0.3.1"
+    "com.socrata" %% "secondarylib" % "0.3.1" exclude("org.slf4j", "slf4j-log4j12"),
+    "com.socrata" %% "coordinator" % "0.3.1" exclude("org.slf4j", "slf4j-log4j12")
   )
 }

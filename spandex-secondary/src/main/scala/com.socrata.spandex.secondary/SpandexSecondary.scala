@@ -1,4 +1,3 @@
-
 package com.socrata.spandex.secondary
 
 import com.rojoma.json.v3.ast.{JObject, JValue}
@@ -19,18 +18,18 @@ import org.joda.time.DateTime
 import scala.concurrent.Await
 import scala.util.Try
 import com.typesafe.scalalogging.slf4j.Logging
-import com.socrata.spandex.common.client.ElasticSearchClient
+import com.socrata.spandex.common.client.SpandexElasticSearchClient
 import org.elasticsearch.rest.RestStatus
 
 class SpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike {
   def this(rawConfig: Config) = this(new SpandexConfig(rawConfig).es)
 
-  val client = new ElasticSearchClient(config)
+  val client = new SpandexElasticSearchClient(config)
   val index  = config.index
 }
 
 trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
-  def client: ElasticSearchClient
+  def client: SpandexElasticSearchClient
   def index: String
 
   def init(): Unit = ()
@@ -48,12 +47,12 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
     throw new NotImplementedError("Not used anywhere yet") // scalastyle:ignore multiple.string.literals
 
   def dropDataset(datasetInternalName: String, cookie: Cookie): Unit = {
-    val result = client.deleteByDataset(datasetInternalName)
+    val result = client.deleteFieldValuesByDataset(datasetInternalName)
     checkStatus(result.status, RestStatus.OK, s"dropDataset for $datasetInternalName")
   }
 
   def dropCopy(datasetInternalName: String, copyNumber: Long, cookie: Cookie): Cookie = {
-    val result = client.deleteByCopyId(datasetInternalName, copyNumber)
+    val result = client.deleteFieldValuesByCopyNumber(datasetInternalName, copyNumber)
     checkStatus(result.status, RestStatus.OK, s"dropCopy for $datasetInternalName copyNumber $copyNumber")
     cookie
   }
@@ -67,11 +66,16 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
     }
   }
 
-  def version(datasetInfo: DatasetInfo,
-              dataVersion: Long,
-              cookie: Cookie,
-              events: Iterator[Event[SoQLType, SoQLValue]]): Cookie = {
-    events.foreach(e => println(e.getClass)) // scalastyle:off
+  def version(datasetInfo: DatasetInfo, dataVersion: Long, cookie: Cookie, events: Events): Cookie = {
+    // scalastyle:off
+    println("*** SPANDEX GOT VERSION EVENTS! Woo hoo ****")
+    println("Dataset internal name: " + datasetInfo.internalName)
+    println("Data version: " + dataVersion)
+    println("Cookie: " + cookie.getOrElse(""))
+    // scalastyle:on
+    val handler = new VersionEventsHandler(client)
+    handler.handle(datasetInfo, dataVersion, events)
+
     cookie
   }
 

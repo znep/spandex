@@ -1,0 +1,65 @@
+package com.socrata.spandex.common.client
+
+import com.rojoma.json.v3.codec.{DecodeError, JsonEncode, JsonDecode}
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy, JsonUtil}
+import org.elasticsearch.action.get.GetResponse
+import org.elasticsearch.action.search.SearchResponse
+
+import scala.language.implicitConversions
+import com.socrata.datacoordinator.secondary.LifecycleStage
+import com.rojoma.json.v3.ast.{JString, JValue}
+import scala.util.{Failure, Success, Try}
+
+@JsonKeyStrategy(Strategy.Underscore)
+case class DatasetCopy(datasetId: String, copyNumber: Long, version: Long, stage: LifecycleStage)
+object DatasetCopy {
+  implicit val lifecycleStageCodec = new JsonDecode[LifecycleStage] with JsonEncode[LifecycleStage] {
+    def decode(x: JValue): JsonDecode.DecodeResult[LifecycleStage] = {
+      x match {
+        case JString(stage) =>
+          // Account for case differences
+          LifecycleStage.values.find(_.toString.toLowerCase == stage.toLowerCase) match {
+            case Some(matching) => Right(matching)
+            case None           => Left(DecodeError.InvalidValue(x))
+          }
+        case other: JValue  => Left(DecodeError.InvalidType(JString, other.jsonType))
+      }
+    }
+
+    def encode(x: LifecycleStage): JValue = JString(x.toString)
+  }
+  implicit val jCodec = AutomaticJsonCodecBuilder[DatasetCopy]
+}
+
+@JsonKeyStrategy(Strategy.Underscore)
+case class FieldValue(datasetId: String, copyNumber: Long, columnId: String, compositeId: String, value: String)
+object FieldValue {
+  implicit val jCodec = AutomaticJsonCodecBuilder[FieldValue]
+}
+
+case class SearchResults[T: JsonDecode](totalHits: Long, thisPage: Seq[T])
+
+object ResponseExtensions {
+  implicit def toExtendedResponse(response: SearchResponse): SearchResponseExtensions =
+    SearchResponseExtensions(response)
+
+  implicit def toExtendedResponse(response: GetResponse): GetResponseExtensions =
+    GetResponseExtensions(response)
+}
+
+case class SearchResponseExtensions(response: SearchResponse) {
+  def results[T : JsonDecode]: SearchResults[T] = {
+    val hits = Option(response.getHits).map(_.getHits.toSeq).getOrElse(Seq.empty)
+    val sources = hits.map { hit => Option(hit.getSourceAsString) }.flatten
+    val thisPage = sources.map { source => JsonUtil.parseJson[T](source).right.get }
+    val totalHits = Option(response.getHits).fold(0L)(_.totalHits)
+    SearchResults(totalHits, thisPage)
+  }
+}
+
+case class GetResponseExtensions(response: GetResponse) {
+  def result[T : JsonDecode]: Option[T] = {
+    val source = Option(response.getSourceAsString)
+    source.map { s => JsonUtil.parseJson[T](s).right.get }
+  }
+}

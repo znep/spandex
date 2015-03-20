@@ -18,10 +18,15 @@ class SpandexConfig(conf: Config = ConfigFactory.load().getConfig("com.socrata.s
 }
 
 class ElasticSearchConfig(config: Config) {
-  val host              = config.getString("host")
-  val port              = config.getInt("port") // scalastyle:ignore multiple.string.literals
-  val clusterName       = config.getString("clusterName")
-  val index             = config.getString("index")
+  val host               = config.getString("host")
+  val port               = config.getInt("port") // scalastyle:ignore multiple.string.literals
+  val clusterName        = config.getString("clusterName")
+  val index              = config.getString("index")
+  val fieldValueMapping  = new MappingConfig(config.getConfig("fieldValueMapping"))
+  val datasetCopyMapping = new MappingConfig(config.getConfig("datasetCopyMapping"))
+}
+
+class MappingConfig(config: Config) {
   val mappingType       = config.getString("mappingType")
   val mappingProperties = config.getString("mappingProperties")
 }

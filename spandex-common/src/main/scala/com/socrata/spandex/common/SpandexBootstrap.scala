@@ -13,8 +13,10 @@ object SpandexBootstrap {
     val resultHttpCode = indexResponse.getStatusCode
     if (resultHttpCode != HttpStatus.SC_OK) {
       Await.result(esc.createIndex(conf.es.index, Some(conf.indexSettings)), conf.escTimeoutFast).getResponseBody
-      Await.result(esc.putMapping(Seq(conf.es.index), conf.es.mappingType,
-        conf.es.mappingProperties), conf.escTimeoutFast).getResponseBody()
+      Await.result(esc.putMapping(Seq(conf.es.index), conf.es.fieldValueMapping.mappingType,
+        conf.es.fieldValueMapping.mappingProperties), conf.escTimeoutFast).getResponseBody
+      Await.result(esc.putMapping(Seq(conf.es.index), conf.es.datasetCopyMapping.mappingType,
+        conf.es.datasetCopyMapping.mappingProperties), conf.escTimeoutFast).getResponseBody
     } else {
       indexResponse.getResponseBody
     }
