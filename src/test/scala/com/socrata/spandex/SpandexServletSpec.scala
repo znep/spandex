@@ -78,6 +78,32 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike {
       |{"crimeType": "NARCOTICS"}
       |{"index": {"_id": "2"} }
       |{"crimeType": "PUBLIC INDECENCY"}
+      |{"index": {} }
+      |{"crimeType": "NARCOANALYSIS"}
+      |{"index": {} }
+      |{"crimeType": "NARCOMANIACAL"}
+      |{"index": {} }
+      |{"crimeType": "NARCOMATOUS"}
+      |{"index": {} }
+      |{"crimeType": "NARCOMEDUSAN"}
+      |{"index": {} }
+      |{"crimeType": "NARCOSIS"}
+      |{"index": {} }
+      |{"crimeType": "NARCOTICAL"}
+      |{"index": {} }
+      |{"crimeType": "NARCOTICALNESS"}
+      |{"index": {} }
+      |{"crimeType": "NARCOTINA"}
+      |{"index": {} }
+      |{"crimeType": "NARCOTINIC"}
+      |{"index": {} }
+      |{"crimeType": "NARCOTISM"}
+      |{"index": {} }
+      |{"crimeType": "NARCOTIST"}
+      |{"index": {} }
+      |{"crimeType": "NARCOTIZATION"}
+      |{"index": {} }
+      |{"crimeType": "NARCOTIZE"}
     """.stripMargin
     ) {
       status should equal(HttpStatus.SC_OK)
