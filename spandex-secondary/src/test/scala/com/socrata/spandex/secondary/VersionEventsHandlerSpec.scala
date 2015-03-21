@@ -25,7 +25,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val events = Seq(WorkingCopyCreated(copyInfo)).iterator
     val handler = new VersionEventsHandler(client)
 
-    an [IllegalArgumentException] should be thrownBy handler.handle(datasetInfo, invalidDataVersion, events)
+    an [IllegalArgumentException] should be thrownBy handler.handle(datasetInfo.internalName, invalidDataVersion, events)
   }
 
   test("Throw an exception if multiple working copies are encountered in the same event sequence") {
@@ -34,7 +34,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val events = Seq(WorkingCopyCreated(copyInfo), WorkingCopyCreated(copyInfo)).iterator
     val handler = new VersionEventsHandler(client)
 
-    a [UnsupportedOperationException] should be thrownBy handler.handle(datasetInfo, 1, events)
+    a [UnsupportedOperationException] should be thrownBy handler.handle(datasetInfo.internalName, 1, events)
   }
 
   test("Throw an exception if the working copy to be created already exists") {
@@ -47,7 +47,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.putDatasetCopy(datasetInfo.internalName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage)
     Thread.sleep(1000) // Wait for ES to index document
 
-    a [ResyncSecondaryException] should be thrownBy handler.handle(datasetInfo, 1, events)
+    a [ResyncSecondaryException] should be thrownBy handler.handle(datasetInfo.internalName, 1, events)
   }
 
   test("A dataset copy document is added to the index when a new working copy is created") {
@@ -60,7 +60,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.deleteAllDatasetCopies()
     client.getDatasetCopy(datasetInfo.internalName, copyInfo.copyNumber) should not be 'defined
 
-    handler.handle(datasetInfo, dataVersion, events)
+    handler.handle(datasetInfo.internalName, dataVersion, events)
     val maybeCopyRecord = client.getDatasetCopy(datasetInfo.internalName, copyInfo.copyNumber)
     maybeCopyRecord should be ('defined)
     maybeCopyRecord.get should be (DatasetCopy(datasetInfo.internalName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage))

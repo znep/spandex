@@ -64,7 +64,7 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
     println("Cookie: " + cookie.getOrElse(""))
     // scalastyle:on
     val handler = new VersionEventsHandler(client)
-    handler.handle(datasetInfo, dataVersion, events)
+    handler.handle(datasetInfo.internalName, dataVersion, events)
 
     cookie
   }

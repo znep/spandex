@@ -12,7 +12,10 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
 
   override def afterAll(): Unit = client.close()
 
-  override def beforeEach(): Unit = bootstrapData()
+  override def beforeEach(): Unit = {
+    bootstrapData()
+    client.deleteAllDatasetCopies()
+  }
   override def afterEach(): Unit = removeBootstrapData()
 
   test("Delete field values by dataset") {
@@ -73,9 +76,26 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.putDatasetCopy(datasets(1), 3, 150L, LifecycleStage.Unpublished)
     Thread.sleep(1000) // Account for ES indexing delay
 
-    client.getLatestCopyNumberForDataset(datasets(0)) should be (2)
-    client.getLatestCopyNumberForDataset(datasets(1)) should be (3)
-    client.getLatestCopyNumberForDataset("foo") should be (0)
+    client.getLatestCopyForDataset(datasets(0)) should be ('defined)
+    client.getLatestCopyForDataset(datasets(0)).get.copyNumber should be (2)
+    client.getLatestCopyForDataset(datasets(1)) should be ('defined)
+    client.getLatestCopyForDataset(datasets(1)).get.copyNumber should be (3)
+    client.getLatestCopyForDataset("foo") should not be ('defined)
+  }
+
+  test("Update dataset copy version") {
+    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Unpublished)
+    Thread.sleep(1000) // Account for ES indexing delay
+
+    val current = client.getDatasetCopy(datasets(1), 1)
+    current should be ('defined)
+    current.get.version should be (2)
+
+    client.updateDatasetCopyVersion(current.get.updateCopy(5))
+    Thread.sleep(1000) // Account for ES indexing delay
+
+    client.getDatasetCopy(datasets(1), 1) should be ('defined)
+    client.getDatasetCopy(datasets(1), 1).get.version should be (5)
   }
 
   test("Delete dataset copy by copy number") {

@@ -6,10 +6,11 @@ import com.socrata.spandex.common.ElasticSearchConfig
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest
 import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse
 import org.elasticsearch.action.index.IndexResponse
+import org.elasticsearch.action.update.UpdateResponse
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.search.aggregations.AggregationBuilders._
-import org.elasticsearch.search.aggregations.metrics.max.Max
+import org.elasticsearch.search.sort.SortOrder
 import ResponseExtensions._
 
 class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSearchClient(config) {
@@ -59,20 +60,26 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
           .execute.actionGet
   }
 
-  def getLatestCopyNumberForDataset(datasetId: String): Long = {
+  def updateDatasetCopyVersion(datasetCopy: DatasetCopy): UpdateResponse = {
+    val id = s"${datasetCopy.datasetId}|${datasetCopy.copyNumber}"
+    val source = JsonUtil.renderJson(datasetCopy)
+    client.prepareUpdate(config.index, config.datasetCopyMapping.mappingType, id)
+          .setDoc(source)
+          .setUpsert()
+          .execute.actionGet
+  }
+
+  def getLatestCopyForDataset(datasetId: String): Option[DatasetCopy] = {
     val latestCopyPlaceholder = "latest_copy"
     val response = client.prepareSearch(config.index)
                          .setTypes(config.datasetCopyMapping.mappingType)
                          .setQuery(byDatasetQuery(datasetId))
+                         .setSize(1)
+                         .addSort(SpandexFields.copyNumber, SortOrder.DESC)
                          .addAggregation(max(latestCopyPlaceholder).field(SpandexFields.copyNumber))
                          .execute.actionGet
-    val map = response.getAggregations.asMap()
-    if (map.size == 0 || !map.containsKey(latestCopyPlaceholder)) {
-      0
-    } else {
-      val latest = map.get(latestCopyPlaceholder).asInstanceOf[Max].getValue.toLong
-      if (latest >=0) latest else 0
-    }
+    val results = response.results[DatasetCopy]
+    results.thisPage.headOption
   }
 
   def getDatasetCopy(datasetId: String, copyNumber: Long): Option[DatasetCopy] = {

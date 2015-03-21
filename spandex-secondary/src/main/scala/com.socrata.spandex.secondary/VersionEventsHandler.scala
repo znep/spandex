@@ -4,22 +4,30 @@ import com.socrata.datacoordinator.secondary._
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
 
 class VersionEventsHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
-  def handle(datasetInfo: DatasetInfo, // scalastyle:ignore cyclomatic.complexity
+  def handle(datasetName: String, // scalastyle:ignore cyclomatic.complexity
              dataVersion: Long,
              events: Events): Unit = {
     require(dataVersion > 0, s"Unexpected value for data version: $dataVersion")
 
     // First, handle any working copy events
-    val remainingEvents = handleWorkingCopyCreate(datasetInfo, dataVersion, events)
+    val remainingEvents = handleWorkingCopyCreate(datasetName, dataVersion, events)
 
-    // Find the latest dataset copy number
-    val latest = client.getLatestCopyNumberForDataset(datasetInfo.internalName)
+    // TODO : This is terrible. getLatestCopyForDataset doesn't find the latest working copy
+    // straightaway due to a small ES indexing delay. Find a way not to have to do this.
+    // (Possibly batch up all the updates and send them to ES at the end?)
+    Thread.sleep(500)
+
+    // Find the latest dataset copy number. This *should* exist since
+    // we have already handled creation of any initial working copies.
+    val latest = client.getLatestCopyForDataset(datasetName).getOrElse(
+      throw new UnsupportedOperationException(s"Couldn't get latest copy number for dataset $datasetName"))
 
     // Now handle everything else
     remainingEvents.foreach {
       case Truncated =>
-        logTruncate(datasetInfo.internalName, latest)
-        client.deleteFieldValuesByCopyNumber(datasetInfo.internalName, latest)
+        logTruncate(datasetName, latest.copyNumber)
+        client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
+        client.updateDatasetCopyVersion(latest.updateCopy(dataVersion))
       case LastModifiedChanged(lm) =>
         // TODO : Support if-modified-since one day
       case ColumnCreated(info) =>
@@ -37,7 +45,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     }
   }
 
-  private def handleWorkingCopyCreate(datasetInfo: DatasetInfo, dataVersion: Long, events: Events): Events = {
+  private def handleWorkingCopyCreate(datasetName: String, dataVersion: Long, events: Events): Events = {
     val (wccEvents, remainingEvents) = events.span {
       case WorkingCopyCreated(copyInfo) => true
       case _ => false
@@ -47,14 +55,14 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
       wccEvents.next() match {
         case WorkingCopyCreated(copyInfo) =>
           // Make sure the copy we want to create doesn't already exist.
-          val existingCopy = client.getDatasetCopy(datasetInfo.internalName, copyInfo.copyNumber)
+          val existingCopy = client.getDatasetCopy(datasetName, copyInfo.copyNumber)
           if (existingCopy.isDefined) {
-            logger.info(s"dataset ${datasetInfo.internalName} copy ${copyInfo.copyNumber} already exists - resync!")
+            logger.info(s"dataset $datasetName copy ${copyInfo.copyNumber} already exists - resync!")
             throw new ResyncSecondaryException("Dataset copy already exists")
           } else {
             // Tell ES that this new copy exists
-            logWorkingCopyCreated(datasetInfo.internalName, copyInfo.copyNumber)
-            client.putDatasetCopy(datasetInfo.internalName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage)
+            logWorkingCopyCreated(datasetName, copyInfo.copyNumber)
+            client.putDatasetCopy(datasetName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage)
           }
         case other: Event[_, _] =>
           throw new UnsupportedOperationException(s"Unexpected event ${other.getClass}")

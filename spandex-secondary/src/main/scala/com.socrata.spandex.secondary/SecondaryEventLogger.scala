@@ -6,11 +6,11 @@ trait SecondaryEventLogger extends Logging {
   private def logEvent(eventName: String, description: String): Unit =
     logger.info(s"|$eventName| event: $description")
 
-  def logWorkingCopyCreated(dataset: String, copy: Long): Unit =
+  def logWorkingCopyCreated(dataset: String, copyNumber: Long): Unit =
     logEvent("WorkingCopyCreated",
-             s"registering new copy number $copy for dataset $dataset")
+             s"registering new copy number $copyNumber for dataset $dataset")
 
-  def logTruncate(dataset: String, copy: Long): Unit =
+  def logTruncate(dataset: String, copyNumber: Long): Unit =
     logEvent("Truncate",
-             s"deleting field values for latest copy $copy of dataset $dataset")
+             s"deleting field values for latest copy $copyNumber of dataset $dataset")
 }

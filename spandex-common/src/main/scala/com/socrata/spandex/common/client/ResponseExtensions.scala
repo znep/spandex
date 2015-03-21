@@ -10,7 +10,16 @@ import org.elasticsearch.action.search.SearchResponse
 import scala.language.implicitConversions
 
 @JsonKeyStrategy(Strategy.Underscore)
-case class DatasetCopy(datasetId: String, copyNumber: Long, version: Long, stage: LifecycleStage)
+case class DatasetCopy(datasetId: String, copyNumber: Long, version: Long, stage: LifecycleStage) {
+  def updateCopy(newVersion: Long): DatasetCopy =
+    DatasetCopy(datasetId, copyNumber, newVersion, stage)
+
+  def updateCopy(newVersion: Long, newStage: LifecycleStage): DatasetCopy =
+    DatasetCopy(datasetId, copyNumber, newVersion, stage)
+
+  def nextCopy(newCopyNumber: Long, newVersion: Long, newStage: LifecycleStage): DatasetCopy =
+    DatasetCopy(datasetId, newCopyNumber, newVersion, stage)
+}
 object DatasetCopy {
   implicit val lifecycleStageCodec = new JsonDecode[LifecycleStage] with JsonEncode[LifecycleStage] {
     def decode(x: JValue): JsonDecode.DecodeResult[LifecycleStage] = {
