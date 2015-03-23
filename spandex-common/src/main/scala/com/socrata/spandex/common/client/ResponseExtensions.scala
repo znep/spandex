@@ -15,10 +15,10 @@ case class DatasetCopy(datasetId: String, copyNumber: Long, version: Long, stage
     DatasetCopy(datasetId, copyNumber, newVersion, stage)
 
   def updateCopy(newVersion: Long, newStage: LifecycleStage): DatasetCopy =
-    DatasetCopy(datasetId, copyNumber, newVersion, stage)
+    DatasetCopy(datasetId, copyNumber, newVersion, newStage)
 
   def nextCopy(newCopyNumber: Long, newVersion: Long, newStage: LifecycleStage): DatasetCopy =
-    DatasetCopy(datasetId, newCopyNumber, newVersion, stage)
+    DatasetCopy(datasetId, newCopyNumber, newVersion, newStage)
 }
 object DatasetCopy {
   implicit val lifecycleStageCodec = new JsonDecode[LifecycleStage] with JsonEncode[LifecycleStage] {

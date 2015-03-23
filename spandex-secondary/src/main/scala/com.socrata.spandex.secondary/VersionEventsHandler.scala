@@ -33,6 +33,13 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
 
     // Now handle everything else
     remainingEvents.foreach {
+      // TODO : DataCopied, RowDataUpdated(_), SnapshotDropped(_), WorkingCopyDropped
+      case WorkingCopyPublished =>
+        client.updateDatasetCopyVersion(latest.updateCopy(dataVersion, LifecycleStage.Published))
+      case ColumnRemoved(info) =>
+        logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
+        client.deleteFieldValuesByColumnId(datasetName, latest.copyNumber, info.id.underlying)
+        client.updateDatasetCopyVersion(latest.updateCopy(dataVersion))
       case Truncated =>
         logTruncate(datasetName, latest.copyNumber)
         client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
@@ -73,7 +80,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
             logWorkingCopyCreated(datasetName, copyInfo.copyNumber)
             client.putDatasetCopy(datasetName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage)
           }
-        case other: Event[_, _] =>
+        case other: Event =>
           throw new UnsupportedOperationException(s"Unexpected event ${other.getClass}")
       }
     }

@@ -10,6 +10,10 @@ trait SecondaryEventLogger extends Logging {
     logEvent("WorkingCopyCreated",
              s"registering new copy number $copyNumber for dataset $dataset")
 
+  def logColumnRemoved(dataset: String, copyNumber: Long, column: String): Unit =
+    logEvent("ColumnRemoved",
+             s"removing column $column from dataset $dataset copy $copyNumber")
+
   def logTruncate(dataset: String, copyNumber: Long): Unit =
     logEvent("Truncate",
              s"deleting field values for latest copy $copyNumber of dataset $dataset")

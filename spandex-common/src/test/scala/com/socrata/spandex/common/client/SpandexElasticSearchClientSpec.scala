@@ -46,6 +46,22 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
   }
 
+  test("Delete field values by column") {
+    client.searchFieldValuesByColumnId(datasets(0), 1, columns(0)).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(0), 2, columns(0)).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(0), 2, columns(1)).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(1), 2, columns(0)).totalHits should be (5)
+
+    val response = client.deleteFieldValuesByColumnId(datasets(0), 2, columns(0))
+    response.status() should be (RestStatus.OK)
+    response.getIndices.get(config.es.index).getFailures.size should be (0)
+
+    client.searchFieldValuesByColumnId(datasets(0), 1, columns(0)).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(0), 2, columns(0)).totalHits should be (0)
+    client.searchFieldValuesByColumnId(datasets(0), 2, columns(1)).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(1), 2, columns(0)).totalHits should be (5)
+  }
+
   test("Put, get and search dataset copies") {
     client.getDatasetCopy(datasets(0), 1) should not be 'defined
     client.getDatasetCopy(datasets(0), 2) should not be 'defined
@@ -90,12 +106,14 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     val current = client.getDatasetCopy(datasets(1), 1)
     current should be ('defined)
     current.get.version should be (2)
+    current.get.stage should be (LifecycleStage.Unpublished)
 
-    client.updateDatasetCopyVersion(current.get.updateCopy(5))
+    client.updateDatasetCopyVersion(current.get.updateCopy(5, LifecycleStage.Published))
     Thread.sleep(1000) // Account for ES indexing delay
 
     client.getDatasetCopy(datasets(1), 1) should be ('defined)
     client.getDatasetCopy(datasets(1), 1).get.version should be (5)
+    client.getDatasetCopy(datasets(1), 1).get.stage should be (LifecycleStage.Published)
   }
 
   test("Delete dataset copy by copy number") {

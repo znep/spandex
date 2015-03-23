@@ -14,10 +14,14 @@ import org.elasticsearch.search.sort.SortOrder
 import ResponseExtensions._
 
 class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSearchClient(config) {
-  private def byDatasetQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.datasetId, datasetId)
+  private def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.datasetId, datasetId)
   private def byCopyNumberQuery(datasetId: String, copyNumber: Long): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.datasetId, datasetId))
                .must(termQuery(SpandexFields.copyNumber, copyNumber))
+  private def byColumnIdQuery(datasetId: String, copyNumber: Long, columnId: String): QueryBuilder =
+    boolQuery().must(termQuery(SpandexFields.datasetId, datasetId))
+               .must(termQuery(SpandexFields.copyNumber, copyNumber))
+               .must(termQuery(SpandexFields.columnId, columnId))
 
   def indexExists: Boolean = {
     val request = client.admin().indices().exists(new IndicesExistsRequest(config.index))
@@ -27,7 +31,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def searchFieldValuesByDataset(datasetId: String): SearchResults[FieldValue] = {
     val response = client.prepareSearch(config.index)
                          .setTypes(config.fieldValueMapping.mappingType)
-                         .setQuery(byDatasetQuery(datasetId))
+                         .setQuery(byDatasetIdQuery(datasetId))
                          .execute.actionGet
     response.results[FieldValue]
   }
@@ -35,7 +39,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def deleteFieldValuesByDataset(datasetId: String): DeleteByQueryResponse =
     client.prepareDeleteByQuery(config.index)
           .setTypes(config.fieldValueMapping.mappingType)
-          .setQuery(byDatasetQuery(datasetId))
+          .setQuery(byDatasetIdQuery(datasetId))
           .execute.actionGet
 
   def searchFieldValuesByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[FieldValue] = {
@@ -51,6 +55,20 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
           .setTypes(config.fieldValueMapping.mappingType)
           .setQuery(byCopyNumberQuery(datasetId, copyNumber))
           .execute.actionGet
+
+  def searchFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: String): SearchResults[FieldValue] = {
+    val response = client.prepareSearch(config.index)
+                         .setTypes(config.fieldValueMapping.mappingType)
+                         .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))
+                         .execute.actionGet
+    response.results[FieldValue]
+  }
+
+  def deleteFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: String): DeleteByQueryResponse =
+    client.prepareDeleteByQuery(config.index)
+      .setTypes(config.fieldValueMapping.mappingType)
+      .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))
+      .execute.actionGet
 
   def putDatasetCopy(datasetId: String, copyNumber: Long, dataVersion: Long, stage: LifecycleStage): IndexResponse = {
     val id = s"$datasetId|$copyNumber"
@@ -73,7 +91,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     val latestCopyPlaceholder = "latest_copy"
     val response = client.prepareSearch(config.index)
                          .setTypes(config.datasetCopyMapping.mappingType)
-                         .setQuery(byDatasetQuery(datasetId))
+                         .setQuery(byDatasetIdQuery(datasetId))
                          .setSize(1)
                          .addSort(SpandexFields.copyNumber, SortOrder.DESC)
                          .addAggregation(max(latestCopyPlaceholder).field(SpandexFields.copyNumber))
@@ -92,7 +110,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def searchCopiesByDataset(datasetId: String): SearchResults[DatasetCopy] = {
     val response = client.prepareSearch(config.index)
                          .setTypes(config.datasetCopyMapping.mappingType)
-                         .setQuery(byDatasetQuery(datasetId))
+                         .setQuery(byDatasetIdQuery(datasetId))
                          .execute.actionGet
     response.results[DatasetCopy]
   }
