@@ -12,10 +12,19 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     // First, handle any working copy events
     val remainingEvents = handleWorkingCopyCreate(datasetName, dataVersion, events)
 
-    // TODO : This is terrible. getLatestCopyForDataset doesn't find the latest working copy
-    // straightaway due to a small ES indexing delay. Find a way not to have to do this.
-    // (Possibly batch up all the updates and send them to ES at the end?)
-    Thread.sleep(500)
+    // TODO : Decide how to deal with Elastic Search's indexing delay.
+    // ES only refreshes the index at set intervals (default 1s, configurable)
+    // instead of after every single write.
+    // http://www.elastic.co/guide/en/elasticsearch/reference/current/_modifying_your_data.html
+    // http://blog.sematext.com/2013/07/08/elasticsearch-refresh-interval-vs-indexing-performance/
+    // Things we can do instead of terrible Thread.sleeps everywhere:
+    // 1. Turn off the refresh interval and set ES to refresh the index after every write.
+    //    Pros - consistent reads.
+    //    Cons - indexing throughput is lessened, see blog post above. This may be acceptable.
+    // 2. Batch up all the index updates and send them to ES in one go. This will make a single
+    //    batch of events internally consistent but if we get 2 batches in quick succession there
+    //    are no guarantees.
+    Thread.sleep(1000)
 
     // Find the latest dataset copy number. This *should* exist since
     // we have already handled creation of any initial working copies.

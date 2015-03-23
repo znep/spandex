@@ -1,6 +1,7 @@
 package com.socrata.spandex.common
 
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
+import com.socrata.datacoordinator.secondary.LifecycleStage
 
 trait TestESData {
   case class IndexEntry(id: String, source: String)
