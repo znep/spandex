@@ -1,7 +1,6 @@
 package com.socrata.spandex.common
 
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
-import com.socrata.datacoordinator.secondary.LifecycleStage
 
 trait TestESData {
   case class IndexEntry(id: String, source: String)
@@ -17,14 +16,14 @@ trait TestESData {
       ds     <- datasets
       copy   <- 1 to 2
       column <- columns
-      value  <- 1 to 5
+      row    <- 1 to 5
     } {
-      val entry = makeEntry(ds, copy, column, value.toString)
+      val entry = makeEntry(ds, copy, column, row.toString)
       val response = client.client.prepareIndex(
         config.es.index, config.es.fieldValueMapping.mappingType, entry.id)
           .setSource(entry.source)
           .execute.actionGet
-      assert(response.isCreated, s"failed to create ${entry.id}->$value")
+      assert(response.isCreated, s"failed to create ${entry.id}->$row")
     }
 
     // wait a sec to let elasticsearch index the documents
@@ -38,10 +37,10 @@ trait TestESData {
   private def makeEntry(datasetId: String,
                         copyNumber: Long,
                         columnId: String,
-                        suffix: String): IndexEntry = {
-    val fieldValue = "data" + suffix
+                        rowId: String): IndexEntry = {
+    val fieldValue = "data" + rowId
     val compositeId = s"$datasetId|$copyNumber|$columnId"
-    val entryId = s"$compositeId|$fieldValue"
+    val entryId = s"$compositeId|$rowId"
 
     val source =
       s"""{
@@ -49,6 +48,7 @@ trait TestESData {
         |  "copy_number" : $copyNumber,
         |  "column_id" : "$columnId",
         |  "composite_id" : "$compositeId",
+        |  "row_id" : $rowId,
         |  "value" : "$fieldValue"
         |}""".stripMargin
 

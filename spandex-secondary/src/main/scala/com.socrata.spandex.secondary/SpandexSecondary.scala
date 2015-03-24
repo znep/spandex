@@ -56,7 +56,7 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
     }
   }
 
-  def version(datasetInfo: DatasetInfo, dataVersion: Long, cookie: Cookie, events: Events): Cookie = {
+  def version(datasetInfo: DatasetInfo, dataVersion: Long, cookie: Cookie, events: Iterator[Event]): Cookie = {
     // scalastyle:off
     println("*** SPANDEX GOT VERSION EVENTS! Woo hoo ****")
     println("Dataset internal name: " + datasetInfo.internalName)

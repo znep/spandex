@@ -40,7 +40,12 @@ object DatasetCopy {
 }
 
 @JsonKeyStrategy(Strategy.Underscore)
-case class FieldValue(datasetId: String, copyNumber: Long, columnId: String, compositeId: String, value: String)
+case class FieldValue(datasetId: String,
+                      copyNumber: Long,
+                      columnId: String,
+                      compositeId: String,
+                      rowId: Long,
+                      value: String)
 object FieldValue {
   implicit val jCodec = AutomaticJsonCodecBuilder[FieldValue]
 }

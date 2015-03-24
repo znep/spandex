@@ -1,7 +1,7 @@
 package com.socrata.spandex.common.client
 
 import com.rojoma.json.v3.util.JsonUtil
-import com.socrata.datacoordinator.secondary.LifecycleStage
+import com.socrata.datacoordinator.secondary._
 import com.socrata.spandex.common.ElasticSearchConfig
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest
 import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse
@@ -22,6 +22,10 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     boolQuery().must(termQuery(SpandexFields.datasetId, datasetId))
                .must(termQuery(SpandexFields.copyNumber, copyNumber))
                .must(termQuery(SpandexFields.columnId, columnId))
+  private def byRowIdQuery(datasetId: String, copyNumber: Long, rowId: Long): QueryBuilder =
+    boolQuery().must(termQuery(SpandexFields.datasetId, datasetId))
+               .must(termQuery(SpandexFields.copyNumber, copyNumber))
+               .must(termQuery(SpandexFields.rowId, rowId))
 
   def indexExists: Boolean = {
     val request = client.admin().indices().exists(new IndicesExistsRequest(config.index))
@@ -60,6 +64,20 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     val response = client.prepareSearch(config.index)
                          .setTypes(config.fieldValueMapping.mappingType)
                          .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))
+                         .execute.actionGet
+    response.results[FieldValue]
+  }
+
+  def deleteFieldValuesByRowId(datasetId: String, copyNumber: Long, rowId: Long): DeleteByQueryResponse =
+    client.prepareDeleteByQuery(config.index)
+          .setTypes(config.fieldValueMapping.mappingType)
+          .setQuery(byRowIdQuery(datasetId, copyNumber, rowId))
+          .execute.actionGet
+
+  def searchFieldValuesByRowId(datasetId: String, copyNumber: Long, rowId: Long): SearchResults[FieldValue] = {
+    val response = client.prepareSearch(config.index)
+                         .setTypes(config.fieldValueMapping.mappingType)
+                         .setQuery(byRowIdQuery(datasetId, copyNumber, rowId))
                          .execute.actionGet
     response.results[FieldValue]
   }

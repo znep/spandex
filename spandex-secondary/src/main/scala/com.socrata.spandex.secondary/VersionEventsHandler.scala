@@ -6,7 +6,7 @@ import com.socrata.spandex.common.client.{DatasetCopy, SpandexElasticSearchClien
 class VersionEventsHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
   def handle(datasetName: String, // scalastyle:ignore cyclomatic.complexity method.length
              dataVersion: Long,
-             events: Events): Unit = {
+             events: Iterator[Event]): Unit = {
     require(dataVersion > 0, s"Unexpected value for data version: $dataVersion")
 
     // First, handle any working copy events
@@ -32,42 +32,47 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
       throw new UnsupportedOperationException(s"Couldn't get latest copy number for dataset $datasetName"))
 
     // Now handle everything else
-    remainingEvents.foreach {
-      // TODO : DataCopied, RowDataUpdated(_)
-      case SnapshotDropped(info) =>
-        checkSnapshotDroppable(info)
-        logSnapshotDropped(datasetName, info.copyNumber)
-        client.deleteDatasetCopy(datasetName, info.copyNumber)
-        client.deleteFieldValuesByCopyNumber(datasetName, info.copyNumber)
-      case WorkingCopyDropped =>
-        checkWorkingCopyDroppable(latest)
-        logWorkingCopyDropped(datasetName, latest.copyNumber)
-        client.deleteDatasetCopy(datasetName, latest.copyNumber)
-        client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
-      case WorkingCopyPublished =>
-        logWorkingCopyPublished(datasetName, latest.copyNumber)
-        client.updateDatasetCopyVersion(latest.updateCopy(dataVersion, LifecycleStage.Published))
-      case ColumnRemoved(info) =>
-        logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
-        client.deleteFieldValuesByColumnId(datasetName, latest.copyNumber, info.id.underlying)
-      case Truncated =>
-        logTruncate(datasetName, latest.copyNumber)
-        client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
-      case LastModifiedChanged(lm) =>
+    remainingEvents.foreach { event =>
+      logger.debug("Received event: " + event)
+      event match {
+        // TODO : DataCopied
+        case RowDataUpdated(ops) =>
+          handleRowOps(datasetName, latest.copyNumber, ops)
+        case SnapshotDropped(info) =>
+          checkStage(LifecycleStage.Snapshotted, info.lifecycleStage)
+          logSnapshotDropped(datasetName, info.copyNumber)
+          client.deleteDatasetCopy(datasetName, info.copyNumber)
+          client.deleteFieldValuesByCopyNumber(datasetName, info.copyNumber)
+        case WorkingCopyDropped =>
+          checkWorkingCopyDroppable(latest)
+          logWorkingCopyDropped(datasetName, latest.copyNumber)
+          client.deleteDatasetCopy(datasetName, latest.copyNumber)
+          client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
+        case WorkingCopyPublished =>
+          logWorkingCopyPublished(datasetName, latest.copyNumber)
+          client.updateDatasetCopyVersion(latest.updateCopy(dataVersion, LifecycleStage.Published))
+        case ColumnRemoved(info) =>
+          logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
+          client.deleteFieldValuesByColumnId(datasetName, latest.copyNumber, info.id.underlying)
+        case Truncated =>
+          logTruncate(datasetName, latest.copyNumber)
+          client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
+        case LastModifiedChanged(lm) =>
         // TODO : Support if-modified-since one day
-      case ColumnCreated(info) =>
-      case RowIdentifierSet(info) =>
-      case RowIdentifierCleared(info) =>
-      case SystemRowIdentifierChanged(info) =>
-      case VersionColumnChanged(info) =>
-      case RollupCreatedOrUpdated(info) =>
-      case RollupDropped(info) =>
+        case ColumnCreated(info) =>
+        case RowIdentifierSet(info) =>
+        case RowIdentifierCleared(info) =>
+        case SystemRowIdentifierChanged(info) =>
+        case VersionColumnChanged(info) =>
+        case RollupCreatedOrUpdated(info) =>
+        case RollupDropped(info) =>
         // These events don't result in changed data or publication status, so no-op.
         // The data version is updated below.
-      case WorkingCopyCreated(info) =>
-        // We have handled all WorkingCopyCreated events above. This should never happen.
-        throw new UnsupportedOperationException("Unexpected WorkingCopyCreated event")
-      case _: Any => // TODO - remove before committing!
+        case WorkingCopyCreated(info) =>
+          // We have handled all WorkingCopyCreated events above. This should never happen.
+          throw new UnsupportedOperationException("Unexpected WorkingCopyCreated event")
+        case _: Any => // TODO - remove before committing!
+      }
     }
 
     // TODO : Don't do this. See notes above.
@@ -79,22 +84,30 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     client.updateDatasetCopyVersion(finalLatest.updateCopy(dataVersion))
   }
 
-  private def checkSnapshotDroppable(copy: CopyInfo): Unit = {
-    if (copy.lifecycleStage != LifecycleStage.Snapshotted) {
-      throw new UnsupportedOperationException(s"Cannot drop ${copy.lifecycleStage} copy")
-    }
+  private def handleRowOps(datasetName: String,
+                           copyNumber: Long,
+                           ops: Seq[Operation]): Unit = ops.foreach {
+    case Insert(rowId, data) => ??? // TODO
+    case Update(rowId, data) => ??? // TODO
+    case Delete(rowId)       =>
+      client.deleteFieldValuesByRowId(datasetName, copyNumber, rowId.underlying)
   }
 
   private def checkWorkingCopyDroppable(copy: DatasetCopy): Unit = {
-    if (copy.stage != LifecycleStage.Unpublished) {
-      throw new UnsupportedOperationException(s"Cannot drop ${copy.stage} copy")
-    }
+    checkStage(LifecycleStage.Unpublished, copy.stage)
     if (copy.copyNumber < 2) {
       throw new UnsupportedOperationException("Cannot drop initial working copy")
     }
   }
 
-  private def handleWorkingCopyCreate(datasetName: String, dataVersion: Long, events: Events): Events = {
+  private def checkStage(expected: LifecycleStage, actual: LifecycleStage): Unit =
+    if (actual != expected) {
+      throw new UnsupportedOperationException(s"Copy is in unexpected stage: $actual. Expected: $expected")
+    }
+
+  private def handleWorkingCopyCreate(datasetName: String,
+                                      dataVersion: Long,
+                                      events: Iterator[Event]): Iterator[Event] = {
     val (wccEvents, remainingEvents) = events.span {
       case WorkingCopyCreated(copyInfo) => true
       case _ => false

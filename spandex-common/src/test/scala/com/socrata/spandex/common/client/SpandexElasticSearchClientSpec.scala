@@ -62,6 +62,22 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.searchFieldValuesByColumnId(datasets(1), 2, columns(0)).totalHits should be (5)
   }
 
+  test("Delete field values by row") {
+    client.searchFieldValuesByRowId(datasets(0), 2, 1).totalHits should be (3)
+    client.searchFieldValuesByRowId(datasets(0), 2, 2).totalHits should be (3)
+    client.searchFieldValuesByRowId(datasets(0), 1, 1).totalHits should be (3)
+    client.searchFieldValuesByRowId(datasets(1), 2, 1).totalHits should be (3)
+
+    val response = client.deleteFieldValuesByRowId(datasets(0), 2, 1)
+    response.status() should be (RestStatus.OK)
+    response.getIndices.get(config.es.index).getFailures.size should be (0)
+
+    client.searchFieldValuesByRowId(datasets(0), 2, 1).totalHits should be (0)
+    client.searchFieldValuesByRowId(datasets(0), 2, 2).totalHits should be (3)
+    client.searchFieldValuesByRowId(datasets(0), 1, 1).totalHits should be (3)
+    client.searchFieldValuesByRowId(datasets(1), 2, 1).totalHits should be (3)
+  }
+
   test("Put, get and search dataset copies") {
     client.getDatasetCopy(datasets(0), 1) should not be 'defined
     client.getDatasetCopy(datasets(0), 2) should not be 'defined
