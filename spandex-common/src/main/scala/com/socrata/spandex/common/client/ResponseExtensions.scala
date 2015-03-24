@@ -42,7 +42,7 @@ object DatasetCopy {
 @JsonKeyStrategy(Strategy.Underscore)
 case class FieldValue(datasetId: String,
                       copyNumber: Long,
-                      columnId: String,
+                      columnId: Long,
                       compositeId: String,
                       rowId: Long,
                       value: String)

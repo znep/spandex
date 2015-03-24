@@ -97,9 +97,9 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     latestBefore should be ('defined)
     latestBefore.get.copyNumber should be (2)
     latestBefore.get.copyNumber should be (2)
-    client.searchFieldValuesByColumnId(datasets(0), 2, columns(2)).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (5)
 
-    val toRemove = ColumnInfo(new ColumnId(1234), new UserColumnId(columns(2)), SoQLText, false, false, false)
+    val toRemove = ColumnInfo(new ColumnId(3), new UserColumnId("blah"), SoQLText, false, false, false)
     handler.handle(datasets(0), 3, Seq(ColumnRemoved(toRemove)).iterator)
     Thread.sleep(1000) // Wait for ES to index document
 
@@ -107,7 +107,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     latestAfter should be ('defined)
     latestAfter.get.copyNumber should be (2)
     latestAfter.get.version should be (3)
-    client.searchFieldValuesByColumnId(datasets(0), 2, columns(2)).totalHits should be (0)
+    client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (0)
   }
 
   test("WorkingCopyPublished - latest copy of dataset should be set to Published") {

@@ -6,7 +6,6 @@ trait TestESData {
   case class IndexEntry(id: String, source: String)
 
   val datasets = Seq("primus.1234", "primus.9876")
-  val columns = Seq("col1-1111", "col2-2222", "col3-3333")
 
   def config: SpandexConfig
   def client: SpandexElasticSearchClient
@@ -15,7 +14,7 @@ trait TestESData {
     for {
       ds     <- datasets
       copy   <- 1 to 2
-      column <- columns
+      column <- 1 to 3
       row    <- 1 to 5
     } {
       val entry = makeEntry(ds, copy, column, row.toString)
@@ -36,7 +35,7 @@ trait TestESData {
 
   private def makeEntry(datasetId: String,
                         copyNumber: Long,
-                        columnId: String,
+                        columnId: Long,
                         rowId: String): IndexEntry = {
     val fieldValue = "data" + rowId
     val compositeId = s"$datasetId|$copyNumber|$columnId"
@@ -46,7 +45,7 @@ trait TestESData {
       s"""{
         |  "dataset_id" : "$datasetId",
         |  "copy_number" : $copyNumber,
-        |  "column_id" : "$columnId",
+        |  "column_id" : $columnId,
         |  "composite_id" : "$compositeId",
         |  "row_id" : $rowId,
         |  "value" : "$fieldValue"

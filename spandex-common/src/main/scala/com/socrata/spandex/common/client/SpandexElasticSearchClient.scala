@@ -18,7 +18,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   private def byCopyNumberQuery(datasetId: String, copyNumber: Long): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.datasetId, datasetId))
                .must(termQuery(SpandexFields.copyNumber, copyNumber))
-  private def byColumnIdQuery(datasetId: String, copyNumber: Long, columnId: String): QueryBuilder =
+  private def byColumnIdQuery(datasetId: String, copyNumber: Long, columnId: Long): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.datasetId, datasetId))
                .must(termQuery(SpandexFields.copyNumber, copyNumber))
                .must(termQuery(SpandexFields.columnId, columnId))
@@ -60,7 +60,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
           .setQuery(byCopyNumberQuery(datasetId, copyNumber))
           .execute.actionGet
 
-  def searchFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: String): SearchResults[FieldValue] = {
+  def searchFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long): SearchResults[FieldValue] = {
     val response = client.prepareSearch(config.index)
                          .setTypes(config.fieldValueMapping.mappingType)
                          .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))
@@ -82,7 +82,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     response.results[FieldValue]
   }
 
-  def deleteFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: String): DeleteByQueryResponse =
+  def deleteFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long): DeleteByQueryResponse =
     client.prepareDeleteByQuery(config.index)
       .setTypes(config.fieldValueMapping.mappingType)
       .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))

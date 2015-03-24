@@ -47,19 +47,19 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
   }
 
   test("Delete field values by column") {
-    client.searchFieldValuesByColumnId(datasets(0), 1, columns(0)).totalHits should be (5)
-    client.searchFieldValuesByColumnId(datasets(0), 2, columns(0)).totalHits should be (5)
-    client.searchFieldValuesByColumnId(datasets(0), 2, columns(1)).totalHits should be (5)
-    client.searchFieldValuesByColumnId(datasets(1), 2, columns(0)).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(0), 1, 1).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(0), 2, 1).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(0), 2, 2).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(1), 2, 1).totalHits should be (5)
 
-    val response = client.deleteFieldValuesByColumnId(datasets(0), 2, columns(0))
+    val response = client.deleteFieldValuesByColumnId(datasets(0), 2, 1)
     response.status() should be (RestStatus.OK)
     response.getIndices.get(config.es.index).getFailures.size should be (0)
 
-    client.searchFieldValuesByColumnId(datasets(0), 1, columns(0)).totalHits should be (5)
-    client.searchFieldValuesByColumnId(datasets(0), 2, columns(0)).totalHits should be (0)
-    client.searchFieldValuesByColumnId(datasets(0), 2, columns(1)).totalHits should be (5)
-    client.searchFieldValuesByColumnId(datasets(1), 2, columns(0)).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(0), 1, 1).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(0), 2, 1).totalHits should be (0)
+    client.searchFieldValuesByColumnId(datasets(0), 2, 2).totalHits should be (5)
+    client.searchFieldValuesByColumnId(datasets(1), 2, 1).totalHits should be (5)
   }
 
   test("Delete field values by row") {
