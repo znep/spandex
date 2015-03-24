@@ -1,6 +1,6 @@
 package com.socrata.spandex.secondary
 
-import com.socrata.datacoordinator.id.{UserColumnId, ColumnId, CopyId}
+import com.socrata.datacoordinator.id.{UserColumnId, ColumnId, CopyId, RowId}
 import com.socrata.datacoordinator.secondary._
 import com.socrata.soql.types.SoQLText
 import com.socrata.spandex.common.{TestESData, SpandexConfig}
@@ -195,5 +195,25 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (0)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+  }
+
+  test("RowDataUpdated - Delete") {
+    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Published)
+    client.putDatasetCopy(datasets(1), 2, 4, LifecycleStage.Unpublished)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 4, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+    client.searchFieldValuesByRowId(datasets(1), 2, 5).totalHits should be (3)
+
+    val events = Seq(RowDataUpdated(Seq[Operation](Delete(new RowId(5))(None)))).iterator
+    handler.handle(datasets(1), 5, events)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedAfter = Some(DatasetCopy(datasets(1), 2, 5, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (12)
+    client.searchFieldValuesByRowId(datasets(1), 2, 5).totalHits should be (0)
   }
 }
