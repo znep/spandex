@@ -25,4 +25,8 @@ trait SecondaryEventLogger extends Logging {
   def logWorkingCopyDropped(dataset: String, copyNumber: Long): Unit =
     logEvent("WorkingCopyDropped",
              s"dropped working copy $copyNumber of dataset $dataset")
+
+  def logSnapshotDropped(dataset: String, copyNumber: Long): Unit =
+    logEvent("SnapshotDropped",
+      s"dropped snapshot copy $copyNumber of dataset $dataset")
 }

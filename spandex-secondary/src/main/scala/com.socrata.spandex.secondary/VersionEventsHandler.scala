@@ -33,9 +33,14 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
 
     // Now handle everything else
     remainingEvents.foreach {
-      // TODO : DataCopied, RowDataUpdated(_), SnapshotDropped(_)
+      // TODO : DataCopied, RowDataUpdated(_)
+      case SnapshotDropped(info) =>
+        checkSnapshotDroppable(info)
+        logSnapshotDropped(datasetName, info.copyNumber)
+        client.deleteDatasetCopy(datasetName, info.copyNumber)
+        client.deleteFieldValuesByCopyNumber(datasetName, info.copyNumber)
       case WorkingCopyDropped =>
-        checkDroppable(latest)
+        checkWorkingCopyDroppable(latest)
         logWorkingCopyDropped(datasetName, latest.copyNumber)
         client.deleteDatasetCopy(datasetName, latest.copyNumber)
         client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
@@ -74,13 +79,18 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     client.updateDatasetCopyVersion(finalLatest.updateCopy(dataVersion))
   }
 
-  private def checkDroppable(copy: DatasetCopy): Unit = {
-    val droppableStages = Seq(LifecycleStage.Snapshotted, LifecycleStage.Unpublished)
-    if (!droppableStages.contains(copy.stage)) {
+  private def checkSnapshotDroppable(copy: CopyInfo): Unit = {
+    if (copy.lifecycleStage != LifecycleStage.Snapshotted) {
+      throw new UnsupportedOperationException(s"Cannot drop ${copy.lifecycleStage} copy")
+    }
+  }
+
+  private def checkWorkingCopyDroppable(copy: DatasetCopy): Unit = {
+    if (copy.stage != LifecycleStage.Unpublished) {
       throw new UnsupportedOperationException(s"Cannot drop ${copy.stage} copy")
     }
     if (copy.copyNumber < 2) {
-      throw new UnsupportedOperationException("Cannot drop initial copy")
+      throw new UnsupportedOperationException("Cannot drop initial working copy")
     }
   }
 

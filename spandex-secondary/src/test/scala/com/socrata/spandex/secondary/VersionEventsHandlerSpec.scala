@@ -9,6 +9,7 @@ import org.joda.time.DateTime
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike, Matchers}
 import org.scalatest.prop.PropertyChecks
 
+// scalastyle:off
 class VersionEventsHandlerSpec extends FunSuiteLike
                                   with Matchers
                                   with BeforeAndAfterAll
@@ -152,6 +153,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     val expectedBefore = Some(DatasetCopy(datasets(1), 2, 3, LifecycleStage.Unpublished))
     client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
 
     handler.handle(datasets(1), 4, Seq(WorkingCopyDropped).iterator)
@@ -159,6 +161,39 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     val expectedAfter = Some(DatasetCopy(datasets(1), 1, 4, LifecycleStage.Published))
     client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
+    client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (0)
+  }
+
+  test("SnapshotDropped - throw an exception if the copy is in the wrong stage") {
+    client.putDatasetCopy(datasets(1), 2, 2, LifecycleStage.Unpublished)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 2, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+
+    val copyInfo = CopyInfo(new CopyId(100), 2, LifecycleStage.Unpublished, 2, DateTime.now)
+    val events =  Seq(SnapshotDropped(copyInfo)).iterator
+    an [UnsupportedOperationException] should be thrownBy handler.handle(datasets(1), 3, events)
+  }
+
+  test("SnapshotDropped - the specified snapshot should be dropped") {
+    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Snapshotted)
+    client.putDatasetCopy(datasets(1), 2, 4, LifecycleStage.Published)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 4, LifecycleStage.Published))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+
+    val copyInfo = CopyInfo(new CopyId(100), 1, LifecycleStage.Snapshotted, 2, DateTime.now)
+    handler.handle(datasets(1), 5, Seq(SnapshotDropped(copyInfo)).iterator)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedAfter = Some(DatasetCopy(datasets(1), 2, 5, LifecycleStage.Published))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
+    client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (0)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
   }
 }
