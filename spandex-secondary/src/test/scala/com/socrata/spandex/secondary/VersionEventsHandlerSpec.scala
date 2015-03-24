@@ -19,7 +19,10 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   val client = new TestESClient(config.es)
   val handler = new VersionEventsHandler(client)
 
-  override def beforeEach(): Unit = bootstrapData()
+  override def beforeEach(): Unit = {
+    client.deleteAllDatasetCopies()
+    bootstrapData()
+  }
   override def afterEach(): Unit = removeBootstrapData()
   override def afterAll(): Unit = client.close()
 
@@ -55,7 +58,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val copyInfo = CopyInfo(new CopyId(100), 45, LifecycleStage.Unpublished, 1, DateTime.now)
     val events = Seq(WorkingCopyCreated(copyInfo)).iterator
 
-    client.deleteAllDatasetCopies()
     client.getDatasetCopy(dataset, copyInfo.copyNumber) should not be 'defined
 
     handler.handle(dataset, dataVersion, events)
@@ -72,7 +74,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val latestBefore = client.getLatestCopyForDataset(datasets(0))
     latestBefore should be ('defined)
     latestBefore.get.copyNumber should be (2)
-    latestBefore.get.copyNumber should be (2)
+    latestBefore.get.version should be (2)
     client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (15)
 
     handler.handle(datasets(0), 3, Seq(Truncated).iterator)
@@ -108,7 +110,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   }
 
   test("WorkingCopyPublished - latest copy of dataset should be set to Published") {
-    client.deleteAllDatasetCopies()
     client.putDatasetCopy(datasets(0), 3, 3, LifecycleStage.Unpublished)
     Thread.sleep(1000) // Wait for ES to index document
 
@@ -120,5 +121,44 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     val expectedAfter = Some(DatasetCopy(datasets(0), 3, 4, LifecycleStage.Published))
     client.getLatestCopyForDataset(datasets(0)) should be (expectedAfter)
+  }
+
+  test("WorkingCopyDropped - throw an exception if the copy is the initial copy") {
+    client.putDatasetCopy(datasets(1), 1, 1, LifecycleStage.Unpublished)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedBefore = Some(DatasetCopy(datasets(1), 1, 1, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+
+    an [UnsupportedOperationException] should be thrownBy
+      handler.handle(datasets(1), 2, Seq(WorkingCopyDropped).iterator)
+  }
+
+  test("WorkingCopyDropped - throw an exception if the copy is in the wrong stage") {
+    client.putDatasetCopy(datasets(1), 2, 2, LifecycleStage.Published)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 2, LifecycleStage.Published))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+
+    an [UnsupportedOperationException] should be thrownBy
+      handler.handle(datasets(1), 3, Seq(WorkingCopyDropped).iterator)
+  }
+
+  test("WorkingCopyDropped - latest working copy should be dropped") {
+    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Published)
+    client.putDatasetCopy(datasets(1), 2, 3, LifecycleStage.Unpublished)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 3, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+
+    handler.handle(datasets(1), 4, Seq(WorkingCopyDropped).iterator)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedAfter = Some(DatasetCopy(datasets(1), 1, 4, LifecycleStage.Published))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (0)
   }
 }

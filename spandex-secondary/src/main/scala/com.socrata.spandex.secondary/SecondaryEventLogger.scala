@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.slf4j.Logging
 
 trait SecondaryEventLogger extends Logging {
   private def logEvent(eventName: String, description: String): Unit =
-    logger.info(s"|$eventName| event: $description")
+    logger.info(s"$eventName event: $description")
 
   def logWorkingCopyCreated(dataset: String, copyNumber: Long): Unit =
     logEvent("WorkingCopyCreated",
@@ -17,4 +17,12 @@ trait SecondaryEventLogger extends Logging {
   def logTruncate(dataset: String, copyNumber: Long): Unit =
     logEvent("Truncate",
              s"deleting field values for latest copy $copyNumber of dataset $dataset")
+
+  def logWorkingCopyPublished(dataset: String, copyNumber: Long): Unit =
+    logEvent("WorkingCopyPublished",
+             s"publishing working copy $copyNumber of dataset $dataset")
+
+  def logWorkingCopyDropped(dataset: String, copyNumber: Long): Unit =
+    logEvent("WorkingCopyDropped",
+             s"dropped working copy $copyNumber of dataset $dataset")
 }

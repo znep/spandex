@@ -1,10 +1,10 @@
 package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.secondary._
-import com.socrata.spandex.common.client.SpandexElasticSearchClient
+import com.socrata.spandex.common.client.{DatasetCopy, SpandexElasticSearchClient}
 
 class VersionEventsHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
-  def handle(datasetName: String, // scalastyle:ignore cyclomatic.complexity
+  def handle(datasetName: String, // scalastyle:ignore cyclomatic.complexity method.length
              dataVersion: Long,
              events: Events): Unit = {
     require(dataVersion > 0, s"Unexpected value for data version: $dataVersion")
@@ -24,7 +24,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     // 2. Batch up all the index updates and send them to ES in one go. This will make a single
     //    batch of events internally consistent but if we get 2 batches in quick succession there
     //    are no guarantees.
-    Thread.sleep(1000)
+    Thread.sleep(1000) // scalastyle:ignore magic.number
 
     // Find the latest dataset copy number. This *should* exist since
     // we have already handled creation of any initial working copies.
@@ -33,17 +33,21 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
 
     // Now handle everything else
     remainingEvents.foreach {
-      // TODO : DataCopied, RowDataUpdated(_), SnapshotDropped(_), WorkingCopyDropped
+      // TODO : DataCopied, RowDataUpdated(_), SnapshotDropped(_)
+      case WorkingCopyDropped =>
+        checkDroppable(latest)
+        logWorkingCopyDropped(datasetName, latest.copyNumber)
+        client.deleteDatasetCopy(datasetName, latest.copyNumber)
+        client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
       case WorkingCopyPublished =>
+        logWorkingCopyPublished(datasetName, latest.copyNumber)
         client.updateDatasetCopyVersion(latest.updateCopy(dataVersion, LifecycleStage.Published))
       case ColumnRemoved(info) =>
         logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
         client.deleteFieldValuesByColumnId(datasetName, latest.copyNumber, info.id.underlying)
-        client.updateDatasetCopyVersion(latest.updateCopy(dataVersion))
       case Truncated =>
         logTruncate(datasetName, latest.copyNumber)
         client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
-        client.updateDatasetCopyVersion(latest.updateCopy(dataVersion))
       case LastModifiedChanged(lm) =>
         // TODO : Support if-modified-since one day
       case ColumnCreated(info) =>
@@ -53,11 +57,30 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
       case VersionColumnChanged(info) =>
       case RollupCreatedOrUpdated(info) =>
       case RollupDropped(info) =>
-        // These events don't result in a copy bump or changed data, so no-op
+        // These events don't result in changed data or publication status, so no-op.
+        // The data version is updated below.
       case WorkingCopyCreated(info) =>
         // We have handled all WorkingCopyCreated events above. This should never happen.
         throw new UnsupportedOperationException("Unexpected WorkingCopyCreated event")
       case _: Any => // TODO - remove before committing!
+    }
+
+    // TODO : Don't do this. See notes above.
+    Thread.sleep(1000) // scalastyle:ignore magic.number
+
+    // Finally, get whatever the new latest copy is and bump its data version.
+    val finalLatest = client.getLatestCopyForDataset(datasetName).getOrElse(
+      throw new UnsupportedOperationException(s"Couldn't get latest copy number for dataset $datasetName"))
+    client.updateDatasetCopyVersion(finalLatest.updateCopy(dataVersion))
+  }
+
+  private def checkDroppable(copy: DatasetCopy): Unit = {
+    val droppableStages = Seq(LifecycleStage.Snapshotted, LifecycleStage.Unpublished)
+    if (!droppableStages.contains(copy.stage)) {
+      throw new UnsupportedOperationException(s"Cannot drop ${copy.stage} copy")
+    }
+    if (copy.copyNumber < 2) {
+      throw new UnsupportedOperationException("Cannot drop initial copy")
     }
   }
 
