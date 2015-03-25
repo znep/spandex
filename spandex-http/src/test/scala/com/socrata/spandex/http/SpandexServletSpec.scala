@@ -5,7 +5,6 @@ import javax.servlet.http.{HttpServletResponse => HttpStatus}
 import com.socrata.spandex.common._
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
-import wabisabi.{Client => ElasticsearchClient}
 
 import scala.concurrent.Await
 
