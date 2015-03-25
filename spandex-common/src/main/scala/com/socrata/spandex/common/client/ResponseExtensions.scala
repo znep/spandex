@@ -6,6 +6,7 @@ import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, SimpleJsonCodecBuilde
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
+import org.elasticsearch.search.SearchHit
 
 import scala.language.implicitConversions
 
@@ -46,7 +47,7 @@ case class FieldValue(datasetId: String,
                       userColumnId: String,
                       rowId: Long,
                       value: String) {
-  lazy val docId = s"$datasetId|$copyNumber|$columnId|$rowId"
+  lazy val docId = s"$datasetId|$copyNumber|$userColumnId|$rowId"
   lazy val compositeId = s"$datasetId|$copyNumber|$userColumnId"
 
   // Needed for codec builder
@@ -82,7 +83,7 @@ object ResponseExtensions {
 
 case class SearchResponseExtensions(response: SearchResponse) {
   def results[T : JsonDecode]: SearchResults[T] = {
-    val hits = Option(response.getHits).map(_.getHits.toSeq).getOrElse(Seq.empty)
+    val hits = Option(response.getHits).fold(Seq.empty[SearchHit])(_.getHits.toSeq)
     val sources = hits.map { hit => Option(hit.getSourceAsString) }.flatten
     val thisPage = sources.map { source => JsonUtil.parseJson[T](source).right.get }
     val totalHits = Option(response.getHits).fold(0L)(_.totalHits)
