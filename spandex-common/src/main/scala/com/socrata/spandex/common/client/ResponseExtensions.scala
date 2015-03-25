@@ -40,23 +40,30 @@ object DatasetCopy {
 }
 
 @JsonKeyStrategy(Strategy.Underscore)
-case class FieldValue(datasetId: String, copyNumber: Long, columnId: Long, rowId: Long, value: String) {
+case class FieldValue(datasetId: String,
+                      copyNumber: Long,
+                      columnId: Long,
+                      userColumnId: String,
+                      rowId: Long,
+                      value: String) {
   lazy val docId = s"$datasetId|$copyNumber|$columnId|$rowId"
-  lazy val compositeId = s"$datasetId|$copyNumber|$columnId"
+  lazy val compositeId = s"$datasetId|$copyNumber|$userColumnId"
 
   // Needed for codec builder
   def this(datasetId: String,
            copyNumber: Long,
            columnId: Long,
+           userColumnId: String,
            compositeId: String,
            rowId: Long,
-           value: String) = this(datasetId, copyNumber, columnId, rowId, value)
+           value: String) = this(datasetId, copyNumber, columnId, userColumnId, rowId, value)
 }
 object FieldValue {
   implicit val jCodec = SimpleJsonCodecBuilder[FieldValue].build(
     SpandexFields.DatasetId, _.datasetId,
     SpandexFields.CopyNumber, _.copyNumber,
     SpandexFields.ColumnId, _.columnId,
+    SpandexFields.UserColumnId, _.userColumnId,
     SpandexFields.CompositeId, _.compositeId,
     SpandexFields.RowId, _.rowId,
     SpandexFields.Value, _.value
