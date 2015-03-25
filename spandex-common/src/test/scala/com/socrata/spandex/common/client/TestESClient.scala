@@ -1,12 +1,21 @@
 package com.socrata.spandex.common.client
 
-import org.elasticsearch.client.{Requests, Client}
-import org.elasticsearch.node.NodeBuilder._
+import java.nio.file.Files
+
+import com.socrata.spandex.common.{ElasticSearchConfig, SpandexBootstrap}
+import org.apache.commons.io.FileUtils
+import org.elasticsearch.client.{Client, Requests}
+import org.elasticsearch.common.settings.ImmutableSettings
 import org.elasticsearch.index.query.QueryBuilders._
-import com.socrata.spandex.common.{SpandexBootstrap, ElasticSearchConfig}
+import org.elasticsearch.node.NodeBuilder._
 
 class TestESClient(config: ElasticSearchConfig) extends SpandexElasticSearchClient(config) {
-  val node = nodeBuilder().local(true).node()
+  private[this] val dataDir = Files.createTempDirectory("elasticsearch_data_").toFile
+  private[this] val settings = ImmutableSettings.settingsBuilder
+    .put("path.data", dataDir.toString)
+    .build
+
+  val node = nodeBuilder().settings(settings).local(true).node()
 
   override val client: Client = node.client()
 
@@ -25,6 +34,13 @@ class TestESClient(config: ElasticSearchConfig) extends SpandexElasticSearchClie
   override def close(): Unit = {
     deleteIndex()
     node.close()
+
+    try {
+      FileUtils.forceDelete(dataDir)
+    } catch {
+      case e: Exception => // dataDir cleanup failed
+    }
+
     super.close()
   }
 }
