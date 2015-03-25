@@ -1,7 +1,7 @@
 package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.secondary._
-import com.socrata.spandex.common.client.{DatasetCopy, SpandexElasticSearchClient}
+import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, SpandexElasticSearchClient}
 
 class VersionEventsHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
   def handle(datasetName: String, // scalastyle:ignore cyclomatic.complexity method.length
@@ -51,15 +51,18 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
         case WorkingCopyPublished =>
           logWorkingCopyPublished(datasetName, latest.copyNumber)
           client.updateDatasetCopyVersion(latest.updateCopy(dataVersion, LifecycleStage.Published))
+        case ColumnCreated(info) =>
+          logColumnCreated(datasetName, latest.copyNumber, info)
+          client.putColumnMap(ColumnMap(datasetName, latest.copyNumber, info))
         case ColumnRemoved(info) =>
           logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
           client.deleteFieldValuesByColumnId(datasetName, latest.copyNumber, info.systemId.underlying)
+          client.deleteColumnMap(datasetName, latest.copyNumber, info.id.underlying)
         case Truncated =>
           logTruncate(datasetName, latest.copyNumber)
           client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
         case LastModifiedChanged(lm) =>
         // TODO : Support if-modified-since one day
-        case ColumnCreated(info) =>
         case RowIdentifierSet(info) =>
         case RowIdentifierCleared(info) =>
         case SystemRowIdentifierChanged(info) =>
@@ -125,6 +128,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
             // Tell ES that this new copy exists
             logWorkingCopyCreated(datasetName, copyInfo.copyNumber)
             client.putDatasetCopy(datasetName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage)
+            // TODO : Copy over all column mappings
           }
         case other: Event =>
           throw new UnsupportedOperationException(s"Unexpected event ${other.getClass}")

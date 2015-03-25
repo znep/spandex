@@ -78,6 +78,24 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.searchFieldValuesByRowId(datasets(1), 2, 1).totalHits should be (3)
   }
 
+  test("Put, get and delete column map") {
+    client.getColumnMap(datasets(0), 1, "col1-1111") should not be 'defined
+    client.getColumnMap(datasets(0), 1, "col2-2222") should not be 'defined
+
+    val colMap = ColumnMap(datasets(0), 1, 1, "col1-1111")
+    client.putColumnMap(colMap)
+    Thread.sleep(1000) // Account for ES indexing delay
+
+    val colMap1 = client.getColumnMap(datasets(0), 1, "col1-1111")
+    colMap1 should be (Some(colMap))
+    val colMap2 = client.getColumnMap(datasets(0), 1, "col2-2222")
+    colMap2 should not be 'defined
+
+    client.deleteColumnMap(colMap.datasetId, colMap.copyNumber, colMap.userColumnId)
+
+    client.getColumnMap(datasets(0), 1, "col1-1111") should not be 'defined
+  }
+
   test("Put, get and search dataset copies") {
     client.getDatasetCopy(datasets(0), 1) should not be 'defined
     client.getDatasetCopy(datasets(0), 2) should not be 'defined

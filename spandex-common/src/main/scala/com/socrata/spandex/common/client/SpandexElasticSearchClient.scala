@@ -4,6 +4,7 @@ import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary._
 import com.socrata.spandex.common.ElasticSearchConfig
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest
+import org.elasticsearch.action.delete.DeleteResponse
 import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse
 import org.elasticsearch.action.index.IndexResponse
 import org.elasticsearch.action.update.UpdateResponse
@@ -30,6 +31,26 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def indexExists: Boolean = {
     val request = client.admin().indices().exists(new IndicesExistsRequest(config.index))
     request.actionGet().isExists
+  }
+
+  def putColumnMap(columnMap: ColumnMap): IndexResponse = {
+    val source = JsonUtil.renderJson(columnMap)
+    client.prepareIndex(config.index, config.columnMapMapping.mappingType, columnMap.docId)
+          .setSource(source)
+          .execute.actionGet
+  }
+
+  def getColumnMap(datasetId: String, copyNumber: Long, userColumnId: String): Option[ColumnMap] = {
+    val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
+    val response = client.prepareGet(config.index, config.columnMapMapping.mappingType, id)
+                         .execute.actionGet
+    response.result[ColumnMap]
+  }
+
+  def deleteColumnMap(datasetId: String, copyNumber: Long, userColumnId: String): DeleteResponse = {
+    val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
+    client.prepareDelete(config.index, config.columnMapMapping.mappingType, id)
+          .execute.actionGet
   }
 
   def searchFieldValuesByDataset(datasetId: String): SearchResults[FieldValue] = {

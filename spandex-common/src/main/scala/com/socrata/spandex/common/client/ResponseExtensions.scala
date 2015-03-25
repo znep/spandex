@@ -3,7 +3,7 @@ package com.socrata.spandex.common.client
 import com.rojoma.json.v3.ast.{JString, JValue}
 import com.rojoma.json.v3.codec.{DecodeError, JsonEncode, JsonDecode}
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, SimpleJsonCodecBuilder, Strategy, JsonKeyStrategy, JsonUtil}
-import com.socrata.datacoordinator.secondary.LifecycleStage
+import com.socrata.datacoordinator.secondary.{ColumnInfo, LifecycleStage}
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.SearchHit
@@ -41,30 +41,51 @@ object DatasetCopy {
 }
 
 @JsonKeyStrategy(Strategy.Underscore)
+case class ColumnMap(datasetId: String,
+                     copyNumber: Long,
+                     systemColumnId: Long,
+                     userColumnId: String) {
+  lazy val docId = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
+}
+object ColumnMap {
+  implicit val jCodec = AutomaticJsonCodecBuilder[ColumnMap]
+
+  def apply(datasetId: String,
+            copyNumber: Long,
+            columnInfo: ColumnInfo[_]): ColumnMap =
+    this(datasetId,
+         copyNumber,
+         columnInfo.systemId.underlying,
+         columnInfo.id.underlying)
+
+  def makeDocId(datasetId: String,
+                copyNumber: Long,
+                userColumnId: String): String =
+    s"$datasetId|$copyNumber|$userColumnId"
+}
+
+@JsonKeyStrategy(Strategy.Underscore)
 case class FieldValue(datasetId: String,
                       copyNumber: Long,
                       columnId: Long,
-                      userColumnId: String,
                       rowId: Long,
                       value: String) {
-  lazy val docId = s"$datasetId|$copyNumber|$userColumnId|$rowId"
-  lazy val compositeId = s"$datasetId|$copyNumber|$userColumnId"
+  lazy val docId = s"$datasetId|$copyNumber|$columnId|$rowId"
+  lazy val compositeId = s"$datasetId|$copyNumber|$columnId"
 
   // Needed for codec builder
   def this(datasetId: String,
            copyNumber: Long,
            columnId: Long,
-           userColumnId: String,
            compositeId: String,
            rowId: Long,
-           value: String) = this(datasetId, copyNumber, columnId, userColumnId, rowId, value)
+           value: String) = this(datasetId, copyNumber, columnId, rowId, value)
 }
 object FieldValue {
   implicit val jCodec = SimpleJsonCodecBuilder[FieldValue].build(
     SpandexFields.DatasetId, _.datasetId,
     SpandexFields.CopyNumber, _.copyNumber,
     SpandexFields.ColumnId, _.columnId,
-    SpandexFields.UserColumnId, _.userColumnId,
     SpandexFields.CompositeId, _.compositeId,
     SpandexFields.RowId, _.rowId,
     SpandexFields.Value, _.value

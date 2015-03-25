@@ -14,6 +14,7 @@ class ElasticSearchConfig(config: Config) {
   val index              = config.getString("index")
 
   val fieldValueMapping  = new MappingConfig(config.getConfig("mappings.field-value"))
+  val columnMapMapping   = new MappingConfig(config.getConfig("mappings.column-map"))
   val datasetCopyMapping = new MappingConfig(config.getConfig("mappings.dataset-copy"))
 }
 

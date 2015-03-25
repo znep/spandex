@@ -4,7 +4,7 @@ import com.socrata.datacoordinator.id.{UserColumnId, ColumnId, CopyId, RowId}
 import com.socrata.datacoordinator.secondary._
 import com.socrata.soql.types.SoQLText
 import com.socrata.spandex.common.{TestESData, SpandexConfig}
-import com.socrata.spandex.common.client.{TestESClient, DatasetCopy}
+import com.socrata.spandex.common.client.{ColumnMap, TestESClient, DatasetCopy}
 import org.joda.time.DateTime
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike, Matchers}
 import org.scalatest.prop.PropertyChecks
@@ -88,9 +88,15 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (0)
   }
 
-  test("ColumnRemoved - field values for column in latest copy of dataset should be dropped") {
+  // Maybe merge this and the ColumnRemoved test
+  test("ColumnAdded")(pending)
+
+  test("ColumnRemoved - column map and field values in latest copy of dataset should be dropped") {
+    val info = ColumnInfo(new ColumnId(3), new UserColumnId("blah"), SoQLText, false, false, false)
+
     client.putDatasetCopy(datasets(0), 1, 1, LifecycleStage.Unpublished)
     client.putDatasetCopy(datasets(0), 2, 2, LifecycleStage.Published)
+    client.putColumnMap(ColumnMap(datasets(0), 2, info))
     Thread.sleep(1000) // Wait for ES to index document
 
     val latestBefore = client.getLatestCopyForDataset(datasets(0))
@@ -98,9 +104,10 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     latestBefore.get.copyNumber should be (2)
     latestBefore.get.copyNumber should be (2)
     client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (5)
+    client.getColumnMap(datasets(0), 2, info.id.underlying) should be
+      (Some(ColumnMap(datasets(0), 2, info.systemId.underlying, info.id.underlying)))
 
-    val toRemove = ColumnInfo(new ColumnId(3), new UserColumnId("blah"), SoQLText, false, false, false)
-    handler.handle(datasets(0), 3, Seq(ColumnRemoved(toRemove)).iterator)
+    handler.handle(datasets(0), 3, Seq(ColumnRemoved(info)).iterator)
     Thread.sleep(1000) // Wait for ES to index document
 
     val latestAfter = client.getLatestCopyForDataset(datasets(0))
@@ -108,6 +115,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     latestAfter.get.copyNumber should be (2)
     latestAfter.get.version should be (3)
     client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (0)
+    client.getColumnMap(datasets(0), 2, info.id.underlying) should not be 'defined
   }
 
   test("WorkingCopyPublished - latest copy of dataset should be set to Published") {
