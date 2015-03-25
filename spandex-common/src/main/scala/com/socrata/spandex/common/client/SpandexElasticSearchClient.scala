@@ -14,18 +14,18 @@ import org.elasticsearch.search.sort.SortOrder
 import ResponseExtensions._
 
 class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSearchClient(config) {
-  private def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.datasetId, datasetId)
+  private def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.DatasetId, datasetId)
   private def byCopyNumberQuery(datasetId: String, copyNumber: Long): QueryBuilder =
-    boolQuery().must(termQuery(SpandexFields.datasetId, datasetId))
-               .must(termQuery(SpandexFields.copyNumber, copyNumber))
+    boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
+               .must(termQuery(SpandexFields.CopyNumber, copyNumber))
   private def byColumnIdQuery(datasetId: String, copyNumber: Long, columnId: Long): QueryBuilder =
-    boolQuery().must(termQuery(SpandexFields.datasetId, datasetId))
-               .must(termQuery(SpandexFields.copyNumber, copyNumber))
-               .must(termQuery(SpandexFields.columnId, columnId))
+    boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
+               .must(termQuery(SpandexFields.CopyNumber, copyNumber))
+               .must(termQuery(SpandexFields.ColumnId, columnId))
   private def byRowIdQuery(datasetId: String, copyNumber: Long, rowId: Long): QueryBuilder =
-    boolQuery().must(termQuery(SpandexFields.datasetId, datasetId))
-               .must(termQuery(SpandexFields.copyNumber, copyNumber))
-               .must(termQuery(SpandexFields.rowId, rowId))
+    boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
+               .must(termQuery(SpandexFields.CopyNumber, copyNumber))
+               .must(termQuery(SpandexFields.RowId, rowId))
 
   def indexExists: Boolean = {
     val request = client.admin().indices().exists(new IndicesExistsRequest(config.index))
@@ -111,8 +111,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                          .setTypes(config.datasetCopyMapping.mappingType)
                          .setQuery(byDatasetIdQuery(datasetId))
                          .setSize(1)
-                         .addSort(SpandexFields.copyNumber, SortOrder.DESC)
-                         .addAggregation(max(latestCopyPlaceholder).field(SpandexFields.copyNumber))
+                         .addSort(SpandexFields.CopyNumber, SortOrder.DESC)
+                         .addAggregation(max(latestCopyPlaceholder).field(SpandexFields.CopyNumber))
                          .execute.actionGet
     val results = response.results[DatasetCopy]
     results.thisPage.headOption

@@ -2,7 +2,7 @@ package com.socrata.spandex.common.client
 
 import com.rojoma.json.v3.ast.{JString, JValue}
 import com.rojoma.json.v3.codec.{DecodeError, JsonEncode, JsonDecode}
-import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy, JsonUtil}
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, SimpleJsonCodecBuilder, Strategy, JsonKeyStrategy, JsonUtil}
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
@@ -40,14 +40,27 @@ object DatasetCopy {
 }
 
 @JsonKeyStrategy(Strategy.Underscore)
-case class FieldValue(datasetId: String,
-                      copyNumber: Long,
-                      columnId: Long,
-                      compositeId: String,
-                      rowId: Long,
-                      value: String)
+case class FieldValue(datasetId: String, copyNumber: Long, columnId: Long, rowId: Long, value: String) {
+  lazy val docId = s"$datasetId|$copyNumber|$columnId|$rowId"
+  lazy val compositeId = s"$datasetId|$copyNumber|$columnId"
+
+  // Needed for codec builder
+  def this(datasetId: String,
+           copyNumber: Long,
+           columnId: Long,
+           compositeId: String,
+           rowId: Long,
+           value: String) = this(datasetId, copyNumber, columnId, rowId, value)
+}
 object FieldValue {
-  implicit val jCodec = AutomaticJsonCodecBuilder[FieldValue]
+  implicit val jCodec = SimpleJsonCodecBuilder[FieldValue].build(
+    SpandexFields.DatasetId, _.datasetId,
+    SpandexFields.CopyNumber, _.copyNumber,
+    SpandexFields.ColumnId, _.columnId,
+    SpandexFields.CompositeId, _.compositeId,
+    SpandexFields.RowId, _.rowId,
+    SpandexFields.Value, _.value
+  )
 }
 
 case class SearchResults[T: JsonDecode](totalHits: Long, thisPage: Seq[T])
