@@ -88,32 +88,37 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (0)
   }
 
-  // Maybe merge this and the ColumnRemoved test
-  test("ColumnAdded")(pending)
-
-  test("ColumnRemoved - column map and field values in latest copy of dataset should be dropped") {
-    val info = ColumnInfo(new ColumnId(3), new UserColumnId("blah"), SoQLText, false, false, false)
+  test("ColumnCreated and ColumnRemoved") {
+    val info = ColumnInfo(new ColumnId(3), new UserColumnId("blah-1234"), SoQLText, false, false, false)
 
     client.putDatasetCopy(datasets(0), 1, 1, LifecycleStage.Unpublished)
     client.putDatasetCopy(datasets(0), 2, 2, LifecycleStage.Published)
-    client.putColumnMap(ColumnMap(datasets(0), 2, info))
     Thread.sleep(1000) // Wait for ES to index document
 
-    val latestBefore = client.getLatestCopyForDataset(datasets(0))
-    latestBefore should be ('defined)
-    latestBefore.get.copyNumber should be (2)
-    latestBefore.get.copyNumber should be (2)
-    client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (5)
+    val latestBeforeAdd = client.getLatestCopyForDataset(datasets(0))
+    latestBeforeAdd should be ('defined)
+    latestBeforeAdd.get.copyNumber should be (2)
+    latestBeforeAdd.get.version should be (2)
+    client.getColumnMap(datasets(0), 2, info.id.underlying) should not be 'defined
+
+    // Create column
+    handler.handle(datasets(0), 3, Seq(ColumnCreated(info)).iterator)
+    Thread.sleep(1000) // Wait for ES to index document
+
     client.getColumnMap(datasets(0), 2, info.id.underlying) should be
       (Some(ColumnMap(datasets(0), 2, info.systemId.underlying, info.id.underlying)))
 
-    handler.handle(datasets(0), 3, Seq(ColumnRemoved(info)).iterator)
+    // Pretend we added some data in between (which actually got added during bootstrap)
+    client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (5)
+
+    // Remove column
+    handler.handle(datasets(0), 4, Seq(ColumnRemoved(info)).iterator)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val latestAfter = client.getLatestCopyForDataset(datasets(0))
-    latestAfter should be ('defined)
-    latestAfter.get.copyNumber should be (2)
-    latestAfter.get.version should be (3)
+    val latestAfterDelete = client.getLatestCopyForDataset(datasets(0))
+    latestAfterDelete should be ('defined)
+    latestAfterDelete.get.copyNumber should be (2)
+    latestAfterDelete.get.version should be (4)
     client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (0)
     client.getColumnMap(datasets(0), 2, info.id.underlying) should not be 'defined
   }
