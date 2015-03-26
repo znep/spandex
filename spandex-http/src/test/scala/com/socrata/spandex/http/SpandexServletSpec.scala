@@ -67,13 +67,13 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   test("suggest") {
     get(suggest / dsid / copynum / colid / "dat") {
       status should equal(HttpStatus.SC_OK)
-      body shouldNot include("data0")
-      body should include("data1")
-      body should include("data2")
-      body should include("data3")
-      body should include("data4")
-      body should include("data5")
-      body shouldNot include("data6")
+      body shouldNot include("data column 3 row 0")
+      body should include("data column 3 row 1")
+      body should include("data column 3 row 2")
+      body should include("data column 3 row 3")
+      body should include("data column 3 row 4")
+      body should include("data column 3 row 5")
+      body shouldNot include("data column 3 row 6")
     }
   }
 
