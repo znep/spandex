@@ -23,6 +23,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   override def beforeEach(): Unit = {
     client.deleteAllDatasetCopies()
     bootstrapData()
+    Thread.sleep(1000) // Wait for ES to index documents
   }
   override def afterEach(): Unit = removeBootstrapData()
   override def afterAll(): Unit = client.close()
@@ -229,4 +230,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (12)
     client.searchFieldValuesByRowId(datasets(1), 2, 5).totalHits should be (0)
   }
+
+  test("Row operations")(pending)
 }

@@ -38,12 +38,12 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
 
   def dropDataset(datasetInternalName: String, cookie: Cookie): Unit = {
     val result = client.deleteFieldValuesByDataset(datasetInternalName)
-    checkStatus(result.status, RestStatus.OK, s"dropDataset for $datasetInternalName")
+    // checkStatus(result.status, RestStatus.OK, s"dropDataset for $datasetInternalName")
   }
 
   def dropCopy(datasetInternalName: String, copyNumber: Long, cookie: Cookie): Cookie = {
     val result = client.deleteFieldValuesByCopyNumber(datasetInternalName, copyNumber)
-    checkStatus(result.status, RestStatus.OK, s"dropCopy for $datasetInternalName copyNumber $copyNumber")
+    // checkStatus(result.status, RestStatus.OK, s"dropCopy for $datasetInternalName copyNumber $copyNumber")
     cookie
   }
 

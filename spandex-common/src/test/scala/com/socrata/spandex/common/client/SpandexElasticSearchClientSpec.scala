@@ -18,13 +18,40 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
   }
   override def afterEach(): Unit = removeBootstrapData()
 
+  test("Insert, update, get field values") {
+    val toInsert = Seq(
+      FieldValue("alpha.1337", 1, 20, 32, "axolotl"),
+      FieldValue("alpha.1337", 1, 21, 32, "amphibious"),
+      FieldValue("alpha.1337", 1, 22, 32, "Henry"))
+
+    toInsert.foreach { fv =>
+      client.getFieldValue(fv) should not be 'defined
+    }
+
+    val inserts = toInsert.map(client.getIndexRequest)
+    client.sendBulkRequest(inserts)
+
+    toInsert.foreach { fv =>
+      client.getFieldValue(fv) should be (Some(fv))
+    }
+
+    val toUpdate = Seq(
+      FieldValue("alpha.1337", 1, 20, 32, "Mexican axolotl"),
+      FieldValue("alpha.1337", 1, 22, 32, "Enrique"))
+
+    val updates = toUpdate.map(client.getUpdateRequest)
+    client.sendBulkRequest(updates)
+
+    client.getFieldValue(toInsert(0)).get should be (toUpdate(0))
+    client.getFieldValue(toInsert(1)).get should be (toInsert(1))
+    client.getFieldValue(toInsert(2)).get should be (toUpdate(1))
+  }
+
   test("Delete field values by dataset") {
     client.searchFieldValuesByDataset(datasets(0)).totalHits should be (30)
     client.searchFieldValuesByDataset(datasets(1)).totalHits should be (30)
 
-    val response = client.deleteFieldValuesByDataset(datasets(0))
-    response.status() should be (RestStatus.OK)
-    response.getIndices.get(config.es.index).getFailures.size should be (0)
+    client.deleteFieldValuesByDataset(datasets(0))
 
     client.searchFieldValuesByDataset(datasets(0)).totalHits should be (0)
     client.searchFieldValuesByDataset(datasets(1)).totalHits should be (30)
@@ -36,9 +63,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
 
-    val response = client.deleteFieldValuesByCopyNumber(datasets(0), 2)
-    response.status() should be (RestStatus.OK)
-    response.getIndices.get(config.es.index).getFailures.size should be (0)
+    client.deleteFieldValuesByCopyNumber(datasets(0), 2)
 
     client.searchFieldValuesByCopyNumber(datasets(0), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (0)
@@ -52,9 +77,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.searchFieldValuesByColumnId(datasets(0), 2, 2).totalHits should be (5)
     client.searchFieldValuesByColumnId(datasets(1), 2, 1).totalHits should be (5)
 
-    val response = client.deleteFieldValuesByColumnId(datasets(0), 2, 1)
-    response.status() should be (RestStatus.OK)
-    response.getIndices.get(config.es.index).getFailures.size should be (0)
+    client.deleteFieldValuesByColumnId(datasets(0), 2, 1)
 
     client.searchFieldValuesByColumnId(datasets(0), 1, 1).totalHits should be (5)
     client.searchFieldValuesByColumnId(datasets(0), 2, 1).totalHits should be (0)
@@ -68,9 +91,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.searchFieldValuesByRowId(datasets(0), 1, 1).totalHits should be (3)
     client.searchFieldValuesByRowId(datasets(1), 2, 1).totalHits should be (3)
 
-    val response = client.deleteFieldValuesByRowId(datasets(0), 2, 1)
-    response.status() should be (RestStatus.OK)
-    response.getIndices.get(config.es.index).getFailures.size should be (0)
+    client.deleteFieldValuesByRowId(datasets(0), 2, 1)
 
     client.searchFieldValuesByRowId(datasets(0), 2, 1).totalHits should be (0)
     client.searchFieldValuesByRowId(datasets(0), 2, 2).totalHits should be (3)
