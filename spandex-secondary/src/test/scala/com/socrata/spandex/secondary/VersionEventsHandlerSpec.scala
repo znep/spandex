@@ -2,9 +2,11 @@ package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.id.{UserColumnId, ColumnId, CopyId, RowId}
 import com.socrata.datacoordinator.secondary._
-import com.socrata.soql.types.SoQLText
+import com.socrata.datacoordinator.util.collection.ColumnIdMap
+import com.socrata.soql.types.{SoQLValue, SoQLNumber, SoQLText}
 import com.socrata.spandex.common.{TestESData, SpandexConfig}
 import com.socrata.spandex.common.client.{ColumnMap, TestESClient, DatasetCopy}
+import java.math.BigDecimal
 import org.joda.time.DateTime
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike, Matchers}
 import org.scalatest.prop.PropertyChecks
@@ -23,6 +25,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   override def beforeEach(): Unit = {
     client.deleteAllDatasetCopies()
     bootstrapData()
+    Thread.sleep(1000) // Wait for ES to index documents
   }
   override def afterEach(): Unit = removeBootstrapData()
   override def afterAll(): Unit = client.close()
@@ -88,32 +91,52 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (0)
   }
 
-  // Maybe merge this and the ColumnRemoved test
-  test("ColumnAdded")(pending)
+  test("ColumnCreated - don't create column map for non-SoQLText columns") {
+    val numCol = ColumnInfo(new ColumnId(10), new UserColumnId("nums-1234"), SoQLNumber, false, false, false)
+    val textCol = ColumnInfo(new ColumnId(20), new UserColumnId("text-1234"), SoQLText, false, false, false)
 
-  test("ColumnRemoved - column map and field values in latest copy of dataset should be dropped") {
-    val info = ColumnInfo(new ColumnId(3), new UserColumnId("blah"), SoQLText, false, false, false)
+    // Create column
+    handler.handle(datasets(0), 3, Seq(ColumnCreated(numCol), ColumnCreated(textCol)).iterator)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val latest = client.getLatestCopyForDataset(datasets(0))
+    client.getColumnMap(datasets(0), latest.get.copyNumber, numCol.id.underlying) should not be 'defined
+    val textColMap = client.getColumnMap(datasets(0), latest.get.copyNumber, textCol.id.underlying)
+    textColMap should be
+      (Some(ColumnMap(datasets(0), latest.get.copyNumber, textCol.systemId.underlying, textCol.id.underlying)))
+  }
+
+  test("ColumnCreated and ColumnRemoved") {
+    val info = ColumnInfo(new ColumnId(3), new UserColumnId("blah-1234"), SoQLText, false, false, false)
 
     client.putDatasetCopy(datasets(0), 1, 1, LifecycleStage.Unpublished)
     client.putDatasetCopy(datasets(0), 2, 2, LifecycleStage.Published)
-    client.putColumnMap(ColumnMap(datasets(0), 2, info))
     Thread.sleep(1000) // Wait for ES to index document
 
-    val latestBefore = client.getLatestCopyForDataset(datasets(0))
-    latestBefore should be ('defined)
-    latestBefore.get.copyNumber should be (2)
-    latestBefore.get.copyNumber should be (2)
-    client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (5)
+    val latestBeforeAdd = client.getLatestCopyForDataset(datasets(0))
+    latestBeforeAdd should be ('defined)
+    latestBeforeAdd.get.copyNumber should be (2)
+    latestBeforeAdd.get.version should be (2)
+    client.getColumnMap(datasets(0), 2, info.id.underlying) should not be 'defined
+
+    // Create column
+    handler.handle(datasets(0), 3, Seq(ColumnCreated(info)).iterator)
+    Thread.sleep(1000) // Wait for ES to index document
+
     client.getColumnMap(datasets(0), 2, info.id.underlying) should be
       (Some(ColumnMap(datasets(0), 2, info.systemId.underlying, info.id.underlying)))
 
-    handler.handle(datasets(0), 3, Seq(ColumnRemoved(info)).iterator)
+    // Pretend we added some data in between (which actually got added during bootstrap)
+    client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (5)
+
+    // Remove column
+    handler.handle(datasets(0), 4, Seq(ColumnRemoved(info)).iterator)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val latestAfter = client.getLatestCopyForDataset(datasets(0))
-    latestAfter should be ('defined)
-    latestAfter.get.copyNumber should be (2)
-    latestAfter.get.version should be (3)
+    val latestAfterDelete = client.getLatestCopyForDataset(datasets(0))
+    latestAfterDelete should be ('defined)
+    latestAfterDelete.get.copyNumber should be (2)
+    latestAfterDelete.get.version should be (4)
     client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (0)
     client.getColumnMap(datasets(0), 2, info.id.underlying) should not be 'defined
   }
@@ -203,6 +226,52 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (0)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+  }
+
+  test("RowDataUpdated - Insert and update") {
+    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Published)
+    client.putDatasetCopy(datasets(1), 2, 4, LifecycleStage.Unpublished)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 4, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+    client.searchFieldValuesByRowId(datasets(1), 2, 6).totalHits should be (0)
+
+    val insert = Insert(new RowId(6), ColumnIdMap[SoQLValue](
+      new ColumnId(8) -> SoQLText("index me!"), new ColumnId(9) -> SoQLNumber(new BigDecimal(5))))
+
+    val insertEvents = Seq(RowDataUpdated(Seq[Operation](insert))).iterator
+    handler.handle(datasets(1), 5, insertEvents)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedAfterInsert = Some(DatasetCopy(datasets(1), 2, 5, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfterInsert)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (16)
+    val newEntries = client.searchFieldValuesByRowId(datasets(1), 2, 6)
+    newEntries.totalHits should be (1)
+    newEntries.thisPage(0).columnId should be (8)
+    newEntries.thisPage(0).value should be ("index me!")
+
+    val update = Update(new RowId(2), ColumnIdMap[SoQLValue](
+      new ColumnId(2) -> SoQLText("updated data2"), new ColumnId(3) -> SoQLText("updated data3")))(None)
+
+    val updateEvents = Seq(RowDataUpdated(Seq[Operation](update))).iterator
+    handler.handle(datasets(1), 6, updateEvents)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedAfter = Some(DatasetCopy(datasets(1), 2, 6, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (16)
+    val updatedRow = client.searchFieldValuesByRowId(datasets(1), 2, 2)
+    updatedRow.totalHits should be (3)
+    val updatedFieldValues = updatedRow.thisPage.sortBy(_.columnId).toSeq
+    updatedFieldValues(0).columnId should be (1)
+    updatedFieldValues(0).value should be ("data column 1 row 2")
+    updatedFieldValues(1).columnId should be (2)
+    updatedFieldValues(1).value should be ("updated data2")
+    updatedFieldValues(2).columnId should be (3)
+    updatedFieldValues(2).value should be ("updated data3")
   }
 
   test("RowDataUpdated - Delete") {

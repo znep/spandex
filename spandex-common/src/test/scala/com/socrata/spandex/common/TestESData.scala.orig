@@ -17,7 +17,12 @@ trait TestESData {
       ds <- datasets
       copy <- 1 to 2
     } {
+<<<<<<< HEAD
       val dsc = DatasetCopy(ds, copy, 0, LifecycleStage.Unpublished)
+=======
+      def makeData(col: Int, row: Int): String = s"data column $column row $row"
+      val doc = FieldValue(ds, copy, column, row, makeData(column, row))
+>>>>>>> secondary-urmilan
       val response = client.client.prepareIndex(
         config.es.index, config.es.datasetCopyMapping.mappingType)
         .setSource(JsonUtil.renderJson(dsc))
@@ -33,8 +38,7 @@ trait TestESData {
         assert(response.isCreated, s"failed to create column mapping ${col.docId}->$column")
 
         for {row <- 1 to 5} {
-          def makeData(col: Int, row: Int): String = s"data column $column row $row"
-          val doc = FieldValue(ds, copy, column, row, makeData(column, row))
+          val doc = FieldValue(ds, copy, column, row, "data" + row)
           val response = client.client.prepareIndex(
             config.es.index, config.es.fieldValueMapping.mappingType, doc.docId)
             .setSource(JsonUtil.renderJson(doc))

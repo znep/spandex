@@ -1,7 +1,9 @@
 package com.socrata.spandex.secondary
 
+import com.socrata.datacoordinator.id.{RowId, ColumnId}
 import com.socrata.datacoordinator.secondary._
-import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, SpandexElasticSearchClient}
+import com.socrata.soql.types.{SoQLValue, SoQLText}
+import com.socrata.spandex.common.client._
 
 class VersionEventsHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
   def handle(datasetName: String, // scalastyle:ignore cyclomatic.complexity method.length
@@ -37,7 +39,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
       event match {
         // TODO : DataCopied
         case RowDataUpdated(ops) =>
-          handleRowOps(datasetName, latest.copyNumber, ops)
+          RowOpsHandler(client).go(datasetName, latest.copyNumber, ops)
         case SnapshotDropped(info) =>
           checkStage(LifecycleStage.Snapshotted, info.lifecycleStage)
           logSnapshotDropped(datasetName, info.copyNumber)
@@ -52,8 +54,10 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
           logWorkingCopyPublished(datasetName, latest.copyNumber)
           client.updateDatasetCopyVersion(latest.updateCopy(dataVersion, LifecycleStage.Published))
         case ColumnCreated(info) =>
-          logColumnCreated(datasetName, latest.copyNumber, info)
-          client.putColumnMap(ColumnMap(datasetName, latest.copyNumber, info))
+          if (info.typ == SoQLText) {
+            logColumnCreated(datasetName, latest.copyNumber, info)
+            client.putColumnMap(ColumnMap(datasetName, latest.copyNumber, info))
+          }
         case ColumnRemoved(info) =>
           logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
           client.deleteFieldValuesByColumnId(datasetName, latest.copyNumber, info.systemId.underlying)
@@ -82,18 +86,10 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     Thread.sleep(1000) // scalastyle:ignore magic.number
 
     // Finally, get whatever the new latest copy is and bump its data version.
+    logDataVersionBump(datasetName, latest.copyNumber, latest.version, dataVersion)
     val finalLatest = client.getLatestCopyForDataset(datasetName).getOrElse(
       throw new UnsupportedOperationException(s"Couldn't get latest copy number for dataset $datasetName"))
     client.updateDatasetCopyVersion(finalLatest.updateCopy(dataVersion))
-  }
-
-  private def handleRowOps(datasetName: String,
-                           copyNumber: Long,
-                           ops: Seq[Operation]): Unit = ops.foreach {
-    case Insert(rowId, data) => ??? // TODO
-    case Update(rowId, data) => ??? // TODO
-    case Delete(rowId)       =>
-      client.deleteFieldValuesByRowId(datasetName, copyNumber, rowId.underlying)
   }
 
   private def checkWorkingCopyDroppable(copy: DatasetCopy): Unit = {

@@ -3,7 +3,9 @@ package com.socrata.spandex.common.client
 import com.rojoma.json.v3.ast.{JString, JValue}
 import com.rojoma.json.v3.codec.{DecodeError, JsonEncode, JsonDecode}
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, SimpleJsonCodecBuilder, Strategy, JsonKeyStrategy, JsonUtil}
+import com.socrata.datacoordinator.id.{ColumnId, RowId}
 import com.socrata.datacoordinator.secondary.{ColumnInfo, LifecycleStage}
+import com.socrata.soql.types.SoQLText
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.SearchHit
@@ -90,6 +92,9 @@ object FieldValue {
     SpandexFields.RowId, _.rowId,
     SpandexFields.Value, _.value
   )
+
+  def apply(datasetName: String,copyNumber: Long, columnId: ColumnId, rowId: RowId, data: SoQLText): FieldValue =
+    this(datasetName, copyNumber, columnId.underlying, rowId.underlying, data.value)
 }
 
 case class SearchResults[T: JsonDecode](totalHits: Long, thisPage: Seq[T])
