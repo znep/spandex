@@ -2,7 +2,8 @@ package com.socrata.spandex.common.client
 
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary._
-import com.socrata.spandex.common.ElasticSearchConfig
+import com.socrata.spandex.common._
+import com.socrata.spandex.common.client.ResponseExtensions._
 import org.elasticsearch.action.ActionResponse
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest
 import org.elasticsearch.action.bulk.BulkResponse
@@ -79,11 +80,43 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     response.result[ColumnMap]
   }
 
+  def getColumnMap(datasetId: String, copyNumber: Long, systemColumnId: Long): Option[ColumnMap] = {
+    val response = client.prepareSearch(config.index)
+      .setTypes(config.columnMapMapping.mappingType)
+      .setQuery(boolQuery().must(termQuery(SpandexFields.ColumnId, systemColumnId)))
+      .execute.actionGet
+    response.results[ColumnMap].thisPage.headOption
+  }
+
   def deleteColumnMap(datasetId: String, copyNumber: Long, userColumnId: String): Unit = {
     val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
     checkForFailures(client.prepareDelete(config.index, config.columnMapMapping.mappingType, id)
                            .execute.actionGet)
   }
+
+  def searchColumnMapsByDataset(datasetId: String): SearchResults[ColumnMap] =
+    client.prepareSearch(config.index)
+      .setTypes(config.columnMapMapping.mappingType)
+      .setQuery(byDatasetIdQuery(datasetId))
+      .execute.actionGet.results[ColumnMap]
+
+  def deleteColumnMapsByDataset(datasetId: String): DeleteByQueryResponse =
+    client.prepareDeleteByQuery(config.index)
+      .setTypes(config.columnMapMapping.mappingType)
+      .setQuery(byDatasetIdQuery(datasetId))
+      .execute.actionGet
+
+  def searchColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[ColumnMap] =
+    client.prepareSearch(config.index)
+      .setTypes(config.columnMapMapping.mappingType)
+      .setQuery(byCopyNumberQuery(datasetId, copyNumber))
+      .execute.actionGet.results[ColumnMap]
+
+  def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): DeleteByQueryResponse =
+    client.prepareDeleteByQuery(config.index)
+      .setTypes(config.columnMapMapping.mappingType)
+      .setQuery(byCopyNumberQuery(datasetId, copyNumber))
+      .execute.actionGet
 
   def getFieldValue(fieldValue: FieldValue): Option[FieldValue] = {
     val response = client.prepareGet(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
@@ -245,7 +278,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def getDatasetCopy(datasetId: String, copyNumber: Long): Option[DatasetCopy] = {
     val id = s"$datasetId|$copyNumber"
     val response = client.prepareGet(config.index, config.datasetCopyMapping.mappingType, id)
-                           .execute.actionGet
+                         .execute.actionGet
     response.result[DatasetCopy]
   }
 
@@ -262,4 +295,10 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .setTypes(config.datasetCopyMapping.mappingType)
                            .setQuery(byCopyNumberQuery(datasetId, copyNumber))
                            .execute.actionGet)
+
+  def deleteDatasetCopiesByDataset(datasetId: String): DeleteByQueryResponse =
+    client.prepareDeleteByQuery(config.index)
+      .setTypes(config.datasetCopyMapping.mappingType)
+      .setQuery(byDatasetIdQuery(datasetId))
+      .execute.actionGet
 }

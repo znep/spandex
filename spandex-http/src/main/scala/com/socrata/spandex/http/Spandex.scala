@@ -10,10 +10,6 @@ object Spandex extends App {
   lazy val conf = new SpandexConfig
   var ready: Boolean = false
 
-  // TODO : Replace this with a ES client connection
-  // val esRouter = new ElasticsearchServer(conf.es.port)
-  // esRouter.start()
-
   // TODO : Determine how we want index deployment/sanity check
   //        to actually work on each Spandex environment.
   //        In this current model, we silently create entire indexes,
@@ -34,10 +30,11 @@ object Spandex extends App {
 
   val server = new Server(port)
   server.setHandler(context)
-  server.start()
-  // esRouter.waitForReady()
-  ready = true
-  server.join()
-
-  // esRouter.stop()
+  try {
+    server.start()
+    ready = true
+    server.join()
+  } finally {
+    server.stop()
+  }
 }

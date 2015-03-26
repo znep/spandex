@@ -1,5 +1,4 @@
 resolvers ++= Seq(
-  "gphat" at "https://raw.github.com/gphat/mvn-repo/master/releases/",
   "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release"
 )
 

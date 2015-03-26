@@ -13,6 +13,7 @@ object SpandexBuild extends Build {
   val JettyListenPort = 8042 // required for container embedded jetty
 
   lazy val commonSettings = Seq(
+    addSbtPlugin("com.socrata" %% "socrata-sbt-plugins" % "1.4.3"),
     scalaVersion := ScalaVersion,
     resolvers ++= Deps.resolverList
   )
@@ -80,7 +81,6 @@ object Deps {
   val JettyVersion = "9.2.1.v20140609" // pinned to this version in Scalatra
 
   lazy val resolverList = Seq(
-    "gphat" at "https://raw.github.com/gphat/mvn-repo/master/releases/",
     "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release"
   )
 
@@ -103,8 +103,7 @@ object Deps {
     "javax.servlet" % "javax.servlet-api" % "3.1.0",
     "com.typesafe" % "config" % "1.2.1",
     "commons-io" % "commons-io" % "2.4",
-    "org.elasticsearch" % "elasticsearch" % "1.4.4",
-    "wabisabi" %% "wabisabi" % "2.0.18"
+    "org.elasticsearch" % "elasticsearch" % "1.4.4"
   )
   lazy val secondary = Seq(
     "com.socrata" %% "secondarylib" % "0.3.1" exclude("org.slf4j", "slf4j-log4j12"),

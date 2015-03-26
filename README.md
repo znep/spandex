@@ -16,6 +16,14 @@ $ ./sbt
 
 If `browse` doesn't launch your browser, manually open [http://localhost:8042/](http://localhost:8042/) in your browser.
 
+You can search what is currently indexed in spandex like this (searches "crimeType" for strings starting with "nar"):
+
+http://localhost:8042/suggest/primus.1234/2/3/dat
+
+Also, you can interact directly with elastic search via its web API by browsing here (should show the entire index):
+
+http://localhost:9200/spandex/_search?q=*
+
 ## Spandex-Secondary
 Spandex-Secondary is a Soda Server secondary service that replicates the data required for autocomplete to Elastic Search.
 

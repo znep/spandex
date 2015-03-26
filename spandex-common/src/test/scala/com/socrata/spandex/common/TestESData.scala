@@ -1,7 +1,8 @@
 package com.socrata.spandex.common
 
-import com.socrata.spandex.common.client.{FieldValue, SpandexElasticSearchClient}
 import com.rojoma.json.v3.util.JsonUtil
+import com.socrata.datacoordinator.secondary.LifecycleStage
+import com.socrata.spandex.common.client._
 
 trait TestESData {
   case class IndexEntry(id: String, source: String)
@@ -13,18 +14,34 @@ trait TestESData {
 
   def bootstrapData(): Unit = {
     for {
-      ds     <- datasets
-      copy   <- 1 to 2
-      column <- 1 to 3
-      row    <- 1 to 5
+      ds <- datasets
+      copy <- 1 to 2
     } {
-      def makeData(col: Int, row: Int): String = s"data column $column row $row"
-      val doc = FieldValue(ds, copy, column, row, makeData(column, row))
-      val response = client.client.prepareIndex(
-        config.es.index, config.es.fieldValueMapping.mappingType, doc.docId)
-          .setSource(JsonUtil.renderJson(doc))
-          .execute.actionGet
-      assert(response.isCreated, s"failed to create ${doc.docId}->$row")
+//      val dsc = DatasetCopy(ds, copy, 0, LifecycleStage.Unpublished)
+//      val response = client.client.prepareIndex(
+//        config.es.index, config.es.datasetCopyMapping.mappingType)
+//        .setSource(JsonUtil.renderJson(dsc))
+//        .execute.actionGet
+//      assert(response.isCreated, s"failed to create dataset copy $dsc->$copy")
+
+      for {column <- 1 to 3} {
+//        val col = ColumnMap(ds, copy, column, "col" + column)
+//        val response = client.client.prepareIndex(
+//          config.es.index, config.es.columnMapMapping.mappingType, col.docId)
+//          .setSource(JsonUtil.renderJson(col))
+//          .execute.actionGet
+//        assert(response.isCreated, s"failed to create column mapping ${col.docId}->$column")
+
+        for {row <- 1 to 5} {
+          def makeData(col: Int, row: Int): String = s"data column $column row $row"
+          val doc = FieldValue(ds, copy, column, row, makeData(column, row))
+          val response = client.client.prepareIndex(
+            config.es.index, config.es.fieldValueMapping.mappingType, doc.docId)
+            .setSource(JsonUtil.renderJson(doc))
+            .execute.actionGet
+          assert(response.isCreated, s"failed to create ${doc.docId}->$row")
+        }
+      }
     }
 
     // wait a sec to let elasticsearch index the documents
@@ -33,5 +50,7 @@ trait TestESData {
 
   def removeBootstrapData(): Unit = {
     datasets.foreach(client.deleteFieldValuesByDataset)
+//    datasets.foreach(client.deleteColumnMapsByDataset)
+//    datasets.foreach(client.deleteDatasetCopiesByDataset)
   }
 }

@@ -1,9 +1,9 @@
 package com.socrata.spandex.common.client
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
-import com.socrata.spandex.common.{TestESData, SpandexConfig}
+import com.socrata.spandex.common.{SpandexConfig, TestESData}
 import org.elasticsearch.rest.RestStatus
-import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, Matchers, FunSuiteLike}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 // scalastyle:off
 class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with BeforeAndAfterAll with BeforeAndAfterEach with TestESData {
@@ -140,7 +140,34 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.getColumnMap(datasets(0), 1, "col1-1111") should not be 'defined
   }
 
+  test("Delete column map by dataset") {
+    client.searchColumnMapsByDataset(datasets(0)).totalHits should be (6)
+    client.searchColumnMapsByDataset(datasets(1)).totalHits should be (6)
+
+    val response = client.deleteColumnMapsByDataset(datasets(0))
+    response.status() should be (RestStatus.OK)
+    response.getIndices.get(config.es.index).getFailures.size should be (0)
+
+    client.searchColumnMapsByDataset(datasets(0)).totalHits should be (0)
+    client.searchColumnMapsByDataset(datasets(1)).totalHits should be (6)
+  }
+
+  test("Delete column map by copy number") {
+    client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (3)
+    client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
+
+    val response = client.deleteColumnMapsByCopyNumber(datasets(0), 1)
+    response.status() should be (RestStatus.OK)
+    response.getIndices.get(config.es.index).getFailures.size should be (0)
+
+    client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (0)
+    client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
+  }
+
   test("Put, get and search dataset copies") {
+    client.deleteDatasetCopiesByDataset(datasets(0))
+    Thread.sleep(1000) // Account for ES indexing delay
+
     client.getDatasetCopy(datasets(0), 1) should not be 'defined
     client.getDatasetCopy(datasets(0), 2) should not be 'defined
     client.searchCopiesByDataset(datasets(0)).totalHits should be (0)
