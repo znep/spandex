@@ -1,17 +1,23 @@
 package com.socrata.spandex.common
 
-import org.scalatest.{Matchers, FunSuiteLike}
+import org.scalatest.{FunSuiteLike, Matchers}
 
 class SpandexConfigSpec extends FunSuiteLike with Matchers {
-  test("config has these required values") {
+  test("spandex config has these required values") {
     val conf = new SpandexConfig
+    conf.spandexPort
+  }
+
+  test("elasticsearch config has these required values") {
+    val conf = new SpandexConfig().es
     (
-      conf.spandexPort,
-      conf.es.port,
-      conf.es.clusterName,
-      conf.es.index,
-      conf.es.fieldValueMapping,
-      conf.es.datasetCopyMapping
-    )
+      conf.host,
+      conf.port,
+      conf.clusterName,
+      conf.index,
+      conf.fieldValueMapping,
+      conf.columnMapMapping,
+      conf.datasetCopyMapping
+      )
   }
 }
