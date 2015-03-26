@@ -2,7 +2,7 @@ package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.id.{UserColumnId, ColumnId, CopyId, RowId}
 import com.socrata.datacoordinator.secondary._
-import com.socrata.soql.types.SoQLText
+import com.socrata.soql.types.{SoQLNumber, SoQLText}
 import com.socrata.spandex.common.{TestESData, SpandexConfig}
 import com.socrata.spandex.common.client.{ColumnMap, TestESClient, DatasetCopy}
 import org.joda.time.DateTime
@@ -87,6 +87,21 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     latestAfter.get.copyNumber should be (2)
     latestAfter.get.version should be (3)
     client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (0)
+  }
+
+  test("ColumnCreated - don't create column map for non-SoQLText columns") {
+    val numCol = ColumnInfo(new ColumnId(10), new UserColumnId("nums-1234"), SoQLNumber, false, false, false)
+    val textCol = ColumnInfo(new ColumnId(20), new UserColumnId("text-1234"), SoQLText, false, false, false)
+
+    // Create column
+    handler.handle(datasets(0), 3, Seq(ColumnCreated(numCol), ColumnCreated(textCol)).iterator)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val latest = client.getLatestCopyForDataset(datasets(0))
+    client.getColumnMap(datasets(0), latest.get.copyNumber, numCol.id.underlying) should not be 'defined
+    val textColMap = client.getColumnMap(datasets(0), latest.get.copyNumber, textCol.id.underlying)
+    textColMap should be
+      (Some(ColumnMap(datasets(0), latest.get.copyNumber, textCol.systemId.underlying, textCol.id.underlying)))
   }
 
   test("ColumnCreated and ColumnRemoved") {

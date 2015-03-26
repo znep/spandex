@@ -54,8 +54,10 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
           logWorkingCopyPublished(datasetName, latest.copyNumber)
           client.updateDatasetCopyVersion(latest.updateCopy(dataVersion, LifecycleStage.Published))
         case ColumnCreated(info) =>
-          logColumnCreated(datasetName, latest.copyNumber, info)
-          client.putColumnMap(ColumnMap(datasetName, latest.copyNumber, info))
+          if (info.typ == SoQLText) {
+            logColumnCreated(datasetName, latest.copyNumber, info)
+            client.putColumnMap(ColumnMap(datasetName, latest.copyNumber, info))
+          }
         case ColumnRemoved(info) =>
           logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
           client.deleteFieldValuesByColumnId(datasetName, latest.copyNumber, info.systemId.underlying)
