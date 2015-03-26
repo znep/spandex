@@ -99,6 +99,29 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.searchFieldValuesByRowId(datasets(1), 2, 1).totalHits should be (3)
   }
 
+  test("Copy field values from one dataset copy to another") {
+    val from = DatasetCopy("copy-test", 1, 2, LifecycleStage.Published)
+    val to   = DatasetCopy("copy-test", 2, 3, LifecycleStage.Unpublished)
+
+    val toCopy = for {
+                   col <- 1 to 10
+                   row <- 1 to 10
+                 } yield FieldValue(from.datasetId, from.copyNumber, col, row, s"$col|$row")
+
+    val inserts = toCopy.map(client.getIndexRequest)
+    client.sendBulkRequest(inserts)
+    Thread.sleep(1000) // Account for ES indexing delay
+
+    client.searchFieldValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)
+    client.searchFieldValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be (0)
+
+    client.copyFieldValues(from, to)
+    Thread.sleep(1000) // Account for ES indexing delay
+
+    client.searchFieldValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)
+    client.searchFieldValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be (100)
+  }
+
   test("Put, get and delete column map") {
     client.getColumnMap(datasets(0), 1, "col1-1111") should not be 'defined
     client.getColumnMap(datasets(0), 1, "col2-2222") should not be 'defined
@@ -141,17 +164,27 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.searchCopiesByDataset(datasets(0)).totalHits should be (2)
   }
 
-  test("Get latest copy of dataset") {
+  test("Get latest copy of dataset (published or all)") {
     client.putDatasetCopy(datasets(0), 1, 50L, LifecycleStage.Unpublished)
     client.putDatasetCopy(datasets(0), 2, 100L, LifecycleStage.Published)
+    client.putDatasetCopy(datasets(0), 3, 150L, LifecycleStage.Unpublished)
     client.putDatasetCopy(datasets(1), 3, 150L, LifecycleStage.Unpublished)
     Thread.sleep(1000) // Account for ES indexing delay
 
     client.getLatestCopyForDataset(datasets(0)) should be ('defined)
-    client.getLatestCopyForDataset(datasets(0)).get.copyNumber should be (2)
+    client.getLatestCopyForDataset(datasets(0)).get.copyNumber should be (3)
+    client.getLatestCopyForDataset(datasets(0), publishedOnly = false) should be ('defined)
+    client.getLatestCopyForDataset(datasets(0), publishedOnly = false).get.copyNumber should be (3)
+    client.getLatestCopyForDataset(datasets(0), publishedOnly = true) should be ('defined)
+    client.getLatestCopyForDataset(datasets(0), publishedOnly = true).get.copyNumber should be (2)
+
     client.getLatestCopyForDataset(datasets(1)) should be ('defined)
     client.getLatestCopyForDataset(datasets(1)).get.copyNumber should be (3)
-    client.getLatestCopyForDataset("foo") should not be ('defined)
+    client.getLatestCopyForDataset(datasets(1), publishedOnly = false) should be ('defined)
+    client.getLatestCopyForDataset(datasets(1), publishedOnly = false).get.copyNumber should be (3)
+    client.getLatestCopyForDataset(datasets(1), publishedOnly = true) should not be 'defined
+
+    client.getLatestCopyForDataset("foo") should not be 'defined
   }
 
   test("Update dataset copy version") {

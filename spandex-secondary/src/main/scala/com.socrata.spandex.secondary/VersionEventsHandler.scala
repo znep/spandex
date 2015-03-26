@@ -12,7 +12,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     require(dataVersion > 0, s"Unexpected value for data version: $dataVersion")
 
     // First, handle any working copy events
-    val remainingEvents = handleWorkingCopyCreate(datasetName, dataVersion, events)
+    val remainingEvents = WorkingCopyCreatedHandler(client).go(datasetName, dataVersion, events)
 
     // TODO : Decide how to deal with Elastic Search's indexing delay.
     // ES only refreshes the index at set intervals (default 1s, configurable)
@@ -37,19 +37,16 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     remainingEvents.foreach { event =>
       logger.debug("Received event: " + event)
       event match {
-        // TODO : DataCopied
+        case DataCopied =>
+          val latestPublished = client.getLatestCopyForDataset(datasetName, publishedOnly = true).getOrElse(
+            throw new UnsupportedOperationException(s"Could not find a published copy to copy data from"))
+          client.copyFieldValues(from = latestPublished, to = latest)
         case RowDataUpdated(ops) =>
           RowOpsHandler(client).go(datasetName, latest.copyNumber, ops)
         case SnapshotDropped(info) =>
-          checkStage(LifecycleStage.Snapshotted, info.lifecycleStage)
-          logSnapshotDropped(datasetName, info.copyNumber)
-          client.deleteDatasetCopy(datasetName, info.copyNumber)
-          client.deleteFieldValuesByCopyNumber(datasetName, info.copyNumber)
+          CopyDropHandler(client).dropSnapshot(datasetName, info)
         case WorkingCopyDropped =>
-          checkWorkingCopyDroppable(latest)
-          logWorkingCopyDropped(datasetName, latest.copyNumber)
-          client.deleteDatasetCopy(datasetName, latest.copyNumber)
-          client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
+          CopyDropHandler(client).dropWorkingCopy(datasetName, latest)
         case WorkingCopyPublished =>
           logWorkingCopyPublished(datasetName, latest.copyNumber)
           client.updateDatasetCopyVersion(latest.updateCopy(dataVersion, LifecycleStage.Published))
@@ -78,7 +75,6 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
         case WorkingCopyCreated(info) =>
           // We have handled all WorkingCopyCreated events above. This should never happen.
           throw new UnsupportedOperationException("Unexpected WorkingCopyCreated event")
-        case _: Any => // TODO - remove before committing!
       }
     }
 
@@ -90,51 +86,5 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     val finalLatest = client.getLatestCopyForDataset(datasetName).getOrElse(
       throw new UnsupportedOperationException(s"Couldn't get latest copy number for dataset $datasetName"))
     client.updateDatasetCopyVersion(finalLatest.updateCopy(dataVersion))
-  }
-
-  private def checkWorkingCopyDroppable(copy: DatasetCopy): Unit = {
-    checkStage(LifecycleStage.Unpublished, copy.stage)
-    if (copy.copyNumber < 2) {
-      throw new UnsupportedOperationException("Cannot drop initial working copy")
-    }
-  }
-
-  private def checkStage(expected: LifecycleStage, actual: LifecycleStage): Unit =
-    if (actual != expected) {
-      throw new UnsupportedOperationException(s"Copy is in unexpected stage: $actual. Expected: $expected")
-    }
-
-  private def handleWorkingCopyCreate(datasetName: String,
-                                      dataVersion: Long,
-                                      events: Iterator[Event]): Iterator[Event] = {
-    val (wccEvents, remainingEvents) = events.span {
-      case WorkingCopyCreated(copyInfo) => true
-      case _ => false
-    }
-
-    if (wccEvents.hasNext) {
-      wccEvents.next() match {
-        case WorkingCopyCreated(copyInfo) =>
-          // Make sure the copy we want to create doesn't already exist.
-          val existingCopy = client.getDatasetCopy(datasetName, copyInfo.copyNumber)
-          if (existingCopy.isDefined) {
-            logger.info(s"dataset $datasetName copy ${copyInfo.copyNumber} already exists - resync!")
-            throw new ResyncSecondaryException("Dataset copy already exists")
-          } else {
-            // Tell ES that this new copy exists
-            logWorkingCopyCreated(datasetName, copyInfo.copyNumber)
-            client.putDatasetCopy(datasetName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage)
-            // TODO : Copy over all column mappings
-          }
-        case other: Event =>
-          throw new UnsupportedOperationException(s"Unexpected event ${other.getClass}")
-      }
-    }
-
-    if (wccEvents.hasNext) {
-      throw new UnsupportedOperationException("Encountered >1 WorkingCopyCreated event in a single version")
-    }
-
-    remainingEvents
   }
 }

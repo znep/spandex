@@ -11,7 +11,9 @@ class SpandexConfigSpec extends FunSuiteLike with Matchers {
       conf.es.clusterName,
       conf.es.index,
       conf.es.fieldValueMapping,
-      conf.es.datasetCopyMapping
+      conf.es.datasetCopyMapping,
+      conf.es.dataCopyBatchSize,
+      conf.es.dataCopyTimeout
     )
   }
 }

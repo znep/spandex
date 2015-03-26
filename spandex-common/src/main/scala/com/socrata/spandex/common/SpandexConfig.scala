@@ -1,10 +1,11 @@
 package com.socrata.spandex.common
 
 import com.typesafe.config.{Config, ConfigFactory}
+import java.util.concurrent.TimeUnit
 
-class SpandexConfig(conf: Config = ConfigFactory.load().getConfig("com.socrata.spandex")) {
-  val spandexPort: Int = conf.getInt("port") // scalastyle:ignore multiple.string.literals
-  val es = new ElasticSearchConfig(conf.getConfig("elastic-search"))
+class SpandexConfig(config: Config = ConfigFactory.load().getConfig("com.socrata.spandex")) {
+  val spandexPort: Int = config.getInt("port") // scalastyle:ignore multiple.string.literals
+  val es = new ElasticSearchConfig(config.getConfig("elastic-search"))
 }
 
 class ElasticSearchConfig(config: Config) {
@@ -16,6 +17,9 @@ class ElasticSearchConfig(config: Config) {
   val fieldValueMapping  = new MappingConfig(config.getConfig("mappings.field-value"))
   val columnMapMapping   = new MappingConfig(config.getConfig("mappings.column-map"))
   val datasetCopyMapping = new MappingConfig(config.getConfig("mappings.dataset-copy"))
+
+  val dataCopyBatchSize  = config.getInt("data-copy-batch-size")
+  val dataCopyTimeout    = config.getDuration("data-copy-timeout", TimeUnit.MILLISECONDS)
 }
 
 class MappingConfig(config: Config) {

@@ -293,4 +293,23 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (12)
     client.searchFieldValuesByRowId(datasets(1), 2, 5).totalHits should be (0)
   }
+
+  test("DataCopied - all field values from last published copy should be copied to latest copy") {
+    client.putDatasetCopy(datasets(1), 2, 5, LifecycleStage.Published)
+    client.putDatasetCopy(datasets(1), 3, 6, LifecycleStage.Unpublished)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedBefore = Some(DatasetCopy(datasets(1), 3, 6, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+    client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (0)
+
+    handler.handle(datasets(1), 7, Seq(DataCopied).iterator)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedAfter = Some(DatasetCopy(datasets(1), 3, 7, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+    client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
+  }
 }

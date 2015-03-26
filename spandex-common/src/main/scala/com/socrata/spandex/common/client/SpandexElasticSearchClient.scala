@@ -9,7 +9,9 @@ import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.delete.DeleteResponse
 import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse
 import org.elasticsearch.action.index.{IndexResponse, IndexRequestBuilder}
+import org.elasticsearch.action.search.SearchType
 import org.elasticsearch.action.update.{UpdateResponse, UpdateRequestBuilder}
+import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.search.aggregations.AggregationBuilders._
@@ -18,8 +20,12 @@ import ResponseExtensions._
 
 case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
 
+// scalastyle:off number.of.methods
 class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSearchClient(config) {
   private def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.DatasetId, datasetId)
+  private def byDatasetIdAndStageQuery(datasetId: String, stage: LifecycleStage): QueryBuilder =
+    boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
+               .must(termQuery(SpandexFields.Stage, stage.toString))
   private def byCopyNumberQuery(datasetId: String, copyNumber: Long): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
                .must(termQuery(SpandexFields.CopyNumber, copyNumber))
@@ -113,6 +119,34 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
         }
       }.execute.actionGet)
 
+  def copyFieldValues(from: DatasetCopy, to: DatasetCopy): Unit = {
+    val timeout = new TimeValue(config.dataCopyTimeout)
+    val scrollInit = client.prepareSearch(config.index)
+                           .setTypes(config.fieldValueMapping.mappingType)
+                           .setQuery(byCopyNumberQuery(from.datasetId, from.copyNumber))
+                           .setSearchType(SearchType.SCAN)
+                           .setScroll(timeout)
+                           .setSize(config.dataCopyBatchSize)
+                           .execute.actionGet
+
+    var done = false
+    while (!done) {
+      val response = client.prepareSearchScroll(scrollInit.getScrollId)
+                           .setScroll(timeout)
+                           .execute.actionGet
+
+      val batch = response.results[FieldValue].thisPage.map { src =>
+        getIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.value))
+      }
+
+      if (batch.isEmpty) {
+        done = true
+      } else {
+        sendBulkRequest(batch)
+      }
+    }
+  }
+
   def searchFieldValuesByDataset(datasetId: String): SearchResults[FieldValue] = {
     val response = client.prepareSearch(config.index)
                          .setTypes(config.fieldValueMapping.mappingType)
@@ -187,11 +221,19 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
             .execute.actionGet)
   }
 
-  def getLatestCopyForDataset(datasetId: String): Option[DatasetCopy] = {
+  def getLatestCopyForDataset(datasetId: String,
+                              publishedOnly: Boolean = false): Option[DatasetCopy] = {
     val latestCopyPlaceholder = "latest_copy"
+    val query =
+      if (publishedOnly) {
+        byDatasetIdAndStageQuery(datasetId, LifecycleStage.Published)
+      } else {
+        byDatasetIdQuery(datasetId)
+      }
+
     val response = client.prepareSearch(config.index)
                          .setTypes(config.datasetCopyMapping.mappingType)
-                         .setQuery(byDatasetIdQuery(datasetId))
+                         .setQuery(query)
                          .setSize(1)
                          .addSort(SpandexFields.CopyNumber, SortOrder.DESC)
                          .addAggregation(max(latestCopyPlaceholder).field(SpandexFields.CopyNumber))
