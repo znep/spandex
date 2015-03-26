@@ -19,6 +19,7 @@ import ResponseExtensions._
 
 case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
 
+// scalastyle:off number.of.methods
 class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSearchClient(config) {
   private def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.DatasetId, datasetId)
   private def byCopyNumberQuery(datasetId: String, copyNumber: Long): QueryBuilder =
