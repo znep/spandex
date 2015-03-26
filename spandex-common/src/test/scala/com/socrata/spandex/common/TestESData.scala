@@ -30,8 +30,7 @@ trait TestESData {
           config.es.index, config.es.columnMapMapping.mappingType, col.docId)
           .setSource(JsonUtil.renderJson(col))
           .execute.actionGet
-        // TODO: columns unique to dataset
-        // assert(response.isCreated, s"failed to create column mapping ${col.docId}->$column")
+        assert(response.isCreated, s"failed to create column mapping ${col.docId}->$column")
 
         for {row <- 1 to 5} {
           val doc = FieldValue(ds, copy, column, row, "data" + row)

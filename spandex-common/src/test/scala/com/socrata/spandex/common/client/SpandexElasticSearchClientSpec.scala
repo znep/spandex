@@ -99,7 +99,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
   test("Put, get and search dataset copies") {
     client.deleteDatasetCopiesByDataset(datasets(0))
     Thread.sleep(1000) // Account for ES indexing delay
-    
+
     client.getDatasetCopy(datasets(0), 1) should not be 'defined
     client.getDatasetCopy(datasets(0), 2) should not be 'defined
     client.searchCopiesByDataset(datasets(0)).totalHits should be (0)
