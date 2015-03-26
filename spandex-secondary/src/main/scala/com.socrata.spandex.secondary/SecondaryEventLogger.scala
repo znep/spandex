@@ -3,9 +3,14 @@ package com.socrata.spandex.secondary
 import com.typesafe.scalalogging.slf4j.Logging
 import com.socrata.datacoordinator.secondary.ColumnInfo
 
+// scalastyle:off multiple.string.literals
 trait SecondaryEventLogger extends Logging {
   private def logEvent(eventName: String, description: String): Unit =
     logger.info(s"$eventName event: $description")
+
+  def logDataVersionBump(dataset:String, copyNumber: Long, oldVersion: Long, newVersion: Long): Unit =
+    logger.info(s"Bumping data version from $oldVersion to $newVersion " +
+                s"for dataset $dataset copy $copyNumber")
 
   def logWorkingCopyCreated(dataset: String, copyNumber: Long): Unit =
     logEvent("WorkingCopyCreated",

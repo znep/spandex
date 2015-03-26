@@ -36,36 +36,18 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
   def snapshots(datasetInternalName: String, cookie: Cookie): Set[Long] =
     throw new NotImplementedError("Not used anywhere yet") // scalastyle:ignore multiple.string.literals
 
-  def dropDataset(datasetInternalName: String, cookie: Cookie): Unit = {
-    val result = client.deleteFieldValuesByDataset(datasetInternalName)
-    // checkStatus(result.status, RestStatus.OK, s"dropDataset for $datasetInternalName")
-  }
+  def dropDataset(datasetInternalName: String, cookie: Cookie): Unit =
+    client.deleteFieldValuesByDataset(datasetInternalName)
+
 
   def dropCopy(datasetInternalName: String, copyNumber: Long, cookie: Cookie): Cookie = {
-    val result = client.deleteFieldValuesByCopyNumber(datasetInternalName, copyNumber)
-    // checkStatus(result.status, RestStatus.OK, s"dropCopy for $datasetInternalName copyNumber $copyNumber")
+    client.deleteFieldValuesByCopyNumber(datasetInternalName, copyNumber)
     cookie
   }
 
-  private def checkStatus(actual: RestStatus, expected: RestStatus, description: String): Unit = {
-    actual match {
-      case `expected` =>
-        logger.info(s"$description was successful")
-      case other: RestStatus =>
-        logger.info(s"$description failed with HTTP status $other")
-    }
-  }
-
   def version(datasetInfo: DatasetInfo, dataVersion: Long, cookie: Cookie, events: Iterator[Event]): Cookie = {
-    // scalastyle:off
-    println("*** SPANDEX GOT VERSION EVENTS! Woo hoo ****")
-    println("Dataset internal name: " + datasetInfo.internalName)
-    println("Data version: " + dataVersion)
-    println("Cookie: " + cookie.getOrElse(""))
-    // scalastyle:on
     val handler = new VersionEventsHandler(client)
     handler.handle(datasetInfo.internalName, dataVersion, events)
-
     cookie
   }
 

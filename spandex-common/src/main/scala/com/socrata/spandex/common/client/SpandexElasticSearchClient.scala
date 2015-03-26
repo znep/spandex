@@ -3,7 +3,11 @@ package com.socrata.spandex.common.client
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary._
 import com.socrata.spandex.common.ElasticSearchConfig
+import org.elasticsearch.action.ActionResponse
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest
+import org.elasticsearch.action.bulk.BulkResponse
+import org.elasticsearch.action.delete.DeleteResponse
+import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse
 import org.elasticsearch.action.index.{IndexResponse, IndexRequestBuilder}
 import org.elasticsearch.action.update.{UpdateResponse, UpdateRequestBuilder}
 import org.elasticsearch.index.query.QueryBuilder
@@ -11,9 +15,6 @@ import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.search.aggregations.AggregationBuilders._
 import org.elasticsearch.search.sort.SortOrder
 import ResponseExtensions._
-import org.elasticsearch.action.ActionResponse
-import org.elasticsearch.action.delete.DeleteResponse
-import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse
 
 case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
 
@@ -44,6 +45,11 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       if (failures.nonEmpty) {
         throw ElasticSearchResponseFailed(s"DeleteByQuery response contained failures: " +
           failures.map(_.reason).mkString(","))
+      }
+    case b: BulkResponse =>
+      if (b.hasFailures) {
+        throw new ElasticSearchResponseFailed(s"Bulk response contained failures: " +
+          b.buildFailureMessage())
       }
     case r: ActionResponse =>
       throw new NotImplementedError(s"Haven't implemented failure check for ${r.getClass.getSimpleName}")
@@ -97,15 +103,15 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
   def sendBulkRequest(requests: Seq[Any]): Unit =
-    requests.foldLeft(client.prepareBulk()) { case (bulk, single) =>
-      single match {
-        case i: IndexRequestBuilder => bulk.add(i)
-        case u: UpdateRequestBuilder => bulk.add(u)
-        case a: Any =>
-          throw new UnsupportedOperationException(
-            s"Bulk requests with ${a.getClass.getSimpleName} not supported")
-      }
-    }.execute.actionGet
+    checkForFailures(requests.foldLeft(client.prepareBulk()) { case (bulk, single) =>
+        single match {
+          case i: IndexRequestBuilder => bulk.add(i)
+          case u: UpdateRequestBuilder => bulk.add(u)
+          case a: Any =>
+            throw new UnsupportedOperationException(
+              s"Bulk requests with ${a.getClass.getSimpleName} not supported")
+        }
+      }.execute.actionGet)
 
   def searchFieldValuesByDataset(datasetId: String): SearchResults[FieldValue] = {
     val response = client.prepareSearch(config.index)

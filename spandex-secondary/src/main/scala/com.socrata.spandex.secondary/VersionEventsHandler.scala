@@ -86,6 +86,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     Thread.sleep(1000) // scalastyle:ignore magic.number
 
     // Finally, get whatever the new latest copy is and bump its data version.
+    logDataVersionBump(datasetName, latest.copyNumber, latest.version, dataVersion)
     val finalLatest = client.getLatestCopyForDataset(datasetName).getOrElse(
       throw new UnsupportedOperationException(s"Couldn't get latest copy number for dataset $datasetName"))
     client.updateDatasetCopyVersion(finalLatest.updateCopy(dataVersion))

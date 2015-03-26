@@ -2,9 +2,11 @@ package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.id.{UserColumnId, ColumnId, CopyId, RowId}
 import com.socrata.datacoordinator.secondary._
-import com.socrata.soql.types.{SoQLNumber, SoQLText}
+import com.socrata.datacoordinator.util.collection.ColumnIdMap
+import com.socrata.soql.types.{SoQLValue, SoQLNumber, SoQLText}
 import com.socrata.spandex.common.{TestESData, SpandexConfig}
 import com.socrata.spandex.common.client.{ColumnMap, TestESClient, DatasetCopy}
+import java.math.BigDecimal
 import org.joda.time.DateTime
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike, Matchers}
 import org.scalatest.prop.PropertyChecks
@@ -226,6 +228,52 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
   }
 
+  test("RowDataUpdated - Insert and update") {
+    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Published)
+    client.putDatasetCopy(datasets(1), 2, 4, LifecycleStage.Unpublished)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 4, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+    client.searchFieldValuesByRowId(datasets(1), 2, 6).totalHits should be (0)
+
+    val insert = Insert(new RowId(6), ColumnIdMap[SoQLValue](
+      new ColumnId(8) -> SoQLText("index me!"), new ColumnId(9) -> SoQLNumber(new BigDecimal(5))))
+
+    val insertEvents = Seq(RowDataUpdated(Seq[Operation](insert))).iterator
+    handler.handle(datasets(1), 5, insertEvents)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedAfterInsert = Some(DatasetCopy(datasets(1), 2, 5, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfterInsert)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (16)
+    val newEntries = client.searchFieldValuesByRowId(datasets(1), 2, 6)
+    newEntries.totalHits should be (1)
+    newEntries.thisPage(0).columnId should be (8)
+    newEntries.thisPage(0).value should be ("index me!")
+
+    val update = Update(new RowId(2), ColumnIdMap[SoQLValue](
+      new ColumnId(2) -> SoQLText("updated data2"), new ColumnId(3) -> SoQLText("updated data3")))(None)
+
+    val updateEvents = Seq(RowDataUpdated(Seq[Operation](update))).iterator
+    handler.handle(datasets(1), 6, updateEvents)
+    Thread.sleep(1000) // Wait for ES to index document
+
+    val expectedAfter = Some(DatasetCopy(datasets(1), 2, 6, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (16)
+    val updatedRow = client.searchFieldValuesByRowId(datasets(1), 2, 2)
+    updatedRow.totalHits should be (3)
+    val updatedFieldValues = updatedRow.thisPage.sortBy(_.columnId).toSeq
+    updatedFieldValues(0).columnId should be (1)
+    updatedFieldValues(0).value should be ("data column 1 row 2")
+    updatedFieldValues(1).columnId should be (2)
+    updatedFieldValues(1).value should be ("updated data2")
+    updatedFieldValues(2).columnId should be (3)
+    updatedFieldValues(2).value should be ("updated data3")
+  }
+
   test("RowDataUpdated - Delete") {
     client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Published)
     client.putDatasetCopy(datasets(1), 2, 4, LifecycleStage.Unpublished)
@@ -245,6 +293,4 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (12)
     client.searchFieldValuesByRowId(datasets(1), 2, 5).totalHits should be (0)
   }
-
-  test("Row operations")(pending)
 }

@@ -18,7 +18,8 @@ trait TestESData {
       column <- 1 to 3
       row    <- 1 to 5
     } {
-      val doc = FieldValue(ds, copy, column, row, "data" + row)
+      def makeData(col: Int, row: Int): String = s"data column $column row $row"
+      val doc = FieldValue(ds, copy, column, row, makeData(column, row))
       val response = client.client.prepareIndex(
         config.es.index, config.es.fieldValueMapping.mappingType, doc.docId)
           .setSource(JsonUtil.renderJson(doc))

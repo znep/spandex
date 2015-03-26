@@ -1,6 +1,6 @@
 package com.socrata.spandex.secondary
 
-import com.socrata.datacoordinator.id.{ColumnId, RowId}
+import com.socrata.datacoordinator.id.RowId
 import com.socrata.soql.types.{SoQLValue, SoQLText}
 import com.socrata.spandex.common.client.{SpandexElasticSearchClient, FieldValue}
 import com.socrata.datacoordinator.secondary._
@@ -12,7 +12,7 @@ case class RowOpsHandler(client: SpandexElasticSearchClient) extends Logging {
                copyNumber: Long,
                rowId: RowId,
                data: Row[SoQLValue],
-               f: FieldValue => ActionRequestBuilder[_,_,_,_]) = {
+               f: FieldValue => ActionRequestBuilder[_,_,_,_]): Unit = {
     val requests = data.toSeq.collect {
       // Spandex only stores text columns; other column types are a no op
       case (id, value: SoQLText) =>
