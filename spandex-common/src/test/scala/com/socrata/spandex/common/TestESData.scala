@@ -17,20 +17,20 @@ trait TestESData {
       ds <- datasets
       copy <- 1 to 2
     } {
-      val dsc = DatasetCopy(ds, copy, 0, LifecycleStage.Unpublished)
-      val response = client.client.prepareIndex(
-        config.es.index, config.es.datasetCopyMapping.mappingType)
-        .setSource(JsonUtil.renderJson(dsc))
-        .execute.actionGet
-      assert(response.isCreated, s"failed to create dataset copy $dsc->$copy")
+//      val dsc = DatasetCopy(ds, copy, 0, LifecycleStage.Unpublished)
+//      val response = client.client.prepareIndex(
+//        config.es.index, config.es.datasetCopyMapping.mappingType)
+//        .setSource(JsonUtil.renderJson(dsc))
+//        .execute.actionGet
+//      assert(response.isCreated, s"failed to create dataset copy $dsc->$copy")
 
       for {column <- 1 to 3} {
-        val col = ColumnMap(ds, copy, column, "col" + column)
-        val response = client.client.prepareIndex(
-          config.es.index, config.es.columnMapMapping.mappingType, col.docId)
-          .setSource(JsonUtil.renderJson(col))
-          .execute.actionGet
-        assert(response.isCreated, s"failed to create column mapping ${col.docId}->$column")
+//        val col = ColumnMap(ds, copy, column, "col" + column)
+//        val response = client.client.prepareIndex(
+//          config.es.index, config.es.columnMapMapping.mappingType, col.docId)
+//          .setSource(JsonUtil.renderJson(col))
+//          .execute.actionGet
+//        assert(response.isCreated, s"failed to create column mapping ${col.docId}->$column")
 
         for {row <- 1 to 5} {
           def makeData(col: Int, row: Int): String = s"data column $column row $row"
@@ -50,7 +50,7 @@ trait TestESData {
 
   def removeBootstrapData(): Unit = {
     datasets.foreach(client.deleteFieldValuesByDataset)
-    datasets.foreach(client.deleteColumnMapsByDataset)
-    datasets.foreach(client.deleteDatasetCopiesByDataset)
+//    datasets.foreach(client.deleteColumnMapsByDataset)
+//    datasets.foreach(client.deleteDatasetCopiesByDataset)
   }
 }

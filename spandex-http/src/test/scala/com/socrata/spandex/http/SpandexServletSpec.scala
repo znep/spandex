@@ -4,7 +4,7 @@ import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.socrata.sbtplugins.StringPath._
 import com.socrata.spandex.common._
-import com.socrata.spandex.common.client.{SpandexElasticSearchClient, TestESClient}
+import com.socrata.spandex.common.client.{ColumnMap, SpandexElasticSearchClient, TestESClient}
 import org.eclipse.jetty.webapp.WebAppContext
 import org.scalatest.FunSuiteLike
 import org.scalatra.servlet.ScalatraListener
@@ -62,9 +62,13 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
 
   private[this] val suggest = "/suggest"
   private[this] val dsid = datasets(0)
-  private[this] val copynum = "2"
-  private[this] val colid = "col3"
+  private[this] val copyid = 2
+  private[this] val copynum = copyid.toString
+  private[this] val colsysid = 3
+  private[this] val colid = s"col$colsysid"
   test("suggest") {
+    client.putColumnMap(new ColumnMap(dsid, copyid, colsysid, colid))
+
     get(suggest / dsid / copynum / colid / "dat") {
       status should equal(HttpStatus.SC_OK)
       body shouldNot include("data column 3 row 0")
