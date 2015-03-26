@@ -1,9 +1,9 @@
 package com.socrata.spandex.common.client
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
-import com.socrata.spandex.common.{TestESData, SpandexConfig}
+import com.socrata.spandex.common.{SpandexConfig, TestESData}
 import org.elasticsearch.rest.RestStatus
-import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, Matchers, FunSuiteLike}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 // scalastyle:off
 class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with BeforeAndAfterAll with BeforeAndAfterEach with TestESData {
@@ -97,6 +97,9 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
   }
 
   test("Put, get and search dataset copies") {
+    client.deleteDatasetCopiesByDataset(datasets(0))
+    Thread.sleep(1000) // Account for ES indexing delay
+    
     client.getDatasetCopy(datasets(0), 1) should not be 'defined
     client.getDatasetCopy(datasets(0), 2) should not be 'defined
     client.searchCopiesByDataset(datasets(0)).totalHits should be (0)
