@@ -61,10 +61,28 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
           .execute.actionGet
   }
 
+  def searchColumnMapsByDataset(datasetId: String): SearchResults[ColumnMap] =
+    client.prepareSearch(config.index)
+      .setTypes(config.columnMapMapping.mappingType)
+      .setQuery(byDatasetIdQuery(datasetId))
+      .execute.actionGet.results[ColumnMap]
+
   def deleteColumnMapsByDataset(datasetId: String): DeleteByQueryResponse =
     client.prepareDeleteByQuery(config.index)
       .setTypes(config.columnMapMapping.mappingType)
       .setQuery(byDatasetIdQuery(datasetId))
+      .execute.actionGet
+
+  def searchColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[ColumnMap] =
+    client.prepareSearch(config.index)
+      .setTypes(config.columnMapMapping.mappingType)
+      .setQuery(byCopyNumberQuery(datasetId, copyNumber))
+      .execute.actionGet.results[ColumnMap]
+
+  def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): DeleteByQueryResponse =
+    client.prepareDeleteByQuery(config.index)
+      .setTypes(config.columnMapMapping.mappingType)
+      .setQuery(byCopyNumberQuery(datasetId, copyNumber))
       .execute.actionGet
 
   def searchFieldValuesByDataset(datasetId: String): SearchResults[FieldValue] = {
