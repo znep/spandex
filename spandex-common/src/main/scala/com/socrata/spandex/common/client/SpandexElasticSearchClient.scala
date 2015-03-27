@@ -4,6 +4,7 @@ import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary._
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client.ResponseExtensions._
+import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.ActionResponse
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest
 import org.elasticsearch.action.bulk.BulkResponse
@@ -21,7 +22,7 @@ import org.elasticsearch.search.sort.SortOrder
 case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
 
 // scalastyle:off number.of.methods
-class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSearchClient(config) {
+class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSearchClient(config) with Logging {
   private def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.DatasetId, datasetId)
   private def byDatasetIdAndStageQuery(datasetId: String, stage: LifecycleStage): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))

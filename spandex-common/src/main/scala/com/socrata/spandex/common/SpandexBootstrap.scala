@@ -1,11 +1,13 @@
 package com.socrata.spandex.common
 
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
+import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.client.Requests
 
-object SpandexBootstrap {
+object SpandexBootstrap extends Logging {
   def ensureIndex(config: ElasticSearchConfig, esClient: SpandexElasticSearchClient): Unit = {
     if (!esClient.indexExists) {
+      logger.info("creating index {} on {}", config.index, config.clusterName)
       esClient.client.admin().indices().create(Requests.createIndexRequest(config.index)).actionGet
 
       // Add field_value mapping

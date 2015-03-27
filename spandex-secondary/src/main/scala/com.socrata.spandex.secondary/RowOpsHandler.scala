@@ -1,11 +1,12 @@
 package com.socrata.spandex.secondary
 
-import com.socrata.datacoordinator.id.RowId
+import com.socrata.datacoordinator.id.{ColumnId, RowId}
 import com.socrata.soql.types.{SoQLValue, SoQLText}
 import com.socrata.spandex.common.client.{SpandexElasticSearchClient, FieldValue}
 import com.socrata.datacoordinator.secondary._
 import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.ActionRequestBuilder
+import RowOpsHandler._
 
 case class RowOpsHandler(client: SpandexElasticSearchClient) extends Logging {
   private def handleOp(datasetName: String,
@@ -16,7 +17,7 @@ case class RowOpsHandler(client: SpandexElasticSearchClient) extends Logging {
     val requests = data.toSeq.collect {
       // Spandex only stores text columns; other column types are a no op
       case (id, value: SoQLText) =>
-        f(FieldValue(datasetName, copyNumber, id, rowId, value))
+        f(fieldValueFromDatum(datasetName, copyNumber, rowId, (id, value)))
     }
     client.sendBulkRequest(requests)
   }
@@ -35,5 +36,14 @@ case class RowOpsHandler(client: SpandexElasticSearchClient) extends Logging {
       case Delete(rowId)       =>
         client.deleteFieldValuesByRowId(datasetName, copyNumber, rowId.underlying)
     }
+  }
+}
+
+object RowOpsHandler {
+  def fieldValueFromDatum(datasetName: String,
+                          copyNumber: Long,
+                          rowId: RowId,
+                          datum: (ColumnId, SoQLText)): FieldValue = datum match {
+    case (id, value) => FieldValue(datasetName, copyNumber, id.underlying, rowId.underlying, value.value)
   }
 }
