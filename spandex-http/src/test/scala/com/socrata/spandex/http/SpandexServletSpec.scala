@@ -2,7 +2,6 @@ package com.socrata.spandex.http
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
-import com.socrata.sbtplugins.StringPath._
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client.{ColumnMap, SpandexElasticSearchClient, TestESClient}
 import org.eclipse.jetty.webapp.WebAppContext
@@ -69,7 +68,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   test("suggest") {
     client.putColumnMap(new ColumnMap(dsid, copyid, colsysid, colid))
 
-    get(suggest / dsid / copynum / colid / "dat") {
+    get(s"$suggest/$dsid/$copynum/$colid/dat") {
       status should equal(HttpStatus.SC_OK)
       body shouldNot include("data column 3 row 0")
       body should include("data column 3 row 1")
@@ -82,16 +81,16 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   }
 
   test("suggest without required params should return 404") {
-    get(suggest / dsid / copynum / colid) {
+    get(s"$suggest/$dsid/$copynum/$colid/") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
-    get(suggest / dsid / copynum) {
+    get(s"$suggest/$dsid/$copynum/") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
-    get(suggest / dsid) {
+    get(s"$suggest/$dsid/") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
-    get(suggest) {
+    get(s"$suggest/") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
   }
