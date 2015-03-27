@@ -65,9 +65,10 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   private[this] val copynum = copyid.toString
   private[this] val colsysid = 3
   private[this] val colid = s"col$colsysid"
-  test("suggest") {
+  test("suggest - some hits") {
     get(s"$suggest/$dsid/$copynum/$colid/dat") {
       status should equal(HttpStatus.SC_OK)
+      body should include("\"options\"")
       body shouldNot include("data column 3 row 0")
       body should include("data column 3 row 1")
       body should include("data column 3 row 2")
@@ -75,6 +76,14 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
       body should include("data column 3 row 4")
       body should include("data column 3 row 5")
       body shouldNot include("data column 3 row 6")
+    }
+  }
+
+  test("suggest - no hits") {
+    get(s"$suggest/$dsid/$copynum/$colid/nar") {
+      status should equal(HttpStatus.SC_OK)
+      body should include("\"options\"")
+      body shouldNot include("NARCOTICS")
     }
   }
 
