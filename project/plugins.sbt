@@ -1,11 +1,9 @@
-resolvers ++= Seq(Classpaths.sbtPluginReleases, Classpaths.typesafeReleases,
-  "gphat" at "https://raw.github.com/gphat/mvn-repo/master/releases/",
-  "socrata releases" at "http://repository-socrata-oss.forge.cloudbees.com/release",
-  "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases"
+resolvers ++= Seq(
+  "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release"
 )
 
 addSbtPlugin("com.mojolly.scalate" % "xsbt-scalate-generator" % "0.5.0")
+// scalatra-sbt depends on an old xbst-web-plugin that isn't compatible with newer jetty versions, so force newer xsbt-web-plugin.
+addSbtPlugin("com.earldouglas" % "xsbt-web-plugin" % "0.9.0")
 addSbtPlugin("org.scalatra.sbt" % "scalatra-sbt" % "0.3.5")
-addSbtPlugin("com.socrata" % "socrata-cloudbees-sbt" % "1.3.1")
-addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "0.6.0")
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.12.0")
+addSbtPlugin("com.socrata" %% "socrata-sbt-plugins" % "1.4.3")
