@@ -37,13 +37,13 @@ trait SpandexServletLike extends SpandexStack {
     val userColumnId = params.getOrElse("userColumnId", "")
     val text = params.getOrElse("text", "")
 
-    val systemColumnId = client.getColumnMap(datasetId, copyNum, userColumnId)
-      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, reason = "column not found")).systemColumnId
+    val column: ColumnMap = client.getColumnMap(datasetId, copyNum, userColumnId)
+      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, reason = "column not found"))
 
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
-      .addContextField("composite_id", s"$datasetId|$copyNum|$systemColumnId")
+      .addContextField(SpandexFields.CompositeId, column.composideId)
       .setFuzziness(Fuzziness.TWO)
-      .field("value")
+      .field(SpandexFields.Value)
       .text(text)
       .size(10) // scalastyle:ignore magic.number
     // TODO: configurable size and fuzziness
