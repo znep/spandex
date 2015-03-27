@@ -32,10 +32,10 @@ trait SpandexServletLike extends SpandexStack {
   }
 
   get ("/suggest/:datasetId/:copyNum/:userColumnId/:text/?") {
-    val datasetId = params.getOrElse("datasetId", "")
-    val copyNum = params.getOrElse("copyNum", "0").toLong
-    val userColumnId = params.getOrElse("userColumnId", "")
-    val text = params.getOrElse("text", "")
+    val datasetId = params.get("datasetId").get
+    val copyNum = params.get("copyNum").get.toLong
+    val userColumnId = params.get("userColumnId").get
+    val text = params.get("text").get
 
     val column: ColumnMap = client.getColumnMap(datasetId, copyNum, userColumnId)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, reason = "column not found"))
