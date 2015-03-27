@@ -30,7 +30,7 @@ object SpandexBuild extends Build {
     file("./spandex-common/"),
     settings = commonSettings ++ Seq(
       libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondary,
-      fullClasspath in Runtime <+= baseDirectory map { d => Attributed.blank(d / ".." / "esconfigs") }
+      fullClasspath in Runtime += Attributed.blank(baseDirectory.value / ".." / "esconfigs")
     )
   )
 

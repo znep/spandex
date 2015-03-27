@@ -23,5 +23,6 @@ object SpandexBootstrap {
         .setType(config.datasetCopyMapping.mappingType)
         .setSource(config.datasetCopyMapping.mappingProperties).execute.actionGet
     }
+    // TODO: error handling
   }
 }
