@@ -1,0 +1,16 @@
+#!/bin/sh
+
+set -ev
+
+SERVER_JAR="$SERVER_ROOT/$SERVER_ARTIFACT"
+
+/bin/env_parse /etc/${SERVER_CONFIG}.j2
+/bin/env_parse /etc/${LOGBACK_CONFIG}.j2
+
+exec /usr/bin/java \
+    -Xmx${JAVA_MEM} \
+    -Xms${JAVA_MEM} \
+    -Dconfig.file=/etc/${SERVER_CONFIG} \
+    -Dlogback.configurationFile=/etc/${LOGBACK_CONFIG} \
+    -jar "$SERVER_JAR"
+
