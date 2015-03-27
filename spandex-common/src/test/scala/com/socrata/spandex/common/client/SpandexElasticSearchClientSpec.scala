@@ -169,7 +169,6 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.getDatasetCopy(datasets(0), 4) should not be 'defined
 
     client.putDatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished)
-    Thread.sleep(1000) // Account for ES indexing delay
     client.getDatasetCopy(datasets(0), 4) should be
       (Some(DatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished)))
 
@@ -194,7 +193,6 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
 
   test("Update dataset copy version") {
     client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Unpublished)
-    Thread.sleep(1000) // Account for ES indexing delay
 
     val current = client.getDatasetCopy(datasets(1), 1)
     current should be ('defined)
@@ -212,7 +210,6 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
   test("Delete dataset copy by copy number") {
     client.putDatasetCopy(datasets(0), 1, 50L, LifecycleStage.Unpublished)
     client.putDatasetCopy(datasets(0), 2, 100L, LifecycleStage.Published)
-    Thread.sleep(1000) // Account for ES indexing delay
 
     client.getDatasetCopy(datasets(0), 1) should be ('defined)
     client.getDatasetCopy(datasets(0), 2) should be ('defined)

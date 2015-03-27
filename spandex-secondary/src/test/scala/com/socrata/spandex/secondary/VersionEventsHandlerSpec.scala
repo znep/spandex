@@ -25,7 +25,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   override def beforeEach(): Unit = {
     client.deleteAllDatasetCopies()
     bootstrapData()
-    Thread.sleep(1000) // Wait for ES to index documents
   }
   override def afterEach(): Unit = removeBootstrapData()
   override def afterAll(): Unit = client.close()
@@ -51,7 +50,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val events = Seq(WorkingCopyCreated(copyInfo)).iterator
 
     client.putDatasetCopy(dataset, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage)
-    Thread.sleep(1000) // Wait for ES to index document
 
     a [ResyncSecondaryException] should be thrownBy handler.handle(dataset, 1, events)
   }
@@ -150,7 +148,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   test("WorkingCopyDropped - throw an exception if the copy is the initial copy") {
     client.putDatasetCopy("wcd-test-initial-copy", 1, 1, LifecycleStage.Unpublished)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val expectedBefore = Some(DatasetCopy("wcd-test-initial-copy", 1, 1, LifecycleStage.Unpublished))
     client.getLatestCopyForDataset("wcd-test-initial-copy") should be(expectedBefore)
@@ -161,7 +158,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   test("WorkingCopyDropped - throw an exception if the copy is in the wrong stage") {
     client.putDatasetCopy("wcd-test-published", 2, 2, LifecycleStage.Published)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val expectedBefore = Some(DatasetCopy("wcd-test-published", 2, 2, LifecycleStage.Published))
     client.getLatestCopyForDataset("wcd-test-published") should be(expectedBefore)
@@ -195,7 +191,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   test("SnapshotDropped - throw an exception if the copy is in the wrong stage") {
     client.putDatasetCopy("sd-test-notsnapshot", 2, 2, LifecycleStage.Unpublished)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val expectedBefore = Some(DatasetCopy("sd-test-notsnapshot", 2, 2, LifecycleStage.Unpublished))
     client.getLatestCopyForDataset("sd-test-notsnapshot") should be (expectedBefore)

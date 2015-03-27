@@ -3,7 +3,7 @@ package com.socrata.spandex.http
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.socrata.spandex.common._
-import com.socrata.spandex.common.client.{ColumnMap, SpandexElasticSearchClient, TestESClient}
+import com.socrata.spandex.common.client.{SpandexElasticSearchClient, TestESClient}
 import org.eclipse.jetty.webapp.WebAppContext
 import org.scalatest.FunSuiteLike
 import org.scalatra.servlet.ScalatraListener

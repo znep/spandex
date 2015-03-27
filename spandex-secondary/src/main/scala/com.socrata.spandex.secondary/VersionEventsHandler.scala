@@ -26,7 +26,6 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     // 2. Batch up all the index updates and send them to ES in one go. This will make a single
     //    batch of events internally consistent but if we get 2 batches in quick succession there
     //    are no guarantees.
-    Thread.sleep(1000) // scalastyle:ignore magic.number
 
     // Find the latest dataset copy number. This *should* exist since
     // we have already handled creation of any initial working copies.
@@ -77,9 +76,6 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
           throw new UnsupportedOperationException("Unexpected WorkingCopyCreated event")
       }
     }
-
-    // TODO : Don't do this. See notes above.
-    Thread.sleep(1000) // scalastyle:ignore magic.number
 
     // Finally, get whatever the new latest copy is and bump its data version.
     logDataVersionBump(datasetName, latest.copyNumber, latest.version, dataVersion)

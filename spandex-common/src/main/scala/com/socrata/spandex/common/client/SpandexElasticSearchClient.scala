@@ -242,6 +242,17 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     val source = JsonUtil.renderJson(DatasetCopy(datasetId, copyNumber, dataVersion, stage))
     client.prepareIndex(config.index, config.datasetCopyMapping.mappingType, id)
           .setSource(source)
+      // IMPORTANT! Setting refresh to true on this specific ES call, because we always want to be
+      // sure that we're operating on the very latest copy. We are trading off some speed to get
+      // consistency.
+      // Without this, when we create a new working copy, more often than not the brand new
+      // dataset_copy document isn't indexed yet, and we perform all subsequent event operations
+      // on a stale copy.
+      // Refresh is still false when indexing column_maps and field_values, because we don't ever
+      // need to search for them immediately afterward. As a result, we have some Thread.sleeps
+      // in test code.
+      // http://www.elastic.co/guide/en/elasticsearch/reference/1.x/docs-index_.html#index-refresh
+          .setRefresh(true)
           .execute.actionGet
   }
 
