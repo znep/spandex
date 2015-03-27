@@ -5,7 +5,7 @@ import com.socrata.datacoordinator.secondary.Secondary.Cookie
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types._
-import com.socrata.spandex.common.{ElasticSearchConfig, SpandexConfig}
+import com.socrata.spandex.common.{SpandexBootstrap, ElasticSearchConfig, SpandexConfig}
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.slf4j.Logging
@@ -16,13 +16,17 @@ class SpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike
 
   val client = new SpandexElasticSearchClient(config)
   val index  = config.index
+
+  init(config)
 }
 
-trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
+trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging { this: SpandexSecondary =>
   def client: SpandexElasticSearchClient
   def index: String
 
-  def init(): Unit = ()
+  def init(config: ElasticSearchConfig): Unit = {
+    SpandexBootstrap.ensureIndex(config, client)
+  }
   def shutdown(): Unit = ()
 
   def wantsWorkingCopies: Boolean = true
