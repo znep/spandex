@@ -86,6 +86,20 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
+  test("suggest - non-numeric copy number should return 400") {
+    get(s"$suggest/$dsid/giraffe/$colid/dat") {
+      status should equal (HttpStatus.SC_BAD_REQUEST)
+      body should be ("Copy number must be numeric")
+    }
+  }
+
+  test("suggest - non-existent column should return 400") {
+    get(s"$suggest/$dsid/$copynum/giraffe/dat") {
+      status should equal (HttpStatus.SC_BAD_REQUEST)
+      body should be (s"column 'giraffe' not found")
+    }
+  }
+
   test("suggest without required params should return 404") {
     get(s"$suggest/$dsid/$copynum/$colid/") {
       status should equal(HttpStatus.SC_NOT_FOUND)

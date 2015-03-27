@@ -6,6 +6,7 @@ import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
 import org.elasticsearch.common.unit.Fuzziness
 import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
+import scala.util.Try
 
 class SpandexServlet(conf: SpandexConfig) extends SpandexServletLike {
   def client: SpandexElasticSearchClient = new SpandexElasticSearchClient(conf.es)
@@ -33,12 +34,13 @@ trait SpandexServletLike extends SpandexStack {
 
   get ("/suggest/:datasetId/:copyNum/:userColumnId/:text/?") {
     val datasetId = params.get("datasetId").get
-    val copyNum = params.get("copyNum").get.toLong
+    val copyNum = Try(params.get("copyNum").get.toLong)
+      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
     val userColumnId = params.get("userColumnId").get
     val text = params.get("text").get
 
     val column: ColumnMap = client.getColumnMap(datasetId, copyNum, userColumnId)
-      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, reason = "column not found"))
+      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
 
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
       .addContextField(SpandexFields.CompositeId, column.composideId)
