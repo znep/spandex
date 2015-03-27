@@ -36,12 +36,16 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
   def snapshots(datasetInternalName: String, cookie: Cookie): Set[Long] =
     throw new NotImplementedError("Not used anywhere yet") // scalastyle:ignore multiple.string.literals
 
-  def dropDataset(datasetInternalName: String, cookie: Cookie): Unit =
+  def dropDataset(datasetInternalName: String, cookie: Cookie): Unit = {
     client.deleteFieldValuesByDataset(datasetInternalName)
-
+    client.deleteColumnMapsByDataset(datasetInternalName)
+    client.deleteDatasetCopiesByDataset(datasetInternalName)
+  }
 
   def dropCopy(datasetInternalName: String, copyNumber: Long, cookie: Cookie): Cookie = {
     client.deleteFieldValuesByCopyNumber(datasetInternalName, copyNumber)
+    client.deleteColumnMapsByCopyNumber(datasetInternalName, copyNumber)
+    client.deleteDatasetCopy(datasetInternalName, copyNumber)
     cookie
   }
 

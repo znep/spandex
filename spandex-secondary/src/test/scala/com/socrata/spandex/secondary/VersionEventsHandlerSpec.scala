@@ -71,24 +71,22 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   }
 
   test("Truncate - field values in latest copy of dataset should be dropped") {
-    client.putDatasetCopy(datasets(0), 1, 1, LifecycleStage.Unpublished)
-    client.putDatasetCopy(datasets(0), 2, 2, LifecycleStage.Published)
-    Thread.sleep(1000) // Wait for ES to index document
+    val expectedLatestBefore = copies(datasets(0)).last
 
     val latestBefore = client.getLatestCopyForDataset(datasets(0))
     latestBefore should be ('defined)
-    latestBefore.get.copyNumber should be (2)
-    latestBefore.get.version should be (2)
-    client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (15)
+    latestBefore.get.copyNumber should be (expectedLatestBefore.copyNumber)
+    latestBefore.get.version should be (expectedLatestBefore.version)
+    client.searchFieldValuesByCopyNumber(datasets(0), expectedLatestBefore.copyNumber).totalHits should be (15)
 
-    handler.handle(datasets(0), 3, Seq(Truncated).iterator)
+    handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(Truncated).iterator)
     Thread.sleep(1000) // Wait for ES to index document
 
     val latestAfter = client.getLatestCopyForDataset(datasets(0))
     latestAfter should be ('defined)
-    latestAfter.get.copyNumber should be (2)
-    latestAfter.get.version should be (3)
-    client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (0)
+    latestAfter.get.copyNumber should be (expectedLatestBefore.copyNumber)
+    latestAfter.get.version should be (expectedLatestBefore.version + 1)
+    client.searchFieldValuesByCopyNumber(datasets(0), expectedLatestBefore.copyNumber).totalHits should be (0)
   }
 
   test("ColumnCreated - don't create column map for non-SoQLText columns") {
@@ -107,163 +105,170 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   }
 
   test("ColumnCreated and ColumnRemoved") {
+    val expectedLatestBefore = copies(datasets(0)).last
     val info = ColumnInfo(new ColumnId(3), new UserColumnId("blah-1234"), SoQLText, false, false, false)
-
-    client.putDatasetCopy(datasets(0), 1, 1, LifecycleStage.Unpublished)
-    client.putDatasetCopy(datasets(0), 2, 2, LifecycleStage.Published)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val latestBeforeAdd = client.getLatestCopyForDataset(datasets(0))
     latestBeforeAdd should be ('defined)
-    latestBeforeAdd.get.copyNumber should be (2)
-    latestBeforeAdd.get.version should be (2)
-    client.getColumnMap(datasets(0), 2, info.id.underlying) should not be 'defined
+    latestBeforeAdd.get.copyNumber should be (expectedLatestBefore.copyNumber)
+    latestBeforeAdd.get.version should be (expectedLatestBefore.version)
+    client.getColumnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should not be 'defined
 
     // Create column
-    handler.handle(datasets(0), 3, Seq(ColumnCreated(info)).iterator)
+    handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(ColumnCreated(info)).iterator)
     Thread.sleep(1000) // Wait for ES to index document
 
-    client.getColumnMap(datasets(0), 2, info.id.underlying) should be
+    client.getColumnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should be
       (Some(ColumnMap(datasets(0), 2, info.systemId.underlying, info.id.underlying)))
 
     // Pretend we added some data in between (which actually got added during bootstrap)
     client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (5)
 
     // Remove column
-    handler.handle(datasets(0), 4, Seq(ColumnRemoved(info)).iterator)
+    handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(ColumnRemoved(info)).iterator)
     Thread.sleep(1000) // Wait for ES to index document
 
     val latestAfterDelete = client.getLatestCopyForDataset(datasets(0))
     latestAfterDelete should be ('defined)
-    latestAfterDelete.get.copyNumber should be (2)
-    latestAfterDelete.get.version should be (4)
-    client.searchFieldValuesByColumnId(datasets(0), 2, 3).totalHits should be (0)
-    client.getColumnMap(datasets(0), 2, info.id.underlying) should not be 'defined
+    latestAfterDelete.get.copyNumber should be (expectedLatestBefore.copyNumber)
+    latestAfterDelete.get.version should be (expectedLatestBefore.version + 1)
+    client.searchFieldValuesByColumnId(
+      datasets(0), expectedLatestBefore.copyNumber, info.systemId.underlying).totalHits should be (0)
+    client.getColumnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should not be 'defined
   }
 
   test("WorkingCopyPublished - latest copy of dataset should be set to Published") {
-    client.putDatasetCopy(datasets(0), 3, 3, LifecycleStage.Unpublished)
-    Thread.sleep(1000) // Wait for ES to index document
+   val expectedLatestBefore = copies(datasets(0))(2)
+   client.getLatestCopyForDataset(datasets(0)) should be (Some(expectedLatestBefore))
 
-    val expectedBefore = Some(DatasetCopy(datasets(0), 3, 3, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset(datasets(0)) should be (expectedBefore)
+   handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(WorkingCopyPublished).iterator)
+   Thread.sleep(1000) // Wait for ES to index document
 
-    handler.handle(datasets(0), 4, Seq(WorkingCopyPublished).iterator)
-    Thread.sleep(1000) // Wait for ES to index document
-
-    val expectedAfter = Some(DatasetCopy(datasets(0), 3, 4, LifecycleStage.Published))
-    client.getLatestCopyForDataset(datasets(0)) should be (expectedAfter)
+   val expectedAfter = expectedLatestBefore.updateCopy(expectedLatestBefore.version + 1, LifecycleStage.Published)
+   client.getLatestCopyForDataset(datasets(0)) should be (Some(expectedAfter))
   }
 
   test("WorkingCopyDropped - throw an exception if the copy is the initial copy") {
-    client.putDatasetCopy(datasets(1), 1, 1, LifecycleStage.Unpublished)
+    client.putDatasetCopy("wcd-test-initial-copy", 1, 1, LifecycleStage.Unpublished)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val expectedBefore = Some(DatasetCopy(datasets(1), 1, 1, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    val expectedBefore = Some(DatasetCopy("wcd-test-initial-copy", 1, 1, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset("wcd-test-initial-copy") should be(expectedBefore)
 
     an [UnsupportedOperationException] should be thrownBy
-      handler.handle(datasets(1), 2, Seq(WorkingCopyDropped).iterator)
+      handler.handle("wcd-test-initial-copy", 2, Seq(WorkingCopyDropped).iterator)
   }
 
   test("WorkingCopyDropped - throw an exception if the copy is in the wrong stage") {
-    client.putDatasetCopy(datasets(1), 2, 2, LifecycleStage.Published)
+    client.putDatasetCopy("wcd-test-published", 2, 2, LifecycleStage.Published)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 2, LifecycleStage.Published))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    val expectedBefore = Some(DatasetCopy("wcd-test-published", 2, 2, LifecycleStage.Published))
+    client.getLatestCopyForDataset("wcd-test-published") should be(expectedBefore)
 
     an [UnsupportedOperationException] should be thrownBy
-      handler.handle(datasets(1), 3, Seq(WorkingCopyDropped).iterator)
+      handler.handle("wcd-test-published", 3, Seq(WorkingCopyDropped).iterator)
   }
 
   test("WorkingCopyDropped - latest working copy should be dropped") {
-    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Published)
-    client.putDatasetCopy(datasets(1), 2, 3, LifecycleStage.Unpublished)
-    Thread.sleep(1000) // Wait for ES to index document
-
-    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 3, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    val expectedBefore = copies(datasets(1)).last
+    client.getLatestCopyForDataset(datasets(1)) should be(Some(expectedBefore))
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+    client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
+    client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
+    client.searchColumnMapsByCopyNumber(datasets(1), 2).totalHits should be (3)
+    client.searchColumnMapsByCopyNumber(datasets(1), 3).totalHits should be (3)
 
-    handler.handle(datasets(1), 4, Seq(WorkingCopyDropped).iterator)
+    handler.handle(datasets(1), expectedBefore.version + 1, Seq(WorkingCopyDropped).iterator)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val expectedAfter = Some(DatasetCopy(datasets(1), 1, 4, LifecycleStage.Published))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
+    val expectedAfter = copies(datasets(1))(1).updateCopy(expectedBefore.version + 1)
+    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
-    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (0)
+    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+    client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (0)
+    client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
+    client.searchColumnMapsByCopyNumber(datasets(1), 2).totalHits should be (3)
+    client.searchColumnMapsByCopyNumber(datasets(1), 3).totalHits should be (0)
   }
 
   test("SnapshotDropped - throw an exception if the copy is in the wrong stage") {
-    client.putDatasetCopy(datasets(1), 2, 2, LifecycleStage.Unpublished)
+    client.putDatasetCopy("sd-test-notsnapshot", 2, 2, LifecycleStage.Unpublished)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 2, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    val expectedBefore = Some(DatasetCopy("sd-test-notsnapshot", 2, 2, LifecycleStage.Unpublished))
+    client.getLatestCopyForDataset("sd-test-notsnapshot") should be (expectedBefore)
 
     val copyInfo = CopyInfo(new CopyId(100), 2, LifecycleStage.Unpublished, 2, DateTime.now)
     val events =  Seq(SnapshotDropped(copyInfo)).iterator
-    an [UnsupportedOperationException] should be thrownBy handler.handle(datasets(1), 3, events)
+    an [UnsupportedOperationException] should be thrownBy handler.handle("sd-test-notsnapshot", 3, events)
   }
 
   test("SnapshotDropped - the specified snapshot should be dropped") {
-    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Snapshotted)
-    client.putDatasetCopy(datasets(1), 2, 4, LifecycleStage.Published)
-    Thread.sleep(1000) // Wait for ES to index document
-
-    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 4, LifecycleStage.Published))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    val expectedBefore = copies(datasets(1)).last
+    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedBefore))
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+    client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
+    client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
+    client.searchColumnMapsByCopyNumber(datasets(1), 2).totalHits should be (3)
+    client.searchColumnMapsByCopyNumber(datasets(1), 3).totalHits should be (3)
 
-    val copyInfo = CopyInfo(new CopyId(100), 1, LifecycleStage.Snapshotted, 2, DateTime.now)
-    handler.handle(datasets(1), 5, Seq(SnapshotDropped(copyInfo)).iterator)
+    val snapshot = copies(datasets(1)).head
+    val copyInfo = CopyInfo(new CopyId(100), snapshot.copyNumber, snapshot.stage, snapshot.version, DateTime.now)
+    handler.handle(datasets(1), expectedBefore.version + 1, Seq(SnapshotDropped(copyInfo)).iterator)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val expectedAfter = Some(DatasetCopy(datasets(1), 2, 5, LifecycleStage.Published))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
+    val expectedAfter = expectedBefore.updateCopy(expectedBefore.version + 1)
+    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (0)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+    client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
+    client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (0)
+    client.searchColumnMapsByCopyNumber(datasets(1), 2).totalHits should be (3)
+    client.searchColumnMapsByCopyNumber(datasets(1), 3).totalHits should be (3)
   }
 
   test("RowDataUpdated - Insert and update") {
-    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Published)
-    client.putDatasetCopy(datasets(1), 2, 4, LifecycleStage.Unpublished)
-    Thread.sleep(1000) // Wait for ES to index document
-
-    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 4, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
-    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
-    client.searchFieldValuesByRowId(datasets(1), 2, 6).totalHits should be (0)
-
+    val expectedBeforeInsert = copies(datasets(1)).last
     val insert = Insert(new RowId(6), ColumnIdMap[SoQLValue](
-      new ColumnId(8) -> SoQLText("index me!"), new ColumnId(9) -> SoQLNumber(new BigDecimal(5))))
+      new ColumnId(5) -> SoQLText("index me!"), new ColumnId(9) -> SoQLNumber(new BigDecimal(5))))
+
+    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedBeforeInsert))
+    client.searchFieldValuesByCopyNumber(
+      datasets(1), expectedBeforeInsert.copyNumber).totalHits should be (15)
+    client.searchFieldValuesByRowId(
+      datasets(1), expectedBeforeInsert.copyNumber, insert.systemId.underlying).totalHits should be (0)
+
 
     val insertEvents = Seq(RowDataUpdated(Seq[Operation](insert))).iterator
-    handler.handle(datasets(1), 5, insertEvents)
+    handler.handle(datasets(1), expectedBeforeInsert.version + 1, insertEvents)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val expectedAfterInsert = Some(DatasetCopy(datasets(1), 2, 5, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfterInsert)
-    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (16)
-    val newEntries = client.searchFieldValuesByRowId(datasets(1), 2, 6)
+    val expectedAfterInsert = expectedBeforeInsert.updateCopy(expectedBeforeInsert.version + 1)
+    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfterInsert))
+    client.searchFieldValuesByCopyNumber(
+      datasets(1), expectedBeforeInsert.copyNumber).totalHits should be (16)
+    val newEntries = client.searchFieldValuesByRowId(
+      datasets(1), expectedBeforeInsert.copyNumber, insert.systemId.underlying)
     newEntries.totalHits should be (1)
-    newEntries.thisPage(0).columnId should be (8)
+    newEntries.thisPage(0).columnId should be (5)
     newEntries.thisPage(0).value should be ("index me!")
 
     val update = Update(new RowId(2), ColumnIdMap[SoQLValue](
       new ColumnId(2) -> SoQLText("updated data2"), new ColumnId(3) -> SoQLText("updated data3")))(None)
 
     val updateEvents = Seq(RowDataUpdated(Seq[Operation](update))).iterator
-    handler.handle(datasets(1), 6, updateEvents)
+    handler.handle(datasets(1), expectedAfterInsert.version + 1, updateEvents)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val expectedAfter = Some(DatasetCopy(datasets(1), 2, 6, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
-    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (16)
-    val updatedRow = client.searchFieldValuesByRowId(datasets(1), 2, 2)
+    val expectedAfter = expectedAfterInsert.updateCopy(expectedAfterInsert.version + 1)
+    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
+    client.searchFieldValuesByCopyNumber(
+      datasets(1), expectedAfterInsert.copyNumber).totalHits should be (16)
+    val updatedRow = client.searchFieldValuesByRowId(
+      datasets(1), expectedAfterInsert.copyNumber, update.systemId.underlying)
     updatedRow.totalHits should be (3)
     val updatedFieldValues = updatedRow.thisPage.sortBy(_.columnId).toSeq
     updatedFieldValues(0).columnId should be (1)
@@ -275,40 +280,39 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   }
 
   test("RowDataUpdated - Delete") {
-    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Published)
-    client.putDatasetCopy(datasets(1), 2, 4, LifecycleStage.Unpublished)
+    val expectedBefore = copies(datasets(1)).last
+    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedBefore))
+    client.searchFieldValuesByCopyNumber(datasets(1), expectedBefore.copyNumber).totalHits should be (15)
+    client.searchFieldValuesByRowId(datasets(1), expectedBefore.copyNumber, 2).totalHits should be (3)
+    client.searchFieldValuesByRowId(datasets(1), expectedBefore.copyNumber, 5).totalHits should be (3)
+
+    val events = Seq(RowDataUpdated(
+      Seq[Operation](Delete(new RowId(2))(None), Delete(new RowId(5))(None)))).iterator
+    handler.handle(datasets(1), expectedBefore.version + 1, events)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val expectedBefore = Some(DatasetCopy(datasets(1), 2, 4, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
-    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
-    client.searchFieldValuesByRowId(datasets(1), 2, 5).totalHits should be (3)
-
-    val events = Seq(RowDataUpdated(Seq[Operation](Delete(new RowId(5))(None)))).iterator
-    handler.handle(datasets(1), 5, events)
-    Thread.sleep(1000) // Wait for ES to index document
-
-    val expectedAfter = Some(DatasetCopy(datasets(1), 2, 5, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
-    client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (12)
-    client.searchFieldValuesByRowId(datasets(1), 2, 5).totalHits should be (0)
+    val expectedAfter = expectedBefore.updateCopy(expectedBefore.version + 1)
+    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
+    client.searchFieldValuesByCopyNumber(datasets(1), expectedAfter.copyNumber).totalHits should be (9)
+    client.searchFieldValuesByRowId(datasets(1), expectedAfter.copyNumber, 2).totalHits should be (0)
+    client.searchFieldValuesByRowId(datasets(1), expectedAfter.copyNumber, 5).totalHits should be (0)
   }
 
   test("DataCopied - all field values from last published copy should be copied to latest copy") {
-    client.putDatasetCopy(datasets(1), 2, 5, LifecycleStage.Published)
-    client.putDatasetCopy(datasets(1), 3, 6, LifecycleStage.Unpublished)
+    // Remove bootstrapped data on working copy
+    client.deleteFieldValuesByCopyNumber(datasets(1), 3)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val expectedBefore = Some(DatasetCopy(datasets(1), 3, 6, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedBefore)
+    val expectedBefore = copies(datasets(1)).last
+    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedBefore))
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (0)
 
-    handler.handle(datasets(1), 7, Seq(DataCopied).iterator)
+    handler.handle(datasets(1), expectedBefore.version + 1, Seq(DataCopied).iterator)
     Thread.sleep(1000) // Wait for ES to index document
 
-    val expectedAfter = Some(DatasetCopy(datasets(1), 3, 7, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset(datasets(1)) should be(expectedAfter)
+    val expectedAfter = expectedBefore.updateCopy(expectedBefore.version + 1)
+    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
   }

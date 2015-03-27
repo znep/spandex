@@ -22,6 +22,8 @@ case class DatasetCopy(datasetId: String, copyNumber: Long, version: Long, stage
 
   def nextCopy(newCopyNumber: Long, newVersion: Long, newStage: LifecycleStage): DatasetCopy =
     DatasetCopy(datasetId, newCopyNumber, newVersion, newStage)
+
+  lazy val docId = DatasetCopy.makeDocId(datasetId, copyNumber)
 }
 object DatasetCopy {
   implicit val lifecycleStageCodec = new JsonDecode[LifecycleStage] with JsonEncode[LifecycleStage] {
@@ -40,6 +42,8 @@ object DatasetCopy {
     def encode(x: LifecycleStage): JValue = JString(x.toString)
   }
   implicit val jCodec = AutomaticJsonCodecBuilder[DatasetCopy]
+
+  def makeDocId(datasetId: String, copyNumber: Long): String = s"$datasetId|$copyNumber"
 }
 
 @JsonKeyStrategy(Strategy.Underscore)

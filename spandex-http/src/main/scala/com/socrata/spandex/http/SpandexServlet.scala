@@ -1,10 +1,11 @@
 package com.socrata.spandex.http
 
+import javax.servlet.http.{HttpServletResponse => HttpStatus}
+
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
 import org.elasticsearch.common.unit.Fuzziness
 import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
-import org.scalatra.ErrorHandler
 
 class SpandexServlet(conf: SpandexConfig) extends SpandexServletLike {
   def client: SpandexElasticSearchClient = new SpandexElasticSearchClient(conf.es)
@@ -37,7 +38,7 @@ trait SpandexServletLike extends SpandexStack {
     val text = params.getOrElse("text", "")
 
     val systemColumnId = client.getColumnMap(datasetId, copyNum, userColumnId)
-      .getOrElse(halt(reason = "column not found")).systemColumnId
+      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, reason = "column not found")).systemColumnId
 
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
       .addContextField("composite_id", s"$datasetId|$copyNum|$systemColumnId")

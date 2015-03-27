@@ -17,7 +17,6 @@ import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.search.aggregations.AggregationBuilders._
 import org.elasticsearch.search.sort.SortOrder
-import ResponseExtensions._
 
 case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
 
@@ -41,7 +40,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
   private def checkForFailures(response: ActionResponse): Unit = response match {
     case i: IndexResponse =>
-      if (!i.isCreated) throw ElasticSearchResponseFailed(s"Document ${i.getId} was not successfully indexed")
+      if (!i.isCreated) throw ElasticSearchResponseFailed(
+        s"${i.getType} doc with id ${i.getId} was not successfully indexed")
     case u: UpdateResponse =>
       // No op - UpdateResponse doesn't have any useful state to check
     case d: DeleteResponse =>
@@ -96,27 +96,27 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
   def searchColumnMapsByDataset(datasetId: String): SearchResults[ColumnMap] =
     client.prepareSearch(config.index)
-      .setTypes(config.columnMapMapping.mappingType)
-      .setQuery(byDatasetIdQuery(datasetId))
-      .execute.actionGet.results[ColumnMap]
+          .setTypes(config.columnMapMapping.mappingType)
+          .setQuery(byDatasetIdQuery(datasetId))
+          .execute.actionGet.results[ColumnMap]
 
-  def deleteColumnMapsByDataset(datasetId: String): DeleteByQueryResponse =
-    client.prepareDeleteByQuery(config.index)
-      .setTypes(config.columnMapMapping.mappingType)
-      .setQuery(byDatasetIdQuery(datasetId))
-      .execute.actionGet
+  def deleteColumnMapsByDataset(datasetId: String): Unit =
+    checkForFailures(client.prepareDeleteByQuery(config.index)
+                           .setTypes(config.columnMapMapping.mappingType)
+                           .setQuery(byDatasetIdQuery(datasetId))
+                           .execute.actionGet)
 
   def searchColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[ColumnMap] =
     client.prepareSearch(config.index)
-      .setTypes(config.columnMapMapping.mappingType)
-      .setQuery(byCopyNumberQuery(datasetId, copyNumber))
-      .execute.actionGet.results[ColumnMap]
+          .setTypes(config.columnMapMapping.mappingType)
+          .setQuery(byCopyNumberQuery(datasetId, copyNumber))
+          .execute.actionGet.results[ColumnMap]
 
-  def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): DeleteByQueryResponse =
-    client.prepareDeleteByQuery(config.index)
-      .setTypes(config.columnMapMapping.mappingType)
-      .setQuery(byCopyNumberQuery(datasetId, copyNumber))
-      .execute.actionGet
+  def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): Unit =
+    checkForFailures(client.prepareDeleteByQuery(config.index)
+                           .setTypes(config.columnMapMapping.mappingType)
+                           .setQuery(byCopyNumberQuery(datasetId, copyNumber))
+                           .execute.actionGet)
 
   def getFieldValue(fieldValue: FieldValue): Option[FieldValue] = {
     val response = client.prepareGet(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
@@ -237,7 +237,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .execute.actionGet)
 
   def putDatasetCopy(datasetId: String, copyNumber: Long, dataVersion: Long, stage: LifecycleStage): Unit = {
-    val id = s"$datasetId|$copyNumber"
+    val id = DatasetCopy.makeDocId(datasetId, copyNumber)
     val source = JsonUtil.renderJson(DatasetCopy(datasetId, copyNumber, dataVersion, stage))
     client.prepareIndex(config.index, config.datasetCopyMapping.mappingType, id)
           .setSource(source)
@@ -245,10 +245,9 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   def updateDatasetCopyVersion(datasetCopy: DatasetCopy): Unit = {
-    val id = s"${datasetCopy.datasetId}|${datasetCopy.copyNumber}"
     val source = JsonUtil.renderJson(datasetCopy)
     checkForFailures(
-      client.prepareUpdate(config.index, config.datasetCopyMapping.mappingType, id)
+      client.prepareUpdate(config.index, config.datasetCopyMapping.mappingType, datasetCopy.docId)
             .setDoc(source)
             .setUpsert()
             .execute.actionGet)
@@ -276,7 +275,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   def getDatasetCopy(datasetId: String, copyNumber: Long): Option[DatasetCopy] = {
-    val id = s"$datasetId|$copyNumber"
+    val id = DatasetCopy.makeDocId(datasetId, copyNumber)
     val response = client.prepareGet(config.index, config.datasetCopyMapping.mappingType, id)
                          .execute.actionGet
     response.result[DatasetCopy]

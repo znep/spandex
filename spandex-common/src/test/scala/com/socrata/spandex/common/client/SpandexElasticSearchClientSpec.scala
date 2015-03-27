@@ -48,13 +48,13 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
   }
 
   test("Delete field values by dataset") {
-    client.searchFieldValuesByDataset(datasets(0)).totalHits should be (30)
-    client.searchFieldValuesByDataset(datasets(1)).totalHits should be (30)
+    client.searchFieldValuesByDataset(datasets(0)).totalHits should be (45)
+    client.searchFieldValuesByDataset(datasets(1)).totalHits should be (45)
 
     client.deleteFieldValuesByDataset(datasets(0))
 
     client.searchFieldValuesByDataset(datasets(0)).totalHits should be (0)
-    client.searchFieldValuesByDataset(datasets(1)).totalHits should be (30)
+    client.searchFieldValuesByDataset(datasets(1)).totalHits should be (45)
   }
 
   test("Delete field values by copy number") {
@@ -141,75 +141,53 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
   }
 
   test("Delete column map by dataset") {
-    client.searchColumnMapsByDataset(datasets(0)).totalHits should be (6)
-    client.searchColumnMapsByDataset(datasets(1)).totalHits should be (6)
+    client.searchColumnMapsByDataset(datasets(0)).totalHits should be (9)
+    client.searchColumnMapsByDataset(datasets(1)).totalHits should be (9)
 
-    val response = client.deleteColumnMapsByDataset(datasets(0))
-    response.status() should be (RestStatus.OK)
-    response.getIndices.get(config.es.index).getFailures.size should be (0)
+    client.deleteColumnMapsByDataset(datasets(0))
 
     client.searchColumnMapsByDataset(datasets(0)).totalHits should be (0)
-    client.searchColumnMapsByDataset(datasets(1)).totalHits should be (6)
+    client.searchColumnMapsByDataset(datasets(1)).totalHits should be (9)
   }
 
   test("Delete column map by copy number") {
     client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (3)
     client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
 
-    val response = client.deleteColumnMapsByCopyNumber(datasets(0), 1)
-    response.status() should be (RestStatus.OK)
-    response.getIndices.get(config.es.index).getFailures.size should be (0)
+    client.deleteColumnMapsByCopyNumber(datasets(0), 1)
 
     client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (0)
     client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
   }
 
-  test("Put, get and search dataset copies") {
+  test("Put, get, search, delete dataset copies") {
+    val dsCopies = client.searchCopiesByDataset(datasets(0))
+    dsCopies.totalHits should be (3)
+    dsCopies.thisPage.sortBy(_.copyNumber) should be (copies(datasets(0)))
+
+    client.getDatasetCopy(datasets(0), 3) should be (Some(copies(datasets(0))(2)))
+    client.getDatasetCopy(datasets(0), 4) should not be 'defined
+
+    client.putDatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished)
+    Thread.sleep(1000) // Account for ES indexing delay
+    client.getDatasetCopy(datasets(0), 4) should be
+      (Some(DatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished)))
+
+    client.deleteDatasetCopy(datasets(0), 4)
+    client.getDatasetCopy(datasets(0), 4) should not be 'defined
+    client.searchCopiesByDataset(datasets(0)).totalHits should be (3)
+
     client.deleteDatasetCopiesByDataset(datasets(0))
-    Thread.sleep(1000) // Account for ES indexing delay
-
-    client.getDatasetCopy(datasets(0), 1) should not be 'defined
-    client.getDatasetCopy(datasets(0), 2) should not be 'defined
     client.searchCopiesByDataset(datasets(0)).totalHits should be (0)
-
-    client.putDatasetCopy(datasets(0), 1, 50L, LifecycleStage.Unpublished)
-    client.putDatasetCopy(datasets(0), 2, 100L, LifecycleStage.Published)
-    Thread.sleep(1000) // Account for ES indexing delay
-
-    client.getDatasetCopy(datasets(0), 1) should be ('defined)
-    client.getDatasetCopy(datasets(0), 1).get.datasetId should be (datasets(0))
-    client.getDatasetCopy(datasets(0), 1).get.copyNumber should be (1)
-    client.getDatasetCopy(datasets(0), 1).get.version should be (50)
-    client.getDatasetCopy(datasets(0), 1).get.stage should be (LifecycleStage.Unpublished)
-
-    client.getDatasetCopy(datasets(0), 2) should be ('defined)
-    client.getDatasetCopy(datasets(0), 2).get.datasetId should be (datasets(0))
-    client.getDatasetCopy(datasets(0), 2).get.copyNumber should be (2)
-    client.getDatasetCopy(datasets(0), 2).get.version should be (100)
-    client.getDatasetCopy(datasets(0), 2).get.stage should be (LifecycleStage.Published)
-
-    client.searchCopiesByDataset(datasets(0)).totalHits should be (2)
   }
 
   test("Get latest copy of dataset (published or all)") {
-    client.putDatasetCopy(datasets(0), 1, 50L, LifecycleStage.Unpublished)
-    client.putDatasetCopy(datasets(0), 2, 100L, LifecycleStage.Published)
-    client.putDatasetCopy(datasets(0), 3, 150L, LifecycleStage.Unpublished)
-    client.putDatasetCopy(datasets(1), 3, 150L, LifecycleStage.Unpublished)
-    Thread.sleep(1000) // Account for ES indexing delay
-
     client.getLatestCopyForDataset(datasets(0)) should be ('defined)
     client.getLatestCopyForDataset(datasets(0)).get.copyNumber should be (3)
     client.getLatestCopyForDataset(datasets(0), publishedOnly = false) should be ('defined)
     client.getLatestCopyForDataset(datasets(0), publishedOnly = false).get.copyNumber should be (3)
     client.getLatestCopyForDataset(datasets(0), publishedOnly = true) should be ('defined)
     client.getLatestCopyForDataset(datasets(0), publishedOnly = true).get.copyNumber should be (2)
-
-    client.getLatestCopyForDataset(datasets(1)) should be ('defined)
-    client.getLatestCopyForDataset(datasets(1)).get.copyNumber should be (3)
-    client.getLatestCopyForDataset(datasets(1), publishedOnly = false) should be ('defined)
-    client.getLatestCopyForDataset(datasets(1), publishedOnly = false).get.copyNumber should be (3)
-    client.getLatestCopyForDataset(datasets(1), publishedOnly = true) should not be 'defined
 
     client.getLatestCopyForDataset("foo") should not be 'defined
   }

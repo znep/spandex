@@ -14,7 +14,7 @@ case class CopyDropHandler(client: SpandexElasticSearchClient) extends Secondary
     logSnapshotDropped(datasetName, info.copyNumber)
     client.deleteDatasetCopy(datasetName, info.copyNumber)
     client.deleteFieldValuesByCopyNumber(datasetName, info.copyNumber)
-    // TODO : Delete column maps for copy
+    client.deleteColumnMapsByCopyNumber(datasetName, info.copyNumber)
   }
 
   def dropWorkingCopy(datasetName: String, latest: DatasetCopy): Unit = {
@@ -27,6 +27,6 @@ case class CopyDropHandler(client: SpandexElasticSearchClient) extends Secondary
     logWorkingCopyDropped(datasetName, latest.copyNumber)
     client.deleteDatasetCopy(datasetName, latest.copyNumber)
     client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
-    // TODO : Delete column maps for copy
+    client.deleteColumnMapsByCopyNumber(datasetName, latest.copyNumber)
   }
 }

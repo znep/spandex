@@ -67,8 +67,6 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   private[this] val colsysid = 3
   private[this] val colid = s"col$colsysid"
   test("suggest") {
-    client.putColumnMap(new ColumnMap(dsid, copyid, colsysid, colid))
-
     get(suggest / dsid / copynum / colid / "dat") {
       status should equal(HttpStatus.SC_OK)
       body shouldNot include("data column 3 row 0")
