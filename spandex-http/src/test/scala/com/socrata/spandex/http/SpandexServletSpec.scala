@@ -82,8 +82,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   test("suggest - no hits") {
     get(s"$suggest/$dsid/$copynum/$colid/nar") {
       status should equal(HttpStatus.SC_OK)
-      body should include("\"options\"")
-      body shouldNot include("NARCOTICS")
+      body should include("\"options\" : [ ]") // expecting empty result set
     }
   }
 
