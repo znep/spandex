@@ -20,7 +20,7 @@ class SpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike
   init(config)
 }
 
-trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging { this: SpandexSecondary =>
+trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
   def client: SpandexElasticSearchClient
   def index: String
 
