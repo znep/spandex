@@ -13,7 +13,6 @@ object SpandexBuild extends Build {
   val JettyListenPort = 8042 // required for container embedded jetty
 
   lazy val commonSettings = Seq(
-    addSbtPlugin("com.socrata" %% "socrata-sbt-plugins" % "1.4.3"),
     scalaVersion := ScalaVersion,
     resolvers ++= Deps.resolverList
   )
@@ -107,6 +106,6 @@ object Deps {
   )
   lazy val secondary = Seq(
     "com.socrata" %% "secondarylib" % "0.3.1" exclude("org.slf4j", "slf4j-log4j12"),
-    "com.socrata" %% "coordinator" % "0.3.1" exclude("org.slf4j", "slf4j-log4j12")
+    "com.socrata" %% "coordinator" % "0.3.1" exclude("org.slf4j", "slf4j-log4j12") exclude("org.slf4j", "jcl-over-slf4j")
   )
 }
