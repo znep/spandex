@@ -137,10 +137,10 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   def indexFieldValue(fieldValue: FieldValue): Unit =
-    checkForFailures(getIndexRequest(fieldValue).execute.actionGet)
+    checkForFailures(getIndexRequest(fieldValue).setRefresh(true).execute.actionGet)
 
   def updateFieldValue(fieldValue: FieldValue): Unit =
-    checkForFailures(getUpdateRequest(fieldValue).execute.actionGet)
+    checkForFailures(getUpdateRequest(fieldValue).setRefresh(true).execute.actionGet)
 
   def getIndexRequest(fieldValue: FieldValue) : IndexRequestBuilder =
     client.prepareIndex(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)

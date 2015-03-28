@@ -78,7 +78,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(0), expectedLatestBefore.copyNumber).totalHits should be (15)
 
     handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(Truncated).iterator)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val latestAfter = client.getLatestCopyForDataset(datasets(0))
     latestAfter should be ('defined)
@@ -93,7 +92,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     // Create column
     handler.handle(datasets(0), 3, Seq(ColumnCreated(numCol), ColumnCreated(textCol)).iterator)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val latest = client.getLatestCopyForDataset(datasets(0))
     client.getColumnMap(datasets(0), latest.get.copyNumber, numCol.id.underlying) should not be 'defined
@@ -114,7 +112,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     // Create column
     handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(ColumnCreated(info)).iterator)
-    Thread.sleep(1000) // Wait for ES to index document
 
     client.getColumnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should be
       (Some(ColumnMap(datasets(0), 2, info.systemId.underlying, info.id.underlying)))
@@ -124,7 +121,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     // Remove column
     handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(ColumnRemoved(info)).iterator)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val latestAfterDelete = client.getLatestCopyForDataset(datasets(0))
     latestAfterDelete should be ('defined)
@@ -140,7 +136,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
    client.getLatestCopyForDataset(datasets(0)) should be (Some(expectedLatestBefore))
 
    handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(WorkingCopyPublished).iterator)
-   Thread.sleep(1000) // Wait for ES to index document
 
    val expectedAfter = expectedLatestBefore.updateCopy(expectedLatestBefore.version + 1, LifecycleStage.Published)
    client.getLatestCopyForDataset(datasets(0)) should be (Some(expectedAfter))
@@ -177,7 +172,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchColumnMapsByCopyNumber(datasets(1), 3).totalHits should be (3)
 
     handler.handle(datasets(1), expectedBefore.version + 1, Seq(WorkingCopyDropped).iterator)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val expectedAfter = copies(datasets(1))(1).updateCopy(expectedBefore.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
@@ -213,7 +207,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val snapshot = copies(datasets(1)).head
     val copyInfo = CopyInfo(new CopyId(100), snapshot.copyNumber, snapshot.stage, snapshot.version, DateTime.now)
     handler.handle(datasets(1), expectedBefore.version + 1, Seq(SnapshotDropped(copyInfo)).iterator)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val expectedAfter = expectedBefore.updateCopy(expectedBefore.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
@@ -239,7 +232,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     val insertEvents = Seq(RowDataUpdated(Seq[Operation](insert))).iterator
     handler.handle(datasets(1), expectedBeforeInsert.version + 1, insertEvents)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val expectedAfterInsert = expectedBeforeInsert.updateCopy(expectedBeforeInsert.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfterInsert))
@@ -256,7 +248,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     val updateEvents = Seq(RowDataUpdated(Seq[Operation](update))).iterator
     handler.handle(datasets(1), expectedAfterInsert.version + 1, updateEvents)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val expectedAfter = expectedAfterInsert.updateCopy(expectedAfterInsert.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
@@ -284,7 +275,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val events = Seq(RowDataUpdated(
       Seq[Operation](Delete(new RowId(2))(None), Delete(new RowId(5))(None)))).iterator
     handler.handle(datasets(1), expectedBefore.version + 1, events)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val expectedAfter = expectedBefore.updateCopy(expectedBefore.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
@@ -296,7 +286,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   test("DataCopied - all field values from last published copy should be copied to latest copy") {
     // Remove bootstrapped data on working copy
     client.deleteFieldValuesByCopyNumber(datasets(1), 3)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val expectedBefore = copies(datasets(1)).last
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedBefore))
@@ -304,7 +293,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (0)
 
     handler.handle(datasets(1), expectedBefore.version + 1, Seq(DataCopied).iterator)
-    Thread.sleep(1000) // Wait for ES to index document
 
     val expectedAfter = expectedBefore.updateCopy(expectedBefore.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))

@@ -110,13 +110,11 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
 
     val inserts = toCopy.map(client.getIndexRequest)
     client.sendBulkRequest(inserts)
-    Thread.sleep(1000) // Account for ES indexing delay
 
     client.searchFieldValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)
     client.searchFieldValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be (0)
 
     client.copyFieldValues(from, to)
-    Thread.sleep(1000) // Account for ES indexing delay
 
     client.searchFieldValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)
     client.searchFieldValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be (100)
@@ -128,7 +126,6 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
 
     val colMap = ColumnMap(datasets(0), 1, 1, "col1-1111")
     client.putColumnMap(colMap)
-    Thread.sleep(1000) // Account for ES indexing delay
 
     val colMap1 = client.getColumnMap(datasets(0), 1, "col1-1111")
     colMap1 should be (Some(colMap))
@@ -200,7 +197,6 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     current.get.stage should be (LifecycleStage.Unpublished)
 
     client.updateDatasetCopyVersion(current.get.updateCopy(5, LifecycleStage.Published))
-    Thread.sleep(1000) // Account for ES indexing delay
 
     client.getDatasetCopy(datasets(1), 1) should be ('defined)
     client.getDatasetCopy(datasets(1), 1).get.version should be (5)
@@ -215,7 +211,6 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.getDatasetCopy(datasets(0), 2) should be ('defined)
 
     client.deleteDatasetCopy(datasets(0), 2)
-    Thread.sleep(1000) // Account for ES indexing delay
 
     client.getDatasetCopy(datasets(0), 1) should be ('defined)
     client.getDatasetCopy(datasets(0), 2) should not be ('defined)

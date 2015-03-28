@@ -96,7 +96,6 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
     )
 
     secondary.resync(datasetInfo, copyInfo, schema, None, unmanaged(rows.iterator), Seq.empty)
-    Thread.sleep(1000) // Wait for ES to reindex
 
     val copies = client.searchCopiesByDataset("zoo-animals")
     copies.totalHits should be (1)
