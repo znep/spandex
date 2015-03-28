@@ -19,9 +19,19 @@ import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.search.aggregations.AggregationBuilders._
 import org.elasticsearch.search.sort.SortOrder
 
+// scalastyle:off number.of.methods
 case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
 
-// scalastyle:off number.of.methods
+// Setting refresh to true on ES write calls, because we always want to be
+// sure that we're operating on the very latest copy. We are trading off some speed to get
+// consistency.
+// Without this, when we create a new working copy, more often than not the brand new
+// dataset_copy document isn't indexed yet, and we perform all subsequent event operations
+// on a stale copy.
+// Caveats:
+// - refresh=true only guarantees consistency on a single shard.
+// - We aren't actually sure what the perf implications of running like this at production scale are.
+// http://www.elastic.co/guide/en/elasticsearch/reference/1.x/docs-index_.html#index-refresh
 class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSearchClient(config) with Logging {
   private def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.DatasetId, datasetId)
   private def byDatasetIdAndStageQuery(datasetId: String, stage: LifecycleStage): QueryBuilder =
@@ -72,6 +82,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     checkForFailures(
       client.prepareIndex(config.index, config.columnMapMapping.mappingType, columnMap.docId)
           .setSource(JsonUtil.renderJson(columnMap))
+          .setRefresh(true)
           .execute.actionGet)
 
   def getColumnMap(datasetId: String, copyNumber: Long, userColumnId: String): Option[ColumnMap] = {
@@ -142,8 +153,9 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
-  def sendBulkRequest(requests: Seq[Any]): Unit =
-    checkForFailures(requests.foldLeft(client.prepareBulk()) { case (bulk, single) =>
+  def sendBulkRequest(requests: Seq[Any]): Unit = {
+    val baseRequest = client.prepareBulk().setRefresh(true)
+    checkForFailures(requests.foldLeft(baseRequest) { case (bulk, single) =>
         single match {
           case i: IndexRequestBuilder => bulk.add(i)
           case u: UpdateRequestBuilder => bulk.add(u)
@@ -152,6 +164,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
               s"Bulk requests with ${a.getClass.getSimpleName} not supported")
         }
       }.execute.actionGet)
+  }
 
   def copyFieldValues(from: DatasetCopy, to: DatasetCopy): Unit = {
     val timeout = new TimeValue(config.dataCopyTimeout)
@@ -242,16 +255,6 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     val source = JsonUtil.renderJson(DatasetCopy(datasetId, copyNumber, dataVersion, stage))
     client.prepareIndex(config.index, config.datasetCopyMapping.mappingType, id)
           .setSource(source)
-      // IMPORTANT! Setting refresh to true on this specific ES call, because we always want to be
-      // sure that we're operating on the very latest copy. We are trading off some speed to get
-      // consistency.
-      // Without this, when we create a new working copy, more often than not the brand new
-      // dataset_copy document isn't indexed yet, and we perform all subsequent event operations
-      // on a stale copy.
-      // Refresh is still false when indexing column_maps and field_values, because we don't ever
-      // need to search for them immediately afterward. As a result, we have some Thread.sleeps
-      // in test code.
-      // http://www.elastic.co/guide/en/elasticsearch/reference/1.x/docs-index_.html#index-refresh
           .setRefresh(true)
           .execute.actionGet
   }
@@ -262,6 +265,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       client.prepareUpdate(config.index, config.datasetCopyMapping.mappingType, datasetCopy.docId)
             .setDoc(source)
             .setUpsert()
+            .setRefresh(true)
             .execute.actionGet)
   }
 
