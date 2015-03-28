@@ -85,7 +85,8 @@ object Deps {
 
   lazy val socrata = Seq(
     "com.rojoma" %% "rojoma-json-v3" % "3.2.2",
-    "com.rojoma" %% "simple-arm" % "1.2.0"
+    "com.rojoma" %% "simple-arm" % "1.2.0",
+    "com.socrata" %% "soql-types" % "0.5.0"
   )
   lazy val http = Seq(
     "org.scalatra" %% "scalatra" % ScalatraVersion,
@@ -101,11 +102,11 @@ object Deps {
   lazy val common = Seq(
     "javax.servlet" % "javax.servlet-api" % "3.1.0",
     "com.typesafe" % "config" % "1.2.1",
+    "com.typesafe" %% "scalalogging-slf4j" % "1.1.0",
     "commons-io" % "commons-io" % "2.4",
     "org.elasticsearch" % "elasticsearch" % "1.4.4"
   )
   lazy val secondary = Seq(
-    "com.socrata" %% "secondarylib" % "0.3.1" exclude("org.slf4j", "slf4j-log4j12"),
-    "com.socrata" %% "coordinator" % "0.3.1" exclude("org.slf4j", "slf4j-log4j12") exclude("org.slf4j", "jcl-over-slf4j")
+    "com.socrata" %% "secondarylib" % "0.3.1" exclude("org.slf4j", "slf4j-log4j12")
   )
 }
