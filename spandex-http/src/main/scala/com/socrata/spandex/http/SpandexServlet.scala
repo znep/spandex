@@ -53,6 +53,7 @@ trait SpandexServletLike extends SpandexStack {
       .addSuggestion(suggestion)
       .execute().actionGet()
 
+    contentType = "application/json"
     response.getSuggest
     // TODO: strip elasticsearch artifacts before returning suggested options and scores
   }
