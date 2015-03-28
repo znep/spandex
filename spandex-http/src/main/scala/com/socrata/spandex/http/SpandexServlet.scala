@@ -4,6 +4,7 @@ import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
+import org.elasticsearch.action.admin.cluster.health.{ClusterHealthRequest, ClusterHealthRequestBuilder}
 import org.elasticsearch.common.unit.Fuzziness
 import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
 import scala.util.Try
@@ -29,7 +30,9 @@ trait SpandexServletLike extends SpandexStack {
   }
 
   get ("/health/?"){
-    // TODO
+    val clusterAdminClient = client.client.admin().cluster()
+    val req = new ClusterHealthRequest(index)
+    clusterAdminClient.health(req).actionGet()
   }
 
   get ("/suggest/:datasetId/:copyNum/:userColumnId/:text/?") {
