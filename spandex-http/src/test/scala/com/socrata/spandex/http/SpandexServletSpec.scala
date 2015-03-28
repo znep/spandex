@@ -30,6 +30,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     server.setHandler(context)
     server.start()
 
+    removeBootstrapData()
     bootstrapData()
   }
   override def afterAll(): Unit = {
@@ -68,6 +69,8 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   test("suggest - some hits") {
     get(s"$suggest/$dsid/$copynum/$colid/dat") {
       status should equal(HttpStatus.SC_OK)
+      val contentType: String = header.getOrElse("Content-Type", "")
+      contentType should include("application/json")
       body should include("\"options\"")
       body shouldNot include("data column 3 row 0")
       body should include("data column 3 row 1")

@@ -18,7 +18,7 @@ trait SpandexServletLike extends SpandexStack {
   def client: SpandexElasticSearchClient
   def index: String
 
-
+  val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
   get("//?") {
     // TODO: com.socrata.spandex.secondary getting started and/or quick reference
@@ -36,11 +36,14 @@ trait SpandexServletLike extends SpandexStack {
   }
 
   get ("/suggest/:datasetId/:copyNum/:userColumnId/:text/?") {
+    contentType = "application/json"
     val datasetId = params.get("datasetId").get
     val copyNum = Try(params.get("copyNum").get.toLong)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
     val userColumnId = params.get("userColumnId").get
     val text = params.get("text").get
+
+    log.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text")
 
     val column: ColumnMap = client.getColumnMap(datasetId, copyNum, userColumnId)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
