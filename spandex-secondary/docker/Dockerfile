@@ -1,5 +1,5 @@
-# TODO include specific version number to depend on
-FROM secondary-watcher
+# TODO update to reelease dependency
+FROM registry.docker.aws-us-west-2-infrastructure.socrata.net:5000/internal/secondary-watcher:v0.3.1-SNAPSHOT-tmp5
 
 # TODO expose JMX
 # EXPOSE 
