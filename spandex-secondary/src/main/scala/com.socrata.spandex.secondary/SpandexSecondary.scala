@@ -8,11 +8,15 @@ import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types._
 import com.socrata.spandex.common.{SpandexBootstrap, ElasticSearchConfig, SpandexConfig}
 import com.socrata.spandex.common.client.{ColumnMap, SpandexElasticSearchClient}
-import com.typesafe.config.Config
+import com.typesafe.config.{ConfigFactory, Config}
 import com.typesafe.scalalogging.slf4j.Logging
 
 class SpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike {
-  def this(rawConfig: Config) = this(new SpandexConfig(rawConfig).es)
+  // Use any config we are given by the secondary watcher, falling back to our locally defined config if not specified
+  // The SecondaryWatcher isn't setting the context class loader, so for now we tell ConfigFactory what classloader
+  // to use so we can actually find the config in our jar.
+  def this(rawConfig: Config) = this(new SpandexConfig(rawConfig.withFallback(
+    ConfigFactory.load(classOf[SpandexSecondary].getClassLoader).getConfig("com.socrata.spandex"))).es)
 
   val client = new SpandexElasticSearchClient(config)
   val index  = config.index

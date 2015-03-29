@@ -68,3 +68,5 @@ jrebel.lic
 
 # paulp script
 /.lib/
+
+spandex-secondary/docker/*.jar
