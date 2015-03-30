@@ -103,7 +103,7 @@ object Deps {
     "javax.servlet" % "javax.servlet-api" % "3.1.0",
     "com.typesafe" % "config" % "1.2.1",
     "com.typesafe" %% "scalalogging-slf4j" % "1.1.0",
-    "commons-io" % "commons-io" % "2.4",
+    "commons-io" % "commons-io" % "1.4",
     "org.elasticsearch" % "elasticsearch" % "1.4.4"
   )
   lazy val secondary = Seq(
