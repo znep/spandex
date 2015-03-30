@@ -9,8 +9,7 @@ trait SecondaryEventLogger extends Logging {
     logger.info(s"$eventName event: $description")
 
   def logDataVersionBump(dataset:String, copyNumber: Long, oldVersion: Long, newVersion: Long): Unit =
-    logger.info(s"Bumping data version from $oldVersion to $newVersion " +
-                s"for dataset $dataset copy $copyNumber")
+    logger.info(s"Bumping data version to $newVersion for dataset $dataset copy $copyNumber")
 
   def logWorkingCopyCreated(dataset: String, copyNumber: Long): Unit =
     logEvent("WorkingCopyCreated",

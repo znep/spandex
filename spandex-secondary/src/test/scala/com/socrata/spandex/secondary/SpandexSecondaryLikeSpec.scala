@@ -65,9 +65,14 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
   }
 
   test("resync") {
-    client.searchCopiesByDataset("zoo-animals").totalHits should be (0)
-    client.searchColumnMapsByDataset("zoo-animals").totalHits should be (0)
-    client.searchFieldValuesByDataset("zoo-animals").totalHits should be (0)
+    // Add some stale data related to this dataset, which should be cleaned up in the resync
+    client.indexFieldValue(FieldValue("zoo-animals", 5, 3, 6, "marmot"), refresh = true)
+    client.putColumnMap(ColumnMap("zoo-animals", 5, 3, "species"), refresh = true)
+    client.putDatasetCopy("zoo-animals", 5, 5, LifecycleStage.Unpublished, refresh = true)
+
+    client.searchCopiesByDataset("zoo-animals").totalHits should be (1)
+    client.searchColumnMapsByDataset("zoo-animals").totalHits should be (1)
+    client.searchFieldValuesByDataset("zoo-animals").totalHits should be (1)
 
     val datasetInfo = DatasetInfo("zoo-animals", "en-US", Array.empty)
     val copyInfo = CopyInfo(new CopyId(100), 5, LifecycleStage.Published, 15, DateTime.now)
@@ -96,7 +101,6 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
     )
 
     secondary.resync(datasetInfo, copyInfo, schema, None, unmanaged(rows.iterator), Seq.empty)
-    Thread.sleep(1000) // Wait for ES to reindex
 
     val copies = client.searchCopiesByDataset("zoo-animals")
     copies.totalHits should be (1)

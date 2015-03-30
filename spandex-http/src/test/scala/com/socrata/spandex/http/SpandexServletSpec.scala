@@ -3,7 +3,7 @@ package com.socrata.spandex.http
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.socrata.spandex.common._
-import com.socrata.spandex.common.client.{ColumnMap, SpandexElasticSearchClient, TestESClient}
+import com.socrata.spandex.common.client.{SpandexElasticSearchClient, TestESClient}
 import org.eclipse.jetty.webapp.WebAppContext
 import org.scalatest.FunSuiteLike
 import org.scalatra.servlet.ScalatraListener
@@ -30,6 +30,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     server.setHandler(context)
     server.start()
 
+    removeBootstrapData()
     bootstrapData()
   }
   override def afterAll(): Unit = {
@@ -68,6 +69,8 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   test("suggest - some hits") {
     get(s"$suggest/$dsid/$copynum/$colid/dat") {
       status should equal(HttpStatus.SC_OK)
+      val contentType: String = header.getOrElse("Content-Type", "")
+      contentType should include("application/json")
       body should include("\"options\"")
       body shouldNot include("data column 3 row 0")
       body should include("data column 3 row 1")
@@ -83,6 +86,20 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     get(s"$suggest/$dsid/$copynum/$colid/nar") {
       status should equal(HttpStatus.SC_OK)
       body should include("\"options\" : [ ]") // expecting empty result set
+    }
+  }
+
+  test("suggest - non-numeric copy number should return 400") {
+    get(s"$suggest/$dsid/giraffe/$colid/dat") {
+      status should equal (HttpStatus.SC_BAD_REQUEST)
+      body should be ("Copy number must be numeric")
+    }
+  }
+
+  test("suggest - non-existent column should return 400") {
+    get(s"$suggest/$dsid/$copynum/giraffe/dat") {
+      status should equal (HttpStatus.SC_BAD_REQUEST)
+      body should be (s"column 'giraffe' not found")
     }
   }
 

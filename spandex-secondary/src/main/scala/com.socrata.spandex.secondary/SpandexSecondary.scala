@@ -1,18 +1,21 @@
 package com.socrata.spandex.secondary
 
 import com.rojoma.simplearm.Managed
-import com.socrata.datacoordinator.id.RowId
 import com.socrata.datacoordinator.secondary.Secondary.Cookie
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types._
 import com.socrata.spandex.common.{SpandexBootstrap, ElasticSearchConfig, SpandexConfig}
-import com.socrata.spandex.common.client.{ColumnMap, SpandexElasticSearchClient}
-import com.typesafe.config.Config
+import com.socrata.spandex.common.client.SpandexElasticSearchClient
+import com.typesafe.config.{ConfigFactory, Config}
 import com.typesafe.scalalogging.slf4j.Logging
 
 class SpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike {
-  def this(rawConfig: Config) = this(new SpandexConfig(rawConfig).es)
+  // Use any config we are given by the secondary watcher, falling back to our locally defined config if not specified
+  // The SecondaryWatcher isn't setting the context class loader, so for now we tell ConfigFactory what classloader
+  // to use so we can actually find the config in our jar.
+  def this(rawConfig: Config) = this(new SpandexConfig(rawConfig.withFallback(
+    ConfigFactory.load(classOf[SpandexSecondary].getClassLoader).getConfig("com.socrata.spandex"))).es)
 
   val client = new SpandexElasticSearchClient(config)
   val index  = config.index
@@ -67,42 +70,9 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
              cookie: Cookie,
              rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],
              rollups: Seq[RollupInfo]): Cookie = {
-    // Add dataset copy
-    client.putDatasetCopy(datasetInfo.internalName,
-                          copyInfo.copyNumber,
-                          copyInfo.dataVersion,
-                          copyInfo.lifecycleStage)
-
-    // Add column maps for text columns
-    val textColumns =
-      schema.toSeq.collect { case (id, info) if info.typ == SoQLText =>
-        ColumnMap(datasetInfo.internalName, copyInfo.copyNumber, info)
-      }
-    textColumns.foreach(client.putColumnMap)
-
-    // Use the system ID of each row to derive its row ID.
-    // This logic is adapted from PG Secondary code in soql-postgres-adapter
-    // store-pg/src/main/scala/com/socrata/pg/store/PGSecondary.scala#L415
-    val systemIdColumn = schema.values.find(_.isSystemPrimaryKey).get
-    def getRowId(row: ColumnIdMap[SoQLValue]): RowId = {
-      val rowPk = row.get(systemIdColumn.systemId).get
-      new RowId(rowPk.asInstanceOf[SoQLID].value)
-    }
-
-    // Add field values for text columns
-    for {
-      iter <- rows
-      batch <- iter.grouped(batchSize)
-      row <- batch
-    } {
-      val requests = row.toSeq.collect {
-        case (id, value: SoQLText) =>
-          client.getIndexRequest(RowOpsHandler.fieldValueFromDatum(
-            datasetInfo.internalName, copyInfo.copyNumber, getRowId(row), (id, value)))
-      }
-      client.sendBulkRequest(requests)
-    }
-
+    // Delete any existing documents related to this copy
+    dropCopy(datasetInfo.internalName, copyInfo.copyNumber, cookie)
+    ResyncHandler(client).go(datasetInfo, copyInfo, schema, rows, batchSize)
     cookie
   }
 }

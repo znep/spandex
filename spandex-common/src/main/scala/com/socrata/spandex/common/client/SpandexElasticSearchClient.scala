@@ -10,18 +10,30 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsReques
 import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.delete.DeleteResponse
 import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse
-import org.elasticsearch.action.index.{IndexResponse, IndexRequestBuilder}
+import org.elasticsearch.action.index.{IndexRequestBuilder, IndexResponse}
 import org.elasticsearch.action.search.SearchType
-import org.elasticsearch.action.update.{UpdateResponse, UpdateRequestBuilder}
-import org.elasticsearch.common.unit.TimeValue
+import org.elasticsearch.action.update.{UpdateRequestBuilder, UpdateResponse}
+import org.elasticsearch.common.unit.{Fuzziness, TimeValue}
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.search.aggregations.AggregationBuilders._
 import org.elasticsearch.search.sort.SortOrder
-
-case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
+import org.elasticsearch.search.suggest.Suggest
+import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
 
 // scalastyle:off number.of.methods
+case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
+
+// Setting refresh to true on ES write calls, because we always want to be
+// sure that we're operating on the very latest copy. We are trading off some speed to get
+// consistency.
+// Without this, when we create a new working copy, more often than not the brand new
+// dataset_copy document isn't indexed yet, and we perform all subsequent event operations
+// on a stale copy.
+// Caveats:
+// - refresh=true only guarantees consistency on a single shard.
+// - We aren't actually sure what the perf implications of running like this at production scale are.
+// http://www.elastic.co/guide/en/elasticsearch/reference/1.x/docs-index_.html#index-refresh
 class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSearchClient(config) with Logging {
   private def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.DatasetId, datasetId)
   private def byDatasetIdAndStageQuery(datasetId: String, stage: LifecycleStage): QueryBuilder =
@@ -63,15 +75,18 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       throw new NotImplementedError(s"Haven't implemented failure check for ${r.getClass.getSimpleName}")
   }
 
+  def refresh(): Unit = client.admin().indices().prepareRefresh(config.index).execute.actionGet
+
   def indexExists: Boolean = {
     val request = client.admin().indices().exists(new IndicesExistsRequest(config.index))
     request.actionGet().isExists
   }
 
-  def putColumnMap(columnMap: ColumnMap): Unit =
+  def putColumnMap(columnMap: ColumnMap, refresh: Boolean): Unit =
     checkForFailures(
       client.prepareIndex(config.index, config.columnMapMapping.mappingType, columnMap.docId)
           .setSource(JsonUtil.renderJson(columnMap))
+          .setRefresh(refresh)
           .execute.actionGet)
 
   def getColumnMap(datasetId: String, copyNumber: Long, userColumnId: String): Option[ColumnMap] = {
@@ -125,11 +140,11 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     response.result[FieldValue]
   }
 
-  def indexFieldValue(fieldValue: FieldValue): Unit =
-    checkForFailures(getIndexRequest(fieldValue).execute.actionGet)
+  def indexFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
+    checkForFailures(getIndexRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
-  def updateFieldValue(fieldValue: FieldValue): Unit =
-    checkForFailures(getUpdateRequest(fieldValue).execute.actionGet)
+  def updateFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
+    checkForFailures(getUpdateRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
   def getIndexRequest(fieldValue: FieldValue) : IndexRequestBuilder =
     client.prepareIndex(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
@@ -142,8 +157,10 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
-  def sendBulkRequest(requests: Seq[Any]): Unit =
-    checkForFailures(requests.foldLeft(client.prepareBulk()) { case (bulk, single) =>
+  def sendBulkRequest(requests: Seq[Any], refresh: Boolean): Unit = {
+    if (requests.nonEmpty) {
+      val baseRequest = client.prepareBulk().setRefresh(refresh)
+      checkForFailures(requests.foldLeft(baseRequest) { case (bulk, single) =>
         single match {
           case i: IndexRequestBuilder => bulk.add(i)
           case u: UpdateRequestBuilder => bulk.add(u)
@@ -152,8 +169,10 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
               s"Bulk requests with ${a.getClass.getSimpleName} not supported")
         }
       }.execute.actionGet)
+    }
+  }
 
-  def copyFieldValues(from: DatasetCopy, to: DatasetCopy): Unit = {
+  def copyFieldValues(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit = {
     val timeout = new TimeValue(config.dataCopyTimeout)
     val scrollInit = client.prepareSearch(config.index)
                            .setTypes(config.fieldValueMapping.mappingType)
@@ -176,7 +195,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       if (batch.isEmpty) {
         done = true
       } else {
-        sendBulkRequest(batch)
+        sendBulkRequest(batch, refresh)
       }
     }
   }
@@ -237,20 +256,26 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))
                            .execute.actionGet)
 
-  def putDatasetCopy(datasetId: String, copyNumber: Long, dataVersion: Long, stage: LifecycleStage): Unit = {
+  def putDatasetCopy(datasetId: String,
+                     copyNumber: Long,
+                     dataVersion: Long,
+                     stage: LifecycleStage,
+                     refresh: Boolean): Unit = {
     val id = DatasetCopy.makeDocId(datasetId, copyNumber)
     val source = JsonUtil.renderJson(DatasetCopy(datasetId, copyNumber, dataVersion, stage))
     client.prepareIndex(config.index, config.datasetCopyMapping.mappingType, id)
           .setSource(source)
+          .setRefresh(refresh)
           .execute.actionGet
   }
 
-  def updateDatasetCopyVersion(datasetCopy: DatasetCopy): Unit = {
+  def updateDatasetCopyVersion(datasetCopy: DatasetCopy, refresh: Boolean): Unit = {
     val source = JsonUtil.renderJson(datasetCopy)
     checkForFailures(
       client.prepareUpdate(config.index, config.datasetCopyMapping.mappingType, datasetCopy.docId)
             .setDoc(source)
             .setUpsert()
+            .setRefresh(refresh)
             .execute.actionGet)
   }
 
@@ -301,4 +326,22 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .setTypes(config.datasetCopyMapping.mappingType)
       .setQuery(byDatasetIdQuery(datasetId))
       .execute.actionGet
+
+
+  def getSuggestions(column: ColumnMap, text: String, fuzziness: Fuzziness = Fuzziness.AUTO,
+                     size: Int = 10): Suggest = { // scalastyle:ignore magic.number
+    val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
+      .addContextField(SpandexFields.CompositeId, column.composideId)
+      .setFuzziness(fuzziness)
+      .field(SpandexFields.Value)
+      .text(text)
+      .size(size)
+
+    val response = client
+      .prepareSuggest(config.index)
+      .addSuggestion(suggestion)
+      .execute().actionGet()
+
+    response.getSuggest
+  }
 }
