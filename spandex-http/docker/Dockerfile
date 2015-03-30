@@ -12,7 +12,7 @@ ENV LOGBACK_CONFIG   ${SERVER_NAME}-logback.xml
 ENV SERVER_ARTIFACT  ${SERVER_NAME}-assembly.jar
 
 # Environment settings.
-ENV JAVA_MEM 512m
+ENV JAVA_XMX 512m
 
 # Add other required resources to the container
 EXPOSE 8042
@@ -21,4 +21,3 @@ ADD ship.d /etc/ship.d
 ADD ${SERVER_CONFIG}.j2 /etc/
 ADD ${LOGBACK_CONFIG}.j2 /etc/
 ADD ${SERVER_ARTIFACT} ${SERVER_ROOT}
-
