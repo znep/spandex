@@ -26,7 +26,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
         case DataCopied =>
           val latestPublished = client.getLatestCopyForDataset(datasetName, publishedOnly = true).getOrElse(
             throw new UnsupportedOperationException(s"Could not find a published copy to copy data from"))
-          client.copyFieldValues(from = latestPublished, to = latest)
+          client.copyFieldValues(from = latestPublished, to = latest, refresh = true)
         case RowDataUpdated(ops) =>
           RowOpsHandler(client).go(datasetName, latest.copyNumber, ops)
         case SnapshotDropped(info) =>
@@ -35,11 +35,12 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
           CopyDropHandler(client).dropWorkingCopy(datasetName, latest)
         case WorkingCopyPublished =>
           logWorkingCopyPublished(datasetName, latest.copyNumber)
-          client.updateDatasetCopyVersion(latest.updateCopy(dataVersion, LifecycleStage.Published))
+          client.updateDatasetCopyVersion(
+            latest.updateCopy(dataVersion, LifecycleStage.Published), refresh = true)
         case ColumnCreated(info) =>
           if (info.typ == SoQLText) {
             logColumnCreated(datasetName, latest.copyNumber, info)
-            client.putColumnMap(ColumnMap(datasetName, latest.copyNumber, info))
+            client.putColumnMap(ColumnMap(datasetName, latest.copyNumber, info), refresh = true)
           }
         case ColumnRemoved(info) =>
           logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
@@ -68,6 +69,6 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     logDataVersionBump(datasetName, latest.copyNumber, latest.version, dataVersion)
     val finalLatest = client.getLatestCopyForDataset(datasetName).getOrElse(
       throw new UnsupportedOperationException(s"Couldn't get latest copy number for dataset $datasetName"))
-    client.updateDatasetCopyVersion(finalLatest.updateCopy(dataVersion))
+    client.updateDatasetCopyVersion(finalLatest.updateCopy(dataVersion), refresh = true)
   }
 }
