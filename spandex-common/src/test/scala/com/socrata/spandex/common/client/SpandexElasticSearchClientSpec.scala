@@ -2,7 +2,7 @@ package com.socrata.spandex.common.client
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
-import org.elasticsearch.rest.RestStatus
+import org.elasticsearch.action.index.IndexRequestBuilder
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 // scalastyle:off
@@ -45,6 +45,12 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.getFieldValue(toInsert(0)).get should be (toUpdate(0))
     client.getFieldValue(toInsert(1)).get should be (toInsert(1))
     client.getFieldValue(toInsert(2)).get should be (toUpdate(1))
+  }
+
+  test("Don't send empty bulk requests to Elastic Search") {
+    val empty = Seq.empty[IndexRequestBuilder]
+    // BulkRequest.validate throws if given an empty bulk request
+    client.sendBulkRequest(empty, refresh = true)
   }
 
   test("Delete field values by dataset") {
