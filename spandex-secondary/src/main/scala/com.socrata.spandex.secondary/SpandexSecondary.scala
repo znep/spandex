@@ -70,6 +70,8 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
              cookie: Cookie,
              rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],
              rollups: Seq[RollupInfo]): Cookie = {
+    // Delete any existing documents related to this copy
+    dropCopy(datasetInfo.internalName, copyInfo.copyNumber, cookie)
     ResyncHandler(client).go(datasetInfo, copyInfo, schema, rows, batchSize)
     cookie
   }

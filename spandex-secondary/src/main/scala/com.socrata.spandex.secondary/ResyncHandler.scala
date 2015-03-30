@@ -13,11 +13,6 @@ case class ResyncHandler(client: SpandexElasticSearchClient) {
          schema: ColumnIdMap[ColumnInfo[SoQLType]],
          rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],
          batchSize: Int): Unit = {
-    // Delete any existing documents related to this copy
-    client.deleteDatasetCopy(datasetInfo.internalName, copyInfo.copyNumber)
-    client.deleteColumnMapsByCopyNumber(datasetInfo.internalName, copyInfo.copyNumber)
-    client.deleteFieldValuesByCopyNumber(datasetInfo.internalName, copyInfo.copyNumber)
-
     // Add dataset copy
     // Don't refresh ES during resync
     client.putDatasetCopy(datasetInfo.internalName,
