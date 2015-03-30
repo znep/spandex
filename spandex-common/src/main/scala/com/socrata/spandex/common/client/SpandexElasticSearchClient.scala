@@ -156,8 +156,9 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
   def sendBulkRequest(requests: Seq[Any], refresh: Boolean): Unit = {
-    val baseRequest = client.prepareBulk().setRefresh(refresh)
-    checkForFailures(requests.foldLeft(baseRequest) { case (bulk, single) =>
+    if (requests.nonEmpty) {
+      val baseRequest = client.prepareBulk().setRefresh(refresh)
+      checkForFailures(requests.foldLeft(baseRequest) { case (bulk, single) =>
         single match {
           case i: IndexRequestBuilder => bulk.add(i)
           case u: UpdateRequestBuilder => bulk.add(u)
@@ -166,6 +167,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
               s"Bulk requests with ${a.getClass.getSimpleName} not supported")
         }
       }.execute.actionGet)
+    }
   }
 
   def copyFieldValues(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit = {
