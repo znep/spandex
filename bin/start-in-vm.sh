@@ -10,22 +10,16 @@ cp ${PROJ_ROOT}/target/scala*/${PROJ_NAME}-assembly*.jar \
    ${PROJ_ROOT}/docker/${PROJ_NAME}-assembly.jar \
     || { echo "Failed to copy assembly jar"; exit; }
 
-boot2docker init
-boot2docker down
-
-VBoxManage sharedfolder add 'boot2docker-vm' \
-           --name "${PROJ_NAME}-docker" \
-           --hostpath "$PROJ_ROOT/docker" \
-           --automount 2>/dev/null
-
-echo "Starting VM..."
-$(boot2docker up 2>&1 | tail -n 4)
+# VBoxManage sharedfolder add 'harbor' \
+#            --name "${PROJ_NAME}-docker" \
+#            --hostpath "$PROJ_ROOT/docker" \
+#            --automount 2>/dev/null
 
 echo "About to ssh into docker container!"
 
-boot2docker ssh <<EOF
+ssh harbor <<EOF
     mkdir ${PROJ_NAME}-docker
-    sudo mount -t vboxsf -o uid=1000,gid=50 ${PROJ_NAME}-docker ${PROJ_NAME}-docker
+    sudo mount -t vboxsf -o uid=1000,gid=50 ${PROJ_NAME}-docker ${PROJ_NAME}-docker || { echo "failed to mount!"; exit 1; }
     cd ${PROJ_NAME}-docker
     docker build --no-cache --rm -t ${PROJ_NAME} .
     echo "SPANDEX_ES_HOST=$1" > ${ENVFILE}
@@ -37,6 +31,6 @@ boot2docker ssh <<EOF
     docker run --env-file=${ENVFILE} -p ${PORT}:${PORT} -d ${PROJ_NAME}
 EOF
 
-echo "Forwarding localhost:${PORT} to boot2docker (Ctrl+C to exit)"
-echo "boot2docker ssh -L ${PORT}:localhost:${PORT} -N"
-boot2docker ssh -L ${PORT}:localhost:${PORT} -N
+echo "Forwarding localhost:${PORT} to harbor (Ctrl+C to exit)"
+echo "ssh harbor -L ${PORT}:localhost:${PORT} -N"
+ssh harbor -L ${PORT}:localhost:${PORT} -N

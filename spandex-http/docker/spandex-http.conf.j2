@@ -3,7 +3,7 @@ com.socrata.spandex {
 
   elastic-search {
     host = "{{ SPANDEX_ES_HOST }}"
-    port = "{{ SPANDEX_ES_PORT }}"
+    port = {{ SPANDEX_ES_PORT }}
     cluster-name = "{{ SPANDEX_ES_CLUSTER_NAME }}"
     index = "spandex"
 
