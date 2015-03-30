@@ -80,7 +80,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     request.actionGet().isExists
   }
 
-  def putColumnMap(columnMap: ColumnMap, refresh: Boolean = false): Unit =
+  def putColumnMap(columnMap: ColumnMap, refresh: Boolean): Unit =
     checkForFailures(
       client.prepareIndex(config.index, config.columnMapMapping.mappingType, columnMap.docId)
           .setSource(JsonUtil.renderJson(columnMap))
@@ -138,10 +138,10 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     response.result[FieldValue]
   }
 
-  def indexFieldValue(fieldValue: FieldValue, refresh: Boolean = false): Unit =
+  def indexFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
     checkForFailures(getIndexRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
-  def updateFieldValue(fieldValue: FieldValue, refresh: Boolean = false): Unit =
+  def updateFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
     checkForFailures(getUpdateRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
   def getIndexRequest(fieldValue: FieldValue) : IndexRequestBuilder =
@@ -155,7 +155,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
-  def sendBulkRequest(requests: Seq[Any], refresh: Boolean = false): Unit = {
+  def sendBulkRequest(requests: Seq[Any], refresh: Boolean): Unit = {
     val baseRequest = client.prepareBulk().setRefresh(refresh)
     checkForFailures(requests.foldLeft(baseRequest) { case (bulk, single) =>
         single match {
@@ -168,7 +168,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       }.execute.actionGet)
   }
 
-  def copyFieldValues(from: DatasetCopy, to: DatasetCopy, refresh: Boolean = false): Unit = {
+  def copyFieldValues(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit = {
     val timeout = new TimeValue(config.dataCopyTimeout)
     val scrollInit = client.prepareSearch(config.index)
                            .setTypes(config.fieldValueMapping.mappingType)
@@ -256,7 +256,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                      copyNumber: Long,
                      dataVersion: Long,
                      stage: LifecycleStage,
-                     refresh: Boolean = false): Unit = {
+                     refresh: Boolean): Unit = {
     val id = DatasetCopy.makeDocId(datasetId, copyNumber)
     val source = JsonUtil.renderJson(DatasetCopy(datasetId, copyNumber, dataVersion, stage))
     client.prepareIndex(config.index, config.datasetCopyMapping.mappingType, id)
@@ -265,7 +265,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
           .execute.actionGet
   }
 
-  def updateDatasetCopyVersion(datasetCopy: DatasetCopy, refresh: Boolean = false): Unit = {
+  def updateDatasetCopyVersion(datasetCopy: DatasetCopy, refresh: Boolean): Unit = {
     val source = JsonUtil.renderJson(datasetCopy)
     checkForFailures(
       client.prepareUpdate(config.index, config.datasetCopyMapping.mappingType, datasetCopy.docId)

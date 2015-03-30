@@ -1,13 +1,12 @@
 package com.socrata.spandex.secondary
 
 import com.rojoma.simplearm.Managed
-import com.socrata.datacoordinator.id.RowId
 import com.socrata.datacoordinator.secondary.Secondary.Cookie
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types._
 import com.socrata.spandex.common.{SpandexBootstrap, ElasticSearchConfig, SpandexConfig}
-import com.socrata.spandex.common.client.{ColumnMap, SpandexElasticSearchClient}
+import com.socrata.spandex.common.client.SpandexElasticSearchClient
 import com.typesafe.config.{ConfigFactory, Config}
 import com.typesafe.scalalogging.slf4j.Logging
 
@@ -71,49 +70,7 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
              cookie: Cookie,
              rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],
              rollups: Seq[RollupInfo]): Cookie = {
-    // Add dataset copy
-    // Don't refresh ES during resync
-    client.putDatasetCopy(datasetInfo.internalName,
-                          copyInfo.copyNumber,
-                          copyInfo.dataVersion,
-                          copyInfo.lifecycleStage,
-                          refresh = false)
-
-    // Add column maps for text columns
-    val textColumns =
-      schema.toSeq.collect { case (id, info) if info.typ == SoQLText =>
-        ColumnMap(datasetInfo.internalName, copyInfo.copyNumber, info)
-      }
-    // Don't refresh ES during resync
-    textColumns.foreach(client.putColumnMap(_, refresh = false))
-
-    // Use the system ID of each row to derive its row ID.
-    // This logic is adapted from PG Secondary code in soql-postgres-adapter
-    // store-pg/src/main/scala/com/socrata/pg/store/PGSecondary.scala#L415
-    val systemIdColumn = schema.values.find(_.isSystemPrimaryKey).get
-    def getRowId(row: ColumnIdMap[SoQLValue]): RowId = {
-      val rowPk = row.get(systemIdColumn.systemId).get
-      new RowId(rowPk.asInstanceOf[SoQLID].value)
-    }
-
-    // Add field values for text columns
-    for {
-      iter <- rows
-      batch <- iter.grouped(batchSize)
-      row <- batch
-    } {
-      val requests = row.toSeq.collect {
-        case (id, value: SoQLText) =>
-          client.getIndexRequest(RowOpsHandler.fieldValueFromDatum(
-            datasetInfo.internalName, copyInfo.copyNumber, getRowId(row), (id, value)))
-      }
-      // Don't refresh ES during resync
-      client.sendBulkRequest(requests)
-    }
-
-    // TODO : Guarantee refresh before read instead of after write
-    client.refresh()
-
+    ResyncHandler(client).go(datasetInfo, copyInfo, schema, rows, batchSize)
     cookie
   }
 }
