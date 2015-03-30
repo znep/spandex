@@ -328,8 +328,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .execute.actionGet
 
 
-  def getSuggestions(column: ColumnMap, text: String,
-                     fuzziness: Fuzziness = Fuzziness.AUTO, size: Int = 10): Suggest = {
+  def getSuggestions(column: ColumnMap, text: String, fuzziness: Fuzziness = Fuzziness.AUTO,
+                     size: Int = 10): Suggest = { // scalastyle:ignore magic.number
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
       .addContextField(SpandexFields.CompositeId, column.composideId)
       .setFuzziness(fuzziness)

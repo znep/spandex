@@ -50,7 +50,7 @@ trait SpandexServletLike extends SpandexStack with Logging {
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
 
     // TODO: configurable size and fuzziness
-    client.getSuggestions(column, text, Fuzziness.TWO, 10) // scalastyle:ignore magic.number
+    client.getSuggestions(column, text, Fuzziness.TWO)
     // TODO: strip elasticsearch artifacts before returning suggested options and scores
   }
 }
