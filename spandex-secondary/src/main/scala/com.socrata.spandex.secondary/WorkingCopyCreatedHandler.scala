@@ -21,7 +21,8 @@ case class WorkingCopyCreatedHandler(client: SpandexElasticSearchClient) extends
           } else {
             // Tell ES that this new copy exists
             logWorkingCopyCreated(datasetName, copyInfo.copyNumber)
-            client.putDatasetCopy(datasetName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage)
+            client.putDatasetCopy(
+              datasetName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage, refresh = true)
           }
         case other: Event =>
           throw new UnsupportedOperationException(s"Unexpected event ${other.getClass}")

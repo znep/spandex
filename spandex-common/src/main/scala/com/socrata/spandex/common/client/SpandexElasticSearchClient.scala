@@ -73,16 +73,18 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       throw new NotImplementedError(s"Haven't implemented failure check for ${r.getClass.getSimpleName}")
   }
 
+  def refresh(): Unit = client.admin().indices().prepareRefresh(config.index).execute.actionGet
+
   def indexExists: Boolean = {
     val request = client.admin().indices().exists(new IndicesExistsRequest(config.index))
     request.actionGet().isExists
   }
 
-  def putColumnMap(columnMap: ColumnMap): Unit =
+  def putColumnMap(columnMap: ColumnMap, refresh: Boolean): Unit =
     checkForFailures(
       client.prepareIndex(config.index, config.columnMapMapping.mappingType, columnMap.docId)
           .setSource(JsonUtil.renderJson(columnMap))
-          .setRefresh(true)
+          .setRefresh(refresh)
           .execute.actionGet)
 
   def getColumnMap(datasetId: String, copyNumber: Long, userColumnId: String): Option[ColumnMap] = {
@@ -136,11 +138,11 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     response.result[FieldValue]
   }
 
-  def indexFieldValue(fieldValue: FieldValue): Unit =
-    checkForFailures(getIndexRequest(fieldValue).setRefresh(true).execute.actionGet)
+  def indexFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
+    checkForFailures(getIndexRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
-  def updateFieldValue(fieldValue: FieldValue): Unit =
-    checkForFailures(getUpdateRequest(fieldValue).setRefresh(true).execute.actionGet)
+  def updateFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
+    checkForFailures(getUpdateRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
   def getIndexRequest(fieldValue: FieldValue) : IndexRequestBuilder =
     client.prepareIndex(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
@@ -153,8 +155,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
-  def sendBulkRequest(requests: Seq[Any]): Unit = {
-    val baseRequest = client.prepareBulk().setRefresh(true)
+  def sendBulkRequest(requests: Seq[Any], refresh: Boolean): Unit = {
+    val baseRequest = client.prepareBulk().setRefresh(refresh)
     checkForFailures(requests.foldLeft(baseRequest) { case (bulk, single) =>
         single match {
           case i: IndexRequestBuilder => bulk.add(i)
@@ -166,7 +168,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       }.execute.actionGet)
   }
 
-  def copyFieldValues(from: DatasetCopy, to: DatasetCopy): Unit = {
+  def copyFieldValues(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit = {
     val timeout = new TimeValue(config.dataCopyTimeout)
     val scrollInit = client.prepareSearch(config.index)
                            .setTypes(config.fieldValueMapping.mappingType)
@@ -189,7 +191,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       if (batch.isEmpty) {
         done = true
       } else {
-        sendBulkRequest(batch)
+        sendBulkRequest(batch, refresh)
       }
     }
   }
@@ -250,22 +252,26 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))
                            .execute.actionGet)
 
-  def putDatasetCopy(datasetId: String, copyNumber: Long, dataVersion: Long, stage: LifecycleStage): Unit = {
+  def putDatasetCopy(datasetId: String,
+                     copyNumber: Long,
+                     dataVersion: Long,
+                     stage: LifecycleStage,
+                     refresh: Boolean): Unit = {
     val id = DatasetCopy.makeDocId(datasetId, copyNumber)
     val source = JsonUtil.renderJson(DatasetCopy(datasetId, copyNumber, dataVersion, stage))
     client.prepareIndex(config.index, config.datasetCopyMapping.mappingType, id)
           .setSource(source)
-          .setRefresh(true)
+          .setRefresh(refresh)
           .execute.actionGet
   }
 
-  def updateDatasetCopyVersion(datasetCopy: DatasetCopy): Unit = {
+  def updateDatasetCopyVersion(datasetCopy: DatasetCopy, refresh: Boolean): Unit = {
     val source = JsonUtil.renderJson(datasetCopy)
     checkForFailures(
       client.prepareUpdate(config.index, config.datasetCopyMapping.mappingType, datasetCopy.docId)
             .setDoc(source)
             .setUpsert()
-            .setRefresh(true)
+            .setRefresh(refresh)
             .execute.actionGet)
   }
 

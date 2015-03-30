@@ -19,23 +19,28 @@ case class RowOpsHandler(client: SpandexElasticSearchClient) extends Logging {
       case (id, value: SoQLText) =>
         f(fieldValueFromDatum(datasetName, copyNumber, rowId, (id, value)))
     }
-    client.sendBulkRequest(requests)
+    client.sendBulkRequest(requests, refresh = false)
   }
 
-  def go(datasetName: String, copyNumber: Long, ops: Seq[Operation]): Unit = ops.foreach { op =>
-    // Boo, hiss, we cannot use a bulk request for the whole lot,
-    // because ES does not support DeleteByQuery in a bulk request,
-    // and we have to maintain order of operations.
-    // We will bulk up inserts and updates on the same row though.
-    logger.debug("Received row operation: " + op)
-    op match {
-      case Insert(rowId, data) =>
-        handleOp(datasetName, copyNumber, rowId, data, client.getIndexRequest)
-      case Update(rowId, data) =>
-        handleOp(datasetName, copyNumber, rowId, data, client.getUpdateRequest)
-      case Delete(rowId)       =>
-        client.deleteFieldValuesByRowId(datasetName, copyNumber, rowId.underlying)
+  def go(datasetName: String, copyNumber: Long, ops: Seq[Operation]): Unit = {
+    ops.foreach { op =>
+      // Boo, hiss, we cannot use a bulk request for the whole lot,
+      // because ES does not support DeleteByQuery in a bulk request,
+      // and we have to maintain order of operations.
+      // We will bulk up inserts and updates on the same row though.
+      logger.debug("Received row operation: " + op)
+      op match {
+        case Insert(rowId, data) =>
+          handleOp(datasetName, copyNumber, rowId, data, client.getIndexRequest)
+        case Update(rowId, data) =>
+          handleOp(datasetName, copyNumber, rowId, data, client.getUpdateRequest)
+        case Delete(rowId)       =>
+          client.deleteFieldValuesByRowId(datasetName, copyNumber, rowId.underlying)
+      }
     }
+
+    // TODO : Guarantee refresh before read instead of after write
+    client.refresh()
   }
 }
 
