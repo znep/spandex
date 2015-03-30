@@ -231,5 +231,12 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     suggestions.toString should include("\"options\" : [")
     suggestions.toString should include(food.value)
     suggestions.toString should include(fool.value)
+
+    val suggestionsUpper = client.getSuggestions(column, "FOO")
+
+    suggestionsUpper.size() should be(1)
+    suggestionsUpper.toString should include("\"options\" : [")
+    suggestionsUpper.toString should include(food.value)
+    suggestionsUpper.toString should include(fool.value)
   }
 }
