@@ -10,14 +10,16 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsReques
 import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.delete.DeleteResponse
 import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse
-import org.elasticsearch.action.index.{IndexResponse, IndexRequestBuilder}
+import org.elasticsearch.action.index.{IndexRequestBuilder, IndexResponse}
 import org.elasticsearch.action.search.SearchType
-import org.elasticsearch.action.update.{UpdateResponse, UpdateRequestBuilder}
-import org.elasticsearch.common.unit.TimeValue
+import org.elasticsearch.action.update.{UpdateRequestBuilder, UpdateResponse}
+import org.elasticsearch.common.unit.{Fuzziness, TimeValue}
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.search.aggregations.AggregationBuilders._
 import org.elasticsearch.search.sort.SortOrder
+import org.elasticsearch.search.suggest.Suggest
+import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
 
 // scalastyle:off number.of.methods
 case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
@@ -324,4 +326,22 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .setTypes(config.datasetCopyMapping.mappingType)
       .setQuery(byDatasetIdQuery(datasetId))
       .execute.actionGet
+
+
+  def getSuggestions(column: ColumnMap, text: String, fuzziness: Fuzziness = Fuzziness.AUTO,
+                     size: Int = 10): Suggest = { // scalastyle:ignore magic.number
+    val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
+      .addContextField(SpandexFields.CompositeId, column.composideId)
+      .setFuzziness(fuzziness)
+      .field(SpandexFields.Value)
+      .text(text)
+      .size(size)
+
+    val response = client
+      .prepareSuggest(config.index)
+      .addSuggestion(suggestion)
+      .execute().actionGet()
+
+    response.getSuggest
+  }
 }

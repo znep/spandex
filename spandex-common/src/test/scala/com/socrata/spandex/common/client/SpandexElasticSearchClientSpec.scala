@@ -3,6 +3,8 @@ package com.socrata.spandex.common.client
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
 import org.elasticsearch.action.index.IndexRequestBuilder
+import org.elasticsearch.common.unit.Fuzziness
+import org.elasticsearch.search.suggest.completion.CompletionSuggestionBuilder
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 // scalastyle:off
@@ -220,5 +222,28 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
 
     client.getDatasetCopy(datasets(0), 1) should be ('defined)
     client.getDatasetCopy(datasets(0), 2) should not be ('defined)
+  }
+
+  test("suggest is case insensitive") {
+    val column = ColumnMap(datasets(0), 1, 1, "col1-1111")
+    val fool = FieldValue(datasets(0), 1, 1, 42L, "fool")
+    val food = FieldValue(datasets(0), 1, 1, 43L, "FOOD")
+
+    client.indexFieldValue(fool, true)
+    client.indexFieldValue(food, true)
+
+    val suggestions = client.getSuggestions(column, "foo")
+
+    suggestions.size() should be(1)
+    suggestions.toString should include("\"options\" : [")
+    suggestions.toString should include(food.value)
+    suggestions.toString should include(fool.value)
+
+    val suggestionsUpper = client.getSuggestions(column, "FOO")
+
+    suggestionsUpper.size() should be(1)
+    suggestionsUpper.toString should include("\"options\" : [")
+    suggestionsUpper.toString should include(food.value)
+    suggestionsUpper.toString should include(fool.value)
   }
 }

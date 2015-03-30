@@ -7,6 +7,7 @@ import com.socrata.spandex.common.client._
 import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.common.unit.Fuzziness
+import org.elasticsearch.search.suggest.Suggest
 import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
 
 import scala.util.Try
@@ -48,20 +49,8 @@ trait SpandexServletLike extends SpandexStack with Logging {
     val column: ColumnMap = client.getColumnMap(datasetId, copyNum, userColumnId)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
 
-    val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
-      .addContextField(SpandexFields.CompositeId, column.composideId)
-      .setFuzziness(Fuzziness.TWO)
-      .field(SpandexFields.Value)
-      .text(text)
-      .size(10) // scalastyle:ignore magic.number
     // TODO: configurable size and fuzziness
-
-    val response = client.client
-      .prepareSuggest(index)
-      .addSuggestion(suggestion)
-      .execute().actionGet()
-
-    response.getSuggest
+    client.getSuggestions(column, text, Fuzziness.TWO)
     // TODO: strip elasticsearch artifacts before returning suggested options and scores
   }
 }
