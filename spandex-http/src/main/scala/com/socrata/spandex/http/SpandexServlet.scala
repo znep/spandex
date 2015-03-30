@@ -4,9 +4,11 @@ import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
-import org.elasticsearch.action.admin.cluster.health.{ClusterHealthRequest, ClusterHealthRequestBuilder}
+import com.typesafe.scalalogging.slf4j.Logging
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.common.unit.Fuzziness
 import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
+
 import scala.util.Try
 
 class SpandexServlet(conf: SpandexConfig) extends SpandexServletLike {
@@ -14,11 +16,9 @@ class SpandexServlet(conf: SpandexConfig) extends SpandexServletLike {
   def index: String = conf.es.index
 }
 
-trait SpandexServletLike extends SpandexStack {
+trait SpandexServletLike extends SpandexStack with Logging {
   def client: SpandexElasticSearchClient
   def index: String
-
-  val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
   get("//?") {
     // TODO: com.socrata.spandex.secondary getting started and/or quick reference
@@ -43,7 +43,7 @@ trait SpandexServletLike extends SpandexStack {
     val userColumnId = params.get("userColumnId").get
     val text = params.get("text").get
 
-    log.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text")
+    logger.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text")
 
     val column: ColumnMap = client.getColumnMap(datasetId, copyNum, userColumnId)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
