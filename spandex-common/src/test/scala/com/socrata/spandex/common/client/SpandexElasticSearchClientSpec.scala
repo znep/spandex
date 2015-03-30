@@ -2,6 +2,7 @@ package com.socrata.spandex.common.client
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
+import org.elasticsearch.common.unit.Fuzziness
 import org.elasticsearch.search.suggest.completion.CompletionSuggestionBuilder
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
@@ -224,17 +225,8 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.indexFieldValue(fool, true)
     client.indexFieldValue(food, true)
 
-    val query = new CompletionSuggestionBuilder("suggest")
-      .addContextField(SpandexFields.CompositeId, column.composideId)
-      .field(SpandexFields.Value)
-      .text("foo")
+    val suggestions = client.getSuggestions(column, "foo")
 
-    val response = client.client
-      .prepareSuggest(config.es.index)
-      .addSuggestion(query)
-      .execute().actionGet()
-
-    val suggestions = response.getSuggest
     suggestions.size() should be(1)
     suggestions.toString should include("\"options\" : [")
     suggestions.toString should include(food.value)
