@@ -1,10 +1,13 @@
 #!/bin/bash
 
-PROJ_NAME='spandex-http'
-PORT=8042
-ENVFILE="/tmp/${PROJ_NAME}-env"     # This is the boot2docker vm path.
+DOCKER_HOST='harbor'
 
-PROJ_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)/${PROJ_NAME}"
+PROJ_NAME='spandex-http'
+SUB_PROJECT=${PROJ_NAME}
+PORT=8042
+
+ENVFILE="/tmp/${PROJ_NAME}-env"     # This is the boot2docker vm path.
+PROJ_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)/${SUB_PROJECT}"
 
 cp ${PROJ_ROOT}/target/scala*/${PROJ_NAME}-assembly*.jar \
    ${PROJ_ROOT}/docker/${PROJ_NAME}-assembly.jar \
@@ -17,13 +20,12 @@ cp ${PROJ_ROOT}/target/scala*/${PROJ_NAME}-assembly*.jar \
 
 echo "About to ssh into docker container!"
 
-ssh harbor <<EOF
-    mkdir ${PROJ_NAME}-docker
+ssh ${DOCKER_HOST} <<EOF
+    mkdir -p ${PROJ_NAME}-docker
     sudo mount -t vboxsf -o uid=1000,gid=50 ${PROJ_NAME}-docker ${PROJ_NAME}-docker || { echo "failed to mount!"; exit 1; }
     cd ${PROJ_NAME}-docker
     docker build --no-cache --rm -t ${PROJ_NAME} .
-    echo "SPANDEX_ES_HOST=$1" > ${ENVFILE}
-    echo "SPANDEX_ES_PORT=9300" >> ${ENVFILE}
+    echo "SPANDEX_SECONDARY_ES_HOST=$1" > ${ENVFILE}
     sed -i 's/\[/["/' ${ENVFILE}
     sed -i 's/, /", "/g' ${ENVFILE}
     sed -i 's/]/"]/' ${ENVFILE}

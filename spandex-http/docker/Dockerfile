@@ -1,24 +1,24 @@
 FROM socrata/java
 
-# Some paths/locations we care about.
-ENV SEVICE_NAME spandex-http
+# Service specific settings.
+ENV SPANDEX_SECONDARY_ES_PORT 9300
+ENV SPANDEX_SECONDARY_ES_CLUSTER_NAME spandex
+ENV SERVER_NAME spandex-http
 
-ENV SERVER_ARTIFACT  spandex-http-assembly.jar
-ENV SERVER_ROOT      /srv/spandex-http/
-ENV SERVER_CONFIG    spandex-http.conf
-ENV LOGBACK_CONFIG   spandex-http-logback.xml
+# Some paths/locations we care about.
+ENV SERVER_ROOT      /srv/${SERVER_NAME}/
+ENV SERVER_CONFIG    ${SERVER_NAME}.conf
+ENV LOGBACK_CONFIG   ${SERVER_NAME}-logback.xml
+ENV SERVER_ARTIFACT  ${SERVER_NAME}-assembly.jar
 
 # Environment settings.
-ENV JAVA_MEM 2048m
-ENV SPANDEX_ES_CLUSTER_NAME spandex
+ENV JAVA_MEM 512m
 
 # Add other required resources to the container
-# WORKDIR ${SERVER_ROOT}
+EXPOSE 8042
 
+ADD ship.d /etc/ship.d
 ADD ${SERVER_CONFIG}.j2 /etc/
 ADD ${LOGBACK_CONFIG}.j2 /etc/
 ADD ${SERVER_ARTIFACT} ${SERVER_ROOT}
 
-ADD ship.d /etc/ship.d
-
-EXPOSE 8042
