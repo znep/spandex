@@ -47,10 +47,14 @@ case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) ext
       }
     }
 
+    // The requests will be issued in order, so we don't need to
+    // refresh after every batch, only afterwards.
     // TODO : Guarantee refresh before read instead of after write
     for { batch <- requests.grouped(batchSize) } {
-      client.sendBulkRequest(batch, refresh = true)
+      client.sendBulkRequest(batch, refresh = false)
     }
+
+    client.refresh()
   }
 }
 
