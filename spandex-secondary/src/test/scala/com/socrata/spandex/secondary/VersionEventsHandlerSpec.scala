@@ -20,6 +20,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
                                   with TestESData {
   val config = new SpandexConfig
   val client = new TestESClient(config.es)
+  // Make batches teensy weensy to expose any batching issues
   val handler = new VersionEventsHandler(client, 2)
 
   override def beforeEach(): Unit = {
@@ -285,9 +286,9 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   test("RowDataUpdated - operations get executed in the right order") {
     // Add column mappings for imaginary columns
-    val latest = client.getLatestCopyForDataset(datasets(1)).get
-    client.putColumnMap(ColumnMap(datasets(0), latest.copyNumber, 50, "myco-l050"), refresh = true)
-    client.putColumnMap(ColumnMap(datasets(0), latest.copyNumber, 51, "myco-l051"), refresh = true)
+    client.putDatasetCopy("fun-with-ordering", 1, 1, LifecycleStage.Unpublished, refresh = true)
+    client.putColumnMap(ColumnMap("fun-with-ordering", 1, 50, "myco-l050"), refresh = true)
+    client.putColumnMap(ColumnMap("fun-with-ordering", 1, 51, "myco-l051"), refresh = true)
 
     // Row 1 - we'll insert it first, then delete it.
     // We expect it not to exist at the end of the test.
@@ -306,18 +307,16 @@ class VersionEventsHandlerSpec extends FunSuiteLike
       new ColumnId(50) -> SoQLText("2.50#3"), new ColumnId(51) -> SoQLText("2.51#3")))(None)
 
     val events = Seq(RowDataUpdated(Seq[Operation](
-      /*row2Delete, */row1Insert, row2Insert, row1Delete, row2Update1, row2Update2)))
-    handler.handle(datasets(1), 100, events.iterator)
+      row2Delete, row1Insert, row2Insert, row1Delete, row2Update1, row2Update2)))
+    handler.handle("fun-with-ordering", 2, events.iterator)
 
-    val fieldValues = client.searchFieldValuesByCopyNumber(datasets(1), latest.copyNumber).thisPage
+    val fieldValues = client.searchFieldValuesByCopyNumber("fun-with-ordering", 1).thisPage
     val row1 = fieldValues.filter(_.rowId == 100).sortBy(_.columnId)
     row1.size should be (0)
     val row2 = fieldValues.filter(_.rowId == 101).sortBy(_.columnId)
-    //row2.size should be (2)
-    println(row2(0))
-    //println(row2(1))
-    row2(0) should be (FieldValue(datasets(1), latest.copyNumber, 50, 101, "2.50#3"))
-    row2(1) should be (FieldValue(datasets(1), latest.copyNumber, 51, 101, "2.51#3"))
+    row2.size should be (2)
+    row2(0) should be (FieldValue("fun-with-ordering", 1, 50, 101, "2.50#3"))
+    row2(1) should be (FieldValue("fun-with-ordering", 1, 51, 101, "2.51#3"))
   }
 
   test("DataCopied - all field values from last published copy should be copied to latest copy") {
