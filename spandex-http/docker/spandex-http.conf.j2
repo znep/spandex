@@ -1,0 +1,10 @@
+com.socrata.spandex {
+  port = 8042
+
+  elastic-search {
+    host = "{{ SPANDEX_SECONDARY_ES_HOST }}"
+    port = {{ SPANDEX_SECONDARY_ES_PORT }}
+    cluster-name = "{{ SPANDEX_SECONDARY_ES_CLUSTER_NAME }}"
+    index = "spandex"
+  }
+}
