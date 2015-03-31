@@ -9,17 +9,16 @@ import com.socrata.spandex.common.client._
 import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.common.unit.Fuzziness
-import org.elasticsearch.search.suggest.Suggest
-import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
 
 import scala.util.Try
 
-class SpandexServlet(conf: SpandexConfig) extends SpandexServletLike {
+class SpandexServlet(val conf: SpandexConfig) extends SpandexServletLike {
   def client: SpandexElasticSearchClient = new SpandexElasticSearchClient(conf.es)
   def index: String = conf.es.index
 }
 
 trait SpandexServletLike extends SpandexStack with Logging {
+  val conf: SpandexConfig
   def client: SpandexElasticSearchClient
   def index: String
 
@@ -40,6 +39,7 @@ trait SpandexServletLike extends SpandexStack with Logging {
   }
 
   get ("/health/?"){
+    contentType = ContentTypeJson
     val clusterAdminClient = client.client.admin().cluster()
     val req = new ClusterHealthRequest(index)
     clusterAdminClient.health(req).actionGet()
@@ -52,14 +52,15 @@ trait SpandexServletLike extends SpandexStack with Logging {
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
     val userColumnId = params.get("userColumnId").get
     val text = params.get("text").get
+    val fuzz = Fuzziness.build(params.getOrElse("fuzz", conf.suggestFuzziness))
+    val size = params.get("size").headOption.map{_.toInt}.getOrElse(conf.suggestSize)
 
-    logger.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text")
+    logger.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text / fuzz:$fuzz size:$size")
 
     val column: ColumnMap = client.getColumnMap(datasetId, copyNum, userColumnId)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
 
-    // TODO: configurable size and fuzziness
-    client.getSuggestions(column, text, Fuzziness.TWO)
+    client.getSuggestions(column, text, fuzz, size)
     // TODO: strip elasticsearch artifacts before returning suggested options and scores
   }
 }
