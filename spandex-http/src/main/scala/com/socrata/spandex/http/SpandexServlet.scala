@@ -40,6 +40,7 @@ trait SpandexServletLike extends SpandexStack with Logging {
   }
 
   get ("/health/?"){
+    contentType = ContentTypeJson
     val clusterAdminClient = client.client.admin().cluster()
     val req = new ClusterHealthRequest(index)
     clusterAdminClient.health(req).actionGet()

@@ -57,14 +57,16 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   test("get health status page") {
     get("/health") {
       status should equal(HttpStatus.SC_OK)
+      val contentType: String = header.getOrElse(ContentTypeHeader, "")
+      contentType should include(ContentTypeJson)
     }
   }
 
   test("get version") {
     get("/version") {
       status should equal(HttpStatus.SC_OK)
-      val contentType: String = header.getOrElse("Content-Type", "")
-      contentType should include("application/json")
+      val contentType: String = header.getOrElse(ContentTypeHeader, "")
+      contentType should include(ContentTypeJson)
       body should include(""""name":"spandex-http"""")
       body should include(""""version"""")
     }
@@ -79,8 +81,8 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   test("suggest - some hits") {
     get(s"$suggest/$dsid/$copynum/$colid/dat") {
       status should equal(HttpStatus.SC_OK)
-      val contentType: String = header.getOrElse("Content-Type", "")
-      contentType should include("application/json")
+      val contentType: String = header.getOrElse(ContentTypeHeader, "")
+      contentType should include(ContentTypeJson)
       body should include("\"options\"")
       body shouldNot include("data column 3 row 0")
       body should include("data column 3 row 1")
