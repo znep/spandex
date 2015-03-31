@@ -8,9 +8,6 @@ import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
 import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
-import org.elasticsearch.common.unit.Fuzziness
-import org.elasticsearch.search.suggest.Suggest
-import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
 
 import scala.util.Try
 
@@ -53,14 +50,15 @@ trait SpandexServletLike extends SpandexStack with Logging {
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
     val userColumnId = params.get("userColumnId").get
     val text = params.get("text").get
+    val fuzziness = params.get("fuzz")
+    val size = params.get("size").headOption.map{_.toInt}
 
     logger.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text")
 
     val column: ColumnMap = client.getColumnMap(datasetId, copyNum, userColumnId)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
 
-    // TODO: configurable size and fuzziness
-    client.getSuggestions(column, text, Fuzziness.TWO)
+    client.getSuggestions(column, text, fuzziness, size)
     // TODO: strip elasticsearch artifacts before returning suggested options and scores
   }
 }

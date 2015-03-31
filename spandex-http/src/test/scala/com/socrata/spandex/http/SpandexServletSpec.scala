@@ -19,6 +19,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   val config = new SpandexConfig
   val client = new TestESClient(config.es, false)
   val pathRoot = "/"
+  val optionsEmpty: String = "\"options\" : [ ]" // expecting empty result set
 
   override def beforeAll(): Unit = {
     val context = new WebAppContext
@@ -94,10 +95,28 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
+  test("suggest - param size 1") {
+    get(s"$suggest/$dsid/$copynum/$colid/daft+column+3", ("size", "1")) {
+      status should equal(HttpStatus.SC_OK)
+      body should include("data column 3 row 1")
+      body shouldNot include("data column 3 row 2")
+      body shouldNot include("data column 3 row 3")
+      body shouldNot include("data column 3 row 4")
+      body shouldNot include("data column 3 row 5")
+    }
+  }
+
+  test("suggest - param fuzziness 0") {
+    get(s"$suggest/$dsid/$copynum/$colid/drat", ("fuzz", "0")) {
+      status should equal(HttpStatus.SC_OK)
+      body should include(optionsEmpty)
+    }
+  }
+
   test("suggest - no hits") {
     get(s"$suggest/$dsid/$copynum/$colid/nar") {
       status should equal(HttpStatus.SC_OK)
-      body should include("\"options\" : [ ]") // expecting empty result set
+      body should include(optionsEmpty)
     }
   }
 
