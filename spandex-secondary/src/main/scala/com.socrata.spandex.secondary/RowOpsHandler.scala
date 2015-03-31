@@ -24,8 +24,14 @@ case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) ext
   }
 
   def go(datasetName: String, copyNumber: Long, ops: Seq[Operation]): Unit = {
-    val columnIds = client.searchColumnMapsByCopyNumber(datasetName, copyNumber)
-                          .thisPage.map(_.systemColumnId)
+    // If there are deletes, we need the dataset's column IDs. If not, save the call to ES.
+    val columnIds =
+      if (ops.exists(_.isInstanceOf[Delete])) {
+      client.searchColumnMapsByCopyNumber(datasetName, copyNumber)
+        .thisPage.map(_.systemColumnId)
+      } else {
+        Seq.empty
+      }
 
     val requests: Seq[RequestBuilder] = ops.flatMap { op =>
       logger.debug("Received row operation: " + op)
