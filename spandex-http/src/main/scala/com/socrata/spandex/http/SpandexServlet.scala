@@ -50,15 +50,15 @@ trait SpandexServletLike extends SpandexStack with Logging {
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
     val userColumnId = params.get("userColumnId").get
     val text = params.get("text").get
-    val fuzziness = params.get("fuzz")
+    val fuzz = params.get("fuzz")
     val size = params.get("size").headOption.map{_.toInt}
 
-    logger.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text")
+    logger.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text / fuzz:$fuzz size:$size")
 
     val column: ColumnMap = client.getColumnMap(datasetId, copyNum, userColumnId)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
 
-    client.getSuggestions(column, text, fuzziness, size)
+    client.getSuggestions(column, text, fuzz, size)
     // TODO: strip elasticsearch artifacts before returning suggested options and scores
   }
 }
