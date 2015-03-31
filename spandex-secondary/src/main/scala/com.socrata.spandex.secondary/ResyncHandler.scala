@@ -58,7 +58,7 @@ case class ResyncHandler(client: SpandexElasticSearchClient) {
     } {
       val requests = row.toSeq.collect {
         case (id, value: SoQLText) =>
-          client.getIndexRequest(RowOpsHandler.fieldValueFromDatum(
+          client.getFieldValueIndexRequest(RowOpsHandler.fieldValueFromDatum(
             datasetInfo.internalName, copyInfo.copyNumber, getRowId(row), (id, value)))
       }
       // Don't refresh ES during resync

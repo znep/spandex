@@ -5,7 +5,7 @@ import com.socrata.datacoordinator.secondary._
 import com.socrata.soql.types.{SoQLValue, SoQLText}
 import com.socrata.spandex.common.client._
 
-class VersionEventsHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
+class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) extends SecondaryEventLogger {
   def handle(datasetName: String, // scalastyle:ignore cyclomatic.complexity method.length
              dataVersion: Long,
              events: Iterator[Event]): Unit = {
@@ -28,7 +28,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
             throw new UnsupportedOperationException(s"Could not find a published copy to copy data from"))
           client.copyFieldValues(from = latestPublished, to = latest, refresh = true)
         case RowDataUpdated(ops) =>
-          RowOpsHandler(client).go(datasetName, latest.copyNumber, ops)
+          RowOpsHandler(client, batchSize).go(datasetName, latest.copyNumber, ops)
         case SnapshotDropped(info) =>
           CopyDropHandler(client).dropSnapshot(datasetName, info)
         case WorkingCopyDropped =>

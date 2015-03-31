@@ -8,39 +8,43 @@ import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.ActionRequestBuilder
 import RowOpsHandler._
 
-case class RowOpsHandler(client: SpandexElasticSearchClient) extends Logging {
-  private def handleOp(datasetName: String,
-               copyNumber: Long,
-               rowId: RowId,
-               data: Row[SoQLValue],
-               f: FieldValue => ActionRequestBuilder[_,_,_,_]): Unit = {
-    val requests = data.toSeq.collect {
+case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) extends Logging {
+  type RequestBuilder = ActionRequestBuilder[_,_,_,_]
+
+  private def requestsForRow(datasetName: String,
+                             copyNumber: Long,
+                             rowId: RowId,
+                             data: Row[SoQLValue],
+                             builder: FieldValue => RequestBuilder): Seq[RequestBuilder] = {
+    data.toSeq.collect {
       // Spandex only stores text columns; other column types are a no op
       case (id, value: SoQLText) =>
-        f(fieldValueFromDatum(datasetName, copyNumber, rowId, (id, value)))
+        builder(fieldValueFromDatum(datasetName, copyNumber, rowId, (id, value)))
     }
-    client.sendBulkRequest(requests, refresh = false)
   }
 
   def go(datasetName: String, copyNumber: Long, ops: Seq[Operation]): Unit = {
-    ops.foreach { op =>
-      // Boo, hiss, we cannot use a bulk request for the whole lot,
-      // because ES does not support DeleteByQuery in a bulk request,
-      // and we have to maintain order of operations.
-      // We will bulk up inserts and updates on the same row though.
+    val columnIds = client.searchColumnMapsByCopyNumber(datasetName, copyNumber)
+                          .thisPage.map(_.systemColumnId)
+
+    val requests: Seq[RequestBuilder] = ops.flatMap { op =>
       logger.debug("Received row operation: " + op)
       op match {
         case Insert(rowId, data) =>
-          handleOp(datasetName, copyNumber, rowId, data, client.getIndexRequest)
+          requestsForRow(datasetName, copyNumber, rowId, data, client.getFieldValueIndexRequest)
         case Update(rowId, data) =>
-          handleOp(datasetName, copyNumber, rowId, data, client.getUpdateRequest)
+          requestsForRow(datasetName, copyNumber, rowId, data, client.getFieldValueUpdateRequest)
         case Delete(rowId)       =>
-          client.deleteFieldValuesByRowId(datasetName, copyNumber, rowId.underlying)
+          columnIds.map { colId =>
+            client.getFieldValueDeleteRequest(datasetName, copyNumber, colId, rowId.underlying)
+          }
       }
     }
 
     // TODO : Guarantee refresh before read instead of after write
-    client.refresh()
+    for { batch <- requests.grouped(batchSize) } {
+      client.sendBulkRequest(batch, refresh = true)
+    }
   }
 }
 

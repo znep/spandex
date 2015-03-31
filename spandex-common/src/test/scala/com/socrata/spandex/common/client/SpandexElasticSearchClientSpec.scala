@@ -30,7 +30,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
       client.getFieldValue(fv) should not be 'defined
     }
 
-    val inserts = toInsert.map(client.getIndexRequest)
+    val inserts = toInsert.map(client.getFieldValueIndexRequest)
     client.sendBulkRequest(inserts, refresh = true)
 
     toInsert.foreach { fv =>
@@ -41,7 +41,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
       FieldValue("alpha.1337", 1, 20, 32, "Mexican axolotl"),
       FieldValue("alpha.1337", 1, 22, 32, "Enrique"))
 
-    val updates = toUpdate.map(client.getUpdateRequest)
+    val updates = toUpdate.map(client.getFieldValueUpdateRequest)
     client.sendBulkRequest(updates, refresh = true)
 
     client.getFieldValue(toInsert(0)).get should be (toUpdate(0))
@@ -116,7 +116,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
                    row <- 1 to 10
                  } yield FieldValue(from.datasetId, from.copyNumber, col, row, s"$col|$row")
 
-    val inserts = toCopy.map(client.getIndexRequest)
+    val inserts = toCopy.map(client.getFieldValueIndexRequest)
     client.sendBulkRequest(inserts, refresh = true)
 
     client.searchFieldValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)

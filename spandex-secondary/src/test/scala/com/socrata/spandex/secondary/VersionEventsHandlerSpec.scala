@@ -5,7 +5,7 @@ import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types.{SoQLValue, SoQLNumber, SoQLText}
 import com.socrata.spandex.common.{TestESData, SpandexConfig}
-import com.socrata.spandex.common.client.{ColumnMap, TestESClient, DatasetCopy}
+import com.socrata.spandex.common.client.{FieldValue, ColumnMap, TestESClient, DatasetCopy}
 import java.math.BigDecimal
 import org.joda.time.DateTime
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike, Matchers}
@@ -20,7 +20,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
                                   with TestESData {
   val config = new SpandexConfig
   val client = new TestESClient(config.es)
-  val handler = new VersionEventsHandler(client)
+  val handler = new VersionEventsHandler(client, 2)
 
   override def beforeEach(): Unit = {
     client.deleteAllDatasetCopies()
@@ -29,7 +29,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   override def afterEach(): Unit = removeBootstrapData()
   override def afterAll(): Unit = client.close()
 
-  test("All - throw an exception if data version is invalid") {
+  /*test("All - throw an exception if data version is invalid") {
     val invalidDataVersion = 0
     val events = Seq(Truncated).iterator
 
@@ -281,9 +281,46 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(1), expectedAfter.copyNumber).totalHits should be (9)
     client.searchFieldValuesByRowId(datasets(1), expectedAfter.copyNumber, 2).totalHits should be (0)
     client.searchFieldValuesByRowId(datasets(1), expectedAfter.copyNumber, 5).totalHits should be (0)
+  }*/
+
+  test("RowDataUpdated - operations get executed in the right order") {
+    // Add column mappings for imaginary columns
+    val latest = client.getLatestCopyForDataset(datasets(1)).get
+    client.putColumnMap(ColumnMap(datasets(0), latest.copyNumber, 50, "myco-l050"), refresh = true)
+    client.putColumnMap(ColumnMap(datasets(0), latest.copyNumber, 51, "myco-l051"), refresh = true)
+
+    // Row 1 - we'll insert it first, then delete it.
+    // We expect it not to exist at the end of the test.
+    val row1Insert = Insert(new RowId(100), ColumnIdMap[SoQLValue](
+      new ColumnId(50) -> SoQLText("1.50#1"), new ColumnId(51) -> SoQLText("1.51#1")))
+    val row1Delete = Delete(new RowId(100))(None)
+
+    // Row 2 - we'll delete it first, then insert it and update it several times.
+    // We expect it to exist in its most up to date form at the end of the test.
+    val row2Delete = Delete(new RowId(101))(None)
+    val row2Insert = Insert(new RowId(101), ColumnIdMap[SoQLValue](
+      new ColumnId(50) -> SoQLText("2.50#1"), new ColumnId(51) -> SoQLText("2.51#1")))
+    val row2Update1 = Update(new RowId(101), ColumnIdMap[SoQLValue](
+      new ColumnId(50) -> SoQLText("2.50#2"), new ColumnId(51) -> SoQLText("2.51#2")))(None)
+    val row2Update2 = Update(new RowId(101), ColumnIdMap[SoQLValue](
+      new ColumnId(50) -> SoQLText("2.50#3"), new ColumnId(51) -> SoQLText("2.51#3")))(None)
+
+    val events = Seq(RowDataUpdated(Seq[Operation](
+      /*row2Delete, */row1Insert, row2Insert, row1Delete, row2Update1, row2Update2)))
+    handler.handle(datasets(1), 100, events.iterator)
+
+    val fieldValues = client.searchFieldValuesByCopyNumber(datasets(1), latest.copyNumber).thisPage
+    val row1 = fieldValues.filter(_.rowId == 100).sortBy(_.columnId)
+    row1.size should be (0)
+    val row2 = fieldValues.filter(_.rowId == 101).sortBy(_.columnId)
+    //row2.size should be (2)
+    println(row2(0))
+    //println(row2(1))
+    row2(0) should be (FieldValue(datasets(1), latest.copyNumber, 50, 101, "2.50#3"))
+    row2(1) should be (FieldValue(datasets(1), latest.copyNumber, 51, 101, "2.51#3"))
   }
 
-  test("DataCopied - all field values from last published copy should be copied to latest copy") {
+  /*test("DataCopied - all field values from last published copy should be copied to latest copy") {
     // Remove bootstrapped data on working copy
     client.deleteFieldValuesByCopyNumber(datasets(1), 3)
 
@@ -298,5 +335,5 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
-  }
+  }*/
 }

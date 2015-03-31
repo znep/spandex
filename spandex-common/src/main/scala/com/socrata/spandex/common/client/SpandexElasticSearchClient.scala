@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.ActionResponse
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest
 import org.elasticsearch.action.bulk.BulkResponse
-import org.elasticsearch.action.delete.DeleteResponse
+import org.elasticsearch.action.delete.{DeleteRequestBuilder, DeleteResponse}
 import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse
 import org.elasticsearch.action.index.{IndexRequestBuilder, IndexResponse}
 import org.elasticsearch.action.search.SearchType
@@ -126,6 +126,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     client.prepareSearch(config.index)
           .setTypes(config.columnMapMapping.mappingType)
           .setQuery(byCopyNumberQuery(datasetId, copyNumber))
+          .setSize(config.dataCopyBatchSize) // The number of column maps should never be *that* giant?
           .execute.actionGet.results[ColumnMap]
 
   def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): Unit =
@@ -141,19 +142,27 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   def indexFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
-    checkForFailures(getIndexRequest(fieldValue).setRefresh(refresh).execute.actionGet)
+    checkForFailures(getFieldValueIndexRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
   def updateFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
-    checkForFailures(getUpdateRequest(fieldValue).setRefresh(refresh).execute.actionGet)
+    checkForFailures(getFieldValueUpdateRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
-  def getIndexRequest(fieldValue: FieldValue) : IndexRequestBuilder =
+  def getFieldValueIndexRequest(fieldValue: FieldValue) : IndexRequestBuilder =
     client.prepareIndex(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
           .setSource(JsonUtil.renderJson(fieldValue))
 
-  def getUpdateRequest(fieldValue: FieldValue): UpdateRequestBuilder = {
+  def getFieldValueUpdateRequest(fieldValue: FieldValue): UpdateRequestBuilder = {
     client.prepareUpdate(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
           .setDocAsUpsert(true)
           .setDoc(s"""{ value : "${fieldValue.value}" }""")
+  }
+
+  def getFieldValueDeleteRequest(datasetId: String,
+                                 copyNumber: Long,
+                                 columnId: Long,
+                                 rowId: Long): DeleteRequestBuilder = {
+    val docId = FieldValue.makeDocId(datasetId, copyNumber, columnId, rowId)
+    client.prepareDelete(config.index, config.fieldValueMapping.mappingType, docId)
   }
 
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
@@ -164,6 +173,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
         single match {
           case i: IndexRequestBuilder => bulk.add(i)
           case u: UpdateRequestBuilder => bulk.add(u)
+          case d: DeleteRequestBuilder => bulk.add(d)
           case a: Any =>
             throw new UnsupportedOperationException(
               s"Bulk requests with ${a.getClass.getSimpleName} not supported")
@@ -189,7 +199,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .execute.actionGet
 
       val batch = response.results[FieldValue].thisPage.map { src =>
-        getIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.value))
+        getFieldValueIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.value))
       }
 
       if (batch.isEmpty) {
@@ -331,7 +341,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def getSuggestions(column: ColumnMap, text: String, fuzziness: Fuzziness = Fuzziness.AUTO,
                      size: Int = 10): Suggest = { // scalastyle:ignore magic.number
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
-      .addContextField(SpandexFields.CompositeId, column.composideId)
+      .addContextField(SpandexFields.CompositeId, column.compositeId)
       .setFuzziness(fuzziness)
       .field(SpandexFields.Value)
       .text(text)
