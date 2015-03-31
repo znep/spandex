@@ -195,8 +195,13 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       if (batch.isEmpty) {
         done = true
       } else {
-        sendBulkRequest(batch, refresh)
+        sendBulkRequest(batch, refresh = false)
       }
+    }
+
+    // TODO : Guarantee refresh before read instead of after write
+    if (refresh) {
+      this.refresh()
     }
   }
 
