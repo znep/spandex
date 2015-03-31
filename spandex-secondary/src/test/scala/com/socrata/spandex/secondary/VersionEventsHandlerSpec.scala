@@ -29,7 +29,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   override def afterEach(): Unit = removeBootstrapData()
   override def afterAll(): Unit = client.close()
 
-  /*test("All - throw an exception if data version is invalid") {
+  test("All - throw an exception if data version is invalid") {
     val invalidDataVersion = 0
     val events = Seq(Truncated).iterator
 
@@ -281,7 +281,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(1), expectedAfter.copyNumber).totalHits should be (9)
     client.searchFieldValuesByRowId(datasets(1), expectedAfter.copyNumber, 2).totalHits should be (0)
     client.searchFieldValuesByRowId(datasets(1), expectedAfter.copyNumber, 5).totalHits should be (0)
-  }*/
+  }
 
   test("RowDataUpdated - operations get executed in the right order") {
     // Add column mappings for imaginary columns
@@ -320,7 +320,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     row2(1) should be (FieldValue(datasets(1), latest.copyNumber, 51, 101, "2.51#3"))
   }
 
-  /*test("DataCopied - all field values from last published copy should be copied to latest copy") {
+  test("DataCopied - all field values from last published copy should be copied to latest copy") {
     // Remove bootstrapped data on working copy
     client.deleteFieldValuesByCopyNumber(datasets(1), 3)
 
@@ -335,5 +335,5 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
-  }*/
+  }
 }
