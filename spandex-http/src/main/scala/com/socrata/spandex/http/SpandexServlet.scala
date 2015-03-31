@@ -8,15 +8,17 @@ import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
 import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
+import org.elasticsearch.common.unit.Fuzziness
 
 import scala.util.Try
 
-class SpandexServlet(conf: SpandexConfig) extends SpandexServletLike {
+class SpandexServlet(val conf: SpandexConfig) extends SpandexServletLike {
   def client: SpandexElasticSearchClient = new SpandexElasticSearchClient(conf.es)
   def index: String = conf.es.index
 }
 
 trait SpandexServletLike extends SpandexStack with Logging {
+  val conf: SpandexConfig
   def client: SpandexElasticSearchClient
   def index: String
 
@@ -50,8 +52,8 @@ trait SpandexServletLike extends SpandexStack with Logging {
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
     val userColumnId = params.get("userColumnId").get
     val text = params.get("text").get
-    val fuzz = params.get("fuzz")
-    val size = params.get("size").headOption.map{_.toInt}
+    val fuzz = Fuzziness.build(params.getOrElse("fuzz", conf.es.suggestFuzziness))
+    val size = params.get("size").headOption.map{_.toInt}.getOrElse(conf.es.suggestSize)
 
     logger.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text / fuzz:$fuzz size:$size")
 

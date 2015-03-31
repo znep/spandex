@@ -95,8 +95,16 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
-  test("suggest - param size 1") {
-    get(s"$suggest/$dsid/$copynum/$colid/daft+column+3", ("size", "1")) {
+  test("suggest - param size") {
+    get(s"$suggest/$dsid/$copynum/$colid/data+column+3", ("size", "10")) {
+      status should equal(HttpStatus.SC_OK)
+      body should include("data column 3 row 1")
+      body should include("data column 3 row 2")
+      body should include("data column 3 row 3")
+      body should include("data column 3 row 4")
+      body should include("data column 3 row 5")
+    }
+    get(s"$suggest/$dsid/$copynum/$colid/data+column+3", ("size", "1")) {
       status should equal(HttpStatus.SC_OK)
       body should include("data column 3 row 1")
       body shouldNot include("data column 3 row 2")
@@ -106,10 +114,14 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
-  test("suggest - param fuzziness 0") {
+  test("suggest - param fuzz(iness)") {
     get(s"$suggest/$dsid/$copynum/$colid/drat", ("fuzz", "0")) {
       status should equal(HttpStatus.SC_OK)
       body should include(optionsEmpty)
+    }
+    get(s"$suggest/$dsid/$copynum/$colid/drat", ("fuzz", "2")) {
+      status should equal(HttpStatus.SC_OK)
+      body should include("data column 3 row 1")
     }
   }
 

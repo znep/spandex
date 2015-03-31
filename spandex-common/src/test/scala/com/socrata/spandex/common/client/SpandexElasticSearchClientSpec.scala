@@ -232,14 +232,14 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.indexFieldValue(fool, true)
     client.indexFieldValue(food, true)
 
-    val suggestions = client.getSuggestions(column, "foo")
+    val suggestions = client.getSuggestions(column, "foo", Fuzziness.AUTO, 10)
 
     suggestions.size() should be(1)
     suggestions.toString should include("\"options\" : [")
     suggestions.toString should include(food.value)
     suggestions.toString should include(fool.value)
 
-    val suggestionsUpper = client.getSuggestions(column, "FOO")
+    val suggestionsUpper = client.getSuggestions(column, "FOO", Fuzziness.AUTO, 10)
 
     suggestionsUpper.size() should be(1)
     suggestionsUpper.toString should include("\"options\" : [")

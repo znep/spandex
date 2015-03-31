@@ -327,20 +327,13 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .setQuery(byDatasetIdQuery(datasetId))
       .execute.actionGet
 
-  def getSuggestions(column: ColumnMap, text: String, fuzziness: Option[String] = None,
-                     size: Option[Int] = None): Suggest = {
+  def getSuggestions(column: ColumnMap, text: String, fuzz: Fuzziness, size: Int): Suggest = {
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
       .addContextField(SpandexFields.CompositeId, column.composideId)
-      .setFuzziness(Fuzziness.build(fuzziness match {
-        case Some(s) => s
-        case _ => config.suggestFuzziness
-      }))
+      .setFuzziness(fuzz)
       .field(SpandexFields.Value)
       .text(text)
-      .size(size match {
-        case Some(i) => i
-        case None => config.suggestSize
-      })
+      .size(size)
 
     val response = client
       .prepareSuggest(config.index)
