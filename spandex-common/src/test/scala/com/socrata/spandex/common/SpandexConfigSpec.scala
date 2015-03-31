@@ -7,6 +7,8 @@ class SpandexConfigSpec extends FunSuiteLike with Matchers {
   test("spandex config has these required values") {
     val conf = new SpandexConfig
     Some(conf.spandexPort) should be ('defined)
+    Some(conf.suggestFuzziness) should be ('defined)
+    Some(conf.suggestSize) should be ('defined)
   }
 
   test("elasticsearch config has these required values") {
@@ -20,8 +22,6 @@ class SpandexConfigSpec extends FunSuiteLike with Matchers {
     Some(conf.datasetCopyMapping) should be ('defined)
     Some(conf.dataCopyBatchSize) should be ('defined)
     Some(conf.dataCopyTimeout) should be ('defined)
-    Some(conf.suggestFuzziness) should be ('defined)
-    Some(conf.suggestSize) should be ('defined)
   }
 
   test("config fuzziness acceptable values") {

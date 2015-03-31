@@ -52,8 +52,8 @@ trait SpandexServletLike extends SpandexStack with Logging {
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
     val userColumnId = params.get("userColumnId").get
     val text = params.get("text").get
-    val fuzz = Fuzziness.build(params.getOrElse("fuzz", conf.es.suggestFuzziness))
-    val size = params.get("size").headOption.map{_.toInt}.getOrElse(conf.es.suggestSize)
+    val fuzz = Fuzziness.build(params.getOrElse("fuzz", conf.suggestFuzziness))
+    val size = params.get("size").headOption.map{_.toInt}.getOrElse(conf.suggestSize)
 
     logger.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text / fuzz:$fuzz size:$size")
 
