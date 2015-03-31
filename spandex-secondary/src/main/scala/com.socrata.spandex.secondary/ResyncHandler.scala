@@ -54,12 +54,13 @@ case class ResyncHandler(client: SpandexElasticSearchClient) {
     for {
       iter <- rows
       batch <- iter.grouped(batchSize)
-      row <- batch
     } {
-      val requests = row.toSeq.collect {
-        case (id, value: SoQLText) =>
-          client.getFieldValueIndexRequest(RowOpsHandler.fieldValueFromDatum(
-            datasetInfo.internalName, copyInfo.copyNumber, getRowId(row), (id, value)))
+      val requests = batch.flatMap { row =>
+        row.toSeq.collect {
+          case (id, value: SoQLText) =>
+            client.getFieldValueIndexRequest(RowOpsHandler.fieldValueFromDatum(
+              datasetInfo.internalName, copyInfo.copyNumber, getRowId(row), (id, value)))
+        }
       }
       // Don't refresh ES during resync
       client.sendBulkRequest(requests, refresh = false)

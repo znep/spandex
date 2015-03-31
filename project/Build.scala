@@ -4,6 +4,8 @@ import com.mojolly.scalate.ScalatePlugin._
 import org.scalatra.sbt._
 import sbt.Keys._
 import sbt._
+import sbtbuildinfo.{BuildInfoOption, BuildInfoKey, BuildInfoPlugin}
+import sbtbuildinfo.BuildInfoKeys._
 import scoverage.ScoverageSbtPlugin.ScoverageKeys.{coverageExcludedPackages, coverageMinimum, coverageFailOnMinimum}
 
 object SpandexBuild extends Build {
@@ -37,6 +39,9 @@ object SpandexBuild extends Build {
     "spandex-http",
     file("./spandex-http/"),
     settings = commonSettings ++ ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ Seq(
+      buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+      buildInfoPackage := "com.socrata.spandex.http",
+      buildInfoOptions += BuildInfoOption.ToMap,
       libraryDependencies ++= Deps.socrata ++ Deps.http ++ Deps.test ++ Deps.common,
       port in JettyConf := JettyListenPort,
       coverageExcludedPackages := "<empty>;templates.*",
@@ -64,7 +69,7 @@ object SpandexBuild extends Build {
           }
       }
     )
-  ).dependsOn(spandexCommon % "compile;test->test")
+  ).enablePlugins(BuildInfoPlugin).dependsOn(spandexCommon % "compile;test->test")
 
   lazy val spandexSecondary = Project (
     "spandex-secondary",

@@ -60,6 +60,16 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
+  test("get version") {
+    get("/version") {
+      status should equal(HttpStatus.SC_OK)
+      val contentType: String = header.getOrElse("Content-Type", "")
+      contentType should include("application/json")
+      body should include(""""name":"spandex-http"""")
+      body should include(""""version"""")
+    }
+  }
+
   private[this] val suggest = "/suggest"
   private[this] val dsid = datasets(0)
   private[this] val copyid = 2

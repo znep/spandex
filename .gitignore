@@ -69,4 +69,5 @@ jrebel.lic
 # paulp script
 /.lib/
 
+spandex-http/docker/*.jar
 spandex-secondary/docker/*.jar
