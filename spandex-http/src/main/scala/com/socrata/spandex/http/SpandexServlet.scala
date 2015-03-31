@@ -2,6 +2,8 @@ package com.socrata.spandex.http
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
+import com.rojoma.json.v3.ast.{JString, JObject}
+import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
 import com.typesafe.scalalogging.slf4j.Logging
@@ -21,6 +23,13 @@ trait SpandexServletLike extends SpandexStack with Logging {
   def client: SpandexElasticSearchClient
   def index: String
 
+  val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
+
+  get("/version") {
+    contentType = ContentTypeJson
+    version
+  }
+
   get("//?") {
     // TODO: com.socrata.spandex.secondary getting started and/or quick reference
     <html>
@@ -37,7 +46,7 @@ trait SpandexServletLike extends SpandexStack with Logging {
   }
 
   get ("/suggest/:datasetId/:copyNum/:userColumnId/:text/?") {
-    contentType = "application/json"
+    contentType = ContentTypeJson
     val datasetId = params.get("datasetId").get
     val copyNum = Try(params.get("copyNum").get.toLong)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
