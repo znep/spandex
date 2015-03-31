@@ -39,7 +39,13 @@ object SpandexBuild extends Build {
     "spandex-http",
     file("./spandex-http/"),
     settings = commonSettings ++ ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ Seq(
-      buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+      buildInfoKeys := Seq[BuildInfoKey](
+        name,
+        version,
+        scalaVersion,
+        sbtVersion,
+        BuildInfoKey.action("buildTime") { System.currentTimeMillis },
+        BuildInfoKey.action("revision") { gitSha }),
       buildInfoPackage := "com.socrata.spandex.http",
       buildInfoOptions += BuildInfoOption.ToMap,
       libraryDependencies ++= Deps.socrata ++ Deps.http ++ Deps.test ++ Deps.common,
@@ -78,6 +84,8 @@ object SpandexBuild extends Build {
       libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondary
     )
   ).dependsOn(spandexCommon % "compile;test->test")
+
+  lazy val gitSha = Process(Seq("git", "describe", "--always", "--dirty", "--long", "--abbrev=10")).!!.split("\n")(0)
 }
 
 object Deps {
