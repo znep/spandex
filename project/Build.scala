@@ -85,7 +85,7 @@ object SpandexBuild extends Build {
     )
   ).dependsOn(spandexCommon % "compile;test->test")
 
-  lazy val gitSha = Process(Seq("git", "describe", "--always", "--dirty", "--long", "--abbrev=10")).!!.split("\n")(0)
+  lazy val gitSha = Process(Seq("git", "describe", "--always", "--dirty", "--long", "--abbrev=10")).!!.stripLineEnd
 }
 
 object Deps {
