@@ -1,6 +1,5 @@
 package com.socrata.spandex.common
 
-import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import com.socrata.spandex.common.client._
 
@@ -16,9 +15,16 @@ trait TestESData {
     Seq(snapshot, published, workingCopy).sortBy(_.copyNumber)
   }
 
-  def columns(dataset: String, copy: DatasetCopy) = {
+  def columns(dataset: String, copy: DatasetCopy): Seq[ColumnMap] = {
     for {column <- 1 to 3} yield {
       ColumnMap(dataset, copy.copyNumber, column, s"col$column")
+    }
+  }
+
+  def makeRowData(col: Long, row: Long): String = s"data column $col row $row"
+  def rows(col: ColumnMap): Seq[FieldValue] = {
+    for {row <- 1 to 5} yield {
+      FieldValue(col.datasetId, col.copyNumber, col.systemColumnId, row, makeRowData(col.systemColumnId, row))
     }
   }
 
@@ -41,9 +47,7 @@ trait TestESData {
             ColumnMap(ds, copy.copyNumber, col.systemColumnId, col.userColumnId),
             refresh = true)
 
-          for {row <- 1 to 5} {
-            def makeData(col: Long, row: Long): String = s"data column $col row $row"
-            val doc = FieldValue(ds, copy.copyNumber, col.systemColumnId, row, makeData(col.systemColumnId, row))
+          for {doc <- rows(col)} {
             client.indexFieldValue(doc, refresh = true)
           }
         }

@@ -33,4 +33,19 @@ object SpandexResult {
     SpandexResult(response.thisPage.map { src =>
       SpandexOption(src.value, None)
     })
+
+  object Fields {
+    private[this] def formatQuotedString(s: String) = "\"%s\"" format s
+    val routeSuggest = "/suggest"
+    val routeSample = "/sample"
+    val paramFuzz = "fuzz"
+    val paramSize = "size"
+    val options = "options"
+    val optionsJson = formatQuotedString(options)
+    val optionsEmptyJson = "\"%s\" : []" format options
+    val text = "text"
+    val textJson = formatQuotedString(text)
+    val score = "score"
+    val scoreJson = formatQuotedString(score)
+  }
 }

@@ -3,9 +3,11 @@ package com.socrata.spandex.http
 import com.rojoma.json.v3.codec.JsonEncode
 import com.socrata.spandex.common.client.TestESClient
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
+import com.socrata.spandex.http.SpandexResult.Fields._
 import org.elasticsearch.common.unit.Fuzziness
 import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, ShouldMatchers}
 
+// scalastyle:off magic.number
 class SpandexResultSpec extends FunSuiteLike with ShouldMatchers with TestESData with BeforeAndAfterAll {
   val config = new SpandexConfig
   val client = new TestESClient(config.es)
@@ -29,32 +31,26 @@ class SpandexResultSpec extends FunSuiteLike with ShouldMatchers with TestESData
 
   test("json encode option") {
     val js = JsonEncode.toJValue(opt1).toString()
-    js should include("{ \"text\" :")
-    js should include("\"score\" :")
-    js should include("}")
+    js should include(textJson)
+    js should include(scoreJson)
   }
 
   test("json encode option with no score") {
     val js = JsonEncode.toJValue(opt0).toString()
-    js should include("{ \"text\" :")
-    js shouldNot include("\"score\" :")
-    js should include("}")
+    js should include(textJson)
+    js shouldNot include(scoreJson)
   }
 
   test("json encode result") {
     val js = JsonEncode.toJValue(SpandexResult(Seq(opt2, opt3))).toString()
-    js should include("{")
-    js should include("\"options\" :")
-    js should include("[")
+    js should include(optionsJson)
     js should include(opt2String)
     js should include(opt3String)
-    js should include("]")
-    js should include("}")
   }
 
   test("json enocde empty result") {
     val js = JsonEncode.toJValue(SpandexResult(Seq.empty)).toString()
-    js should be("{ \"options\" : [] }")
+    js should include(optionsEmptyJson)
   }
 
   test("transform from suggest response") {
@@ -63,8 +59,8 @@ class SpandexResultSpec extends FunSuiteLike with ShouldMatchers with TestESData
     val col = columns(ds, copy)(2)
     val suggest = client.getSuggestions(col, "dat", Fuzziness.TWO, 10)
     val js = JsonEncode.toJValue(SpandexResult.fromSuggest(suggest)).toString()
-    js should include("\"options\"")
-    js should include("\"data column 3")
+    js should include(optionsJson)
+    js should include(rows(col)(0).value)
   }
 
   test("transform from search response") {
@@ -73,7 +69,7 @@ class SpandexResultSpec extends FunSuiteLike with ShouldMatchers with TestESData
     val col = columns(ds, copy)(2)
     val sample = client.getSamples(col, 10)
     val js = JsonEncode.toJValue(SpandexResult.fromSearch(sample)).toString()
-    js should include("\"options\"")
-    js should include("\"data column 3")
+    js should include(optionsJson)
+    js should include(rows(col)(0).value)
   }
 }
