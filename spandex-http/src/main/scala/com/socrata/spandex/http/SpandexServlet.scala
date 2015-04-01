@@ -3,6 +3,7 @@ package com.socrata.spandex.http
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.rojoma.json.v3.ast.{JObject, JString}
+import com.rojoma.json.v3.codec.JsonEncode
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
@@ -59,12 +60,15 @@ class SpandexServlet(conf: SpandexConfig,
     val text = params.get(paramText).get
     val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
     val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
+    logger.info(s">>> $datasetId, $copyNum, $userColumnId, $text, $fuzz, $size")
 
     val column = columnMap(datasetId, copyNum, userColumnId)
 
-    logger.info(s"GET /suggest ${column.docId} :: $text / $paramFuzz:$fuzz $paramSize:$size")
-    client.getSuggestions(column, text, fuzz, size)
-    // TODO: strip elasticsearch artifacts before returning suggested options and scores
+    logger.info(s"GET /suggest ${column.docId} :: $text / $paramFuzz:${fuzz.asInt} $paramSize:$size")
+    val suggestions = client.getSuggestions(column, text, fuzz, size)
+    val result = SpandexResult.fromSuggest(suggestions)
+    logger.info(s"<<< $result")
+    JsonEncode.toJValue(result).toString()
   }
 
   get(s"/sample/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
@@ -74,15 +78,13 @@ class SpandexServlet(conf: SpandexConfig,
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, copyNumMustBeNumeric))
     val userColumnId = params.get(paramUserColumnId).get
     val size = params.get(paramSize).headOption.map{_.toInt}.getOrElse(conf.suggestSize)
+    logger.info(s">>> $datasetId, $copyNum, $userColumnId, $size")
 
     val column = columnMap(datasetId, copyNum, userColumnId)
 
     logger.info(s"GET /sample ${column.docId} / $paramSize:$size")
-    client.getSamples(column, size).thisPage.map { src =>
-      """{
-        |"text" : "%s",
-        |"score" : "%s"
-        |}""".stripMargin.format(src.value, src)
-    }.mkString("{\"options\" : [", ",", "]}")
+    val result = SpandexResult.fromSearch(client.getSamples(column, size))
+    logger.info(s"<<< $result")
+    JsonEncode.toJValue(result).toString()
   }
 }

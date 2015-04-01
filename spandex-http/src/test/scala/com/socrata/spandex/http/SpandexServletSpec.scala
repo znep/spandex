@@ -12,8 +12,8 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   val config = new SpandexConfig
   val client = new TestESClient(config.es, false)
   val pathRoot = "/"
-  val options: String = "\"options\" : [" // expecting some options
-  val optionsEmpty: String = "\"options\" : [ ]" // expecting empty result set
+  val options: String = "\"options\" :" // expecting some options
+  val optionsEmpty: String = "\"options\" : []" // expecting empty result set
 
   addServlet(new SpandexServlet(config, client), "/*")
 
