@@ -49,7 +49,7 @@ class SpandexServlet(conf: SpandexConfig,
   private[this] val paramUserColumnId = "userColumnId"
   private[this] val paramText = "text"
   private[this] val paramFuzz = "fuzz"
-  private[this] val paramFize = "size"
+  private[this] val paramSize = "size"
   get(s"/suggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId/:$paramText") {
     contentType = ContentTypeJson
     val datasetId = params.get(paramDatasetId).get
@@ -58,11 +58,11 @@ class SpandexServlet(conf: SpandexConfig,
     val userColumnId = params.get(paramUserColumnId).get
     val text = params.get(paramText).get
     val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
-    val size = params.get(paramFize).headOption.fold(conf.suggestSize)(_.toInt)
+    val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
 
     val column = columnMap(datasetId, copyNum, userColumnId)
 
-    logger.info(s"GET /suggest ${column.docId} :: $text / $paramFuzz:$fuzz $paramFize:$size")
+    logger.info(s"GET /suggest ${column.docId} :: $text / $paramFuzz:$fuzz $paramSize:$size")
     client.getSuggestions(column, text, fuzz, size)
     // TODO: strip elasticsearch artifacts before returning suggested options and scores
   }
@@ -73,11 +73,11 @@ class SpandexServlet(conf: SpandexConfig,
     val copyNum = Try(params.get(paramCopyNum).get.toLong)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, copyNumMustBeNumeric))
     val userColumnId = params.get(paramUserColumnId).get
-    val size = params.get(paramFize).headOption.map{_.toInt}.getOrElse(conf.suggestSize)
+    val size = params.get(paramSize).headOption.map{_.toInt}.getOrElse(conf.suggestSize)
 
     val column = columnMap(datasetId, copyNum, userColumnId)
 
-    logger.info(s"GET /sample ${column.docId} / $paramFize:$size")
+    logger.info(s"GET /sample ${column.docId} / $paramSize:$size")
     client.getSamples(column, size).thisPage.map { src =>
       """{
         |"text" : "%s",
