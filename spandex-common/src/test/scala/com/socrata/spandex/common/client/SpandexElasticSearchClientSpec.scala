@@ -4,7 +4,6 @@ import com.socrata.datacoordinator.secondary.LifecycleStage
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
 import org.elasticsearch.action.index.IndexRequestBuilder
 import org.elasticsearch.common.unit.Fuzziness
-import org.elasticsearch.search.suggest.completion.CompletionSuggestionBuilder
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 // scalastyle:off
@@ -245,5 +244,18 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     suggestionsUpper.toString should include("\"options\" : [")
     suggestionsUpper.toString should include(food.value)
     suggestionsUpper.toString should include(fool.value)
+  }
+
+  test("samples") {
+    val column = ColumnMap(datasets(0), 1, 1, "col1-1111")
+
+    val samples = client.getSamples(column, 10)
+
+    samples.totalHits should be(5)
+    samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 1, "data column 1 row 1"))
+    samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 2, "data column 1 row 2"))
+    samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 3, "data column 1 row 3"))
+    samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 4, "data column 1 row 4"))
+    samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 5, "data column 1 row 5"))
   }
 }

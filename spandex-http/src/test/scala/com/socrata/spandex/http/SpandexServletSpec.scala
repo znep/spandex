@@ -19,6 +19,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   val config = new SpandexConfig
   val client = new TestESClient(config.es, false)
   val pathRoot = "/"
+  val options: String = "\"options\" : [" // expecting some options
   val optionsEmpty: String = "\"options\" : [ ]" // expecting empty result set
 
   override def beforeAll(): Unit = {
@@ -84,7 +85,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
       status should equal(HttpStatus.SC_OK)
       val contentType: String = header.getOrElse(ContentTypeHeader, "")
       contentType should include(ContentTypeJson)
-      body should include("\"options\"")
+      body should include(options)
       body shouldNot include("data column 3 row 0")
       body should include("data column 3 row 1")
       body should include("data column 3 row 2")
@@ -157,6 +158,30 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
     get(s"$suggest/") {
+      status should equal(HttpStatus.SC_NOT_FOUND)
+    }
+  }
+
+  // TODO: score?
+  private[this] val sample = "/sample"
+  test("sample") {
+    get(s"$sample/$dsid/$copynum/$colid") {
+      val contentType: String = header.getOrElse(ContentTypeHeader, "")
+      contentType should include(ContentTypeJson)
+      status should equal(HttpStatus.SC_OK)
+      body should include(options)
+      body should include("\"text\" : \"data column 3 row 1\"")
+    }
+  }
+
+  test("sample without required params should return 404") {
+    get(s"$sample/$dsid/$copynum") {
+      status should equal(HttpStatus.SC_NOT_FOUND)
+    }
+    get(s"$sample/$dsid") {
+      status should equal(HttpStatus.SC_NOT_FOUND)
+    }
+    get(s"$sample") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
   }

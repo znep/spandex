@@ -46,6 +46,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
                .must(termQuery(SpandexFields.CopyNumber, copyNumber))
                .must(termQuery(SpandexFields.ColumnId, columnId))
+  private def byColumnCompositeId(column: ColumnMap): QueryBuilder =
+    boolQuery().must(termQuery(SpandexFields.CompositeId, column.composideId))
   private def byRowIdQuery(datasetId: String, copyNumber: Long, rowId: Long): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
                .must(termQuery(SpandexFields.CopyNumber, copyNumber))
@@ -335,11 +337,19 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .text(text)
       .size(size)
 
-    val response = client
-      .prepareSuggest(config.index)
+    val response = client.prepareSuggest(config.index)
       .addSuggestion(suggestion)
       .execute().actionGet()
 
     response.getSuggest
+  }
+
+  // TODO sort frequency descending
+  def getSamples(column: ColumnMap, size: Int): SearchResults[FieldValue] = {
+    val response = client.prepareSearch(config.index)
+      .setTypes(config.fieldValueMapping.mappingType)
+      .setQuery(byColumnCompositeId(column))
+      .execute.actionGet
+    response.results[FieldValue]
   }
 }
