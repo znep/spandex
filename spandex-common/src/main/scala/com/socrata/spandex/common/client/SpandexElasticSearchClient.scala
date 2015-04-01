@@ -35,18 +35,18 @@ case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
 // - We aren't actually sure what the perf implications of running like this at production scale are.
 // http://www.elastic.co/guide/en/elasticsearch/reference/1.x/docs-index_.html#index-refresh
 class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSearchClient(config) with Logging {
-  private def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.DatasetId, datasetId)
-  private def byDatasetIdAndStageQuery(datasetId: String, stage: LifecycleStage): QueryBuilder =
+  protected def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.DatasetId, datasetId)
+  protected def byDatasetIdAndStageQuery(datasetId: String, stage: LifecycleStage): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
                .must(termQuery(SpandexFields.Stage, stage.toString))
-  private def byCopyNumberQuery(datasetId: String, copyNumber: Long): QueryBuilder =
+  protected def byCopyNumberQuery(datasetId: String, copyNumber: Long): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
                .must(termQuery(SpandexFields.CopyNumber, copyNumber))
-  private def byColumnIdQuery(datasetId: String, copyNumber: Long, columnId: Long): QueryBuilder =
+  protected def byColumnIdQuery(datasetId: String, copyNumber: Long, columnId: Long): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
                .must(termQuery(SpandexFields.CopyNumber, copyNumber))
                .must(termQuery(SpandexFields.ColumnId, columnId))
-  private def byRowIdQuery(datasetId: String, copyNumber: Long, rowId: Long): QueryBuilder =
+  protected def byRowIdQuery(datasetId: String, copyNumber: Long, rowId: Long): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
                .must(termQuery(SpandexFields.CopyNumber, copyNumber))
                .must(termQuery(SpandexFields.RowId, rowId))
@@ -110,23 +110,11 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .execute.actionGet)
   }
 
-  def searchColumnMapsByDataset(datasetId: String): SearchResults[ColumnMap] =
-    client.prepareSearch(config.index)
-          .setTypes(config.columnMapMapping.mappingType)
-          .setQuery(byDatasetIdQuery(datasetId))
-          .execute.actionGet.results[ColumnMap]
-
   def deleteColumnMapsByDataset(datasetId: String): Unit =
     checkForFailures(client.prepareDeleteByQuery(config.index)
                            .setTypes(config.columnMapMapping.mappingType)
                            .setQuery(byDatasetIdQuery(datasetId))
                            .execute.actionGet)
-
-  def searchColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[ColumnMap] =
-    client.prepareSearch(config.index)
-          .setTypes(config.columnMapMapping.mappingType)
-          .setQuery(byCopyNumberQuery(datasetId, copyNumber))
-          .execute.actionGet.results[ColumnMap]
 
   def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): Unit =
     checkForFailures(client.prepareDeleteByQuery(config.index)
@@ -200,27 +188,11 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     }
   }
 
-  def searchFieldValuesByDataset(datasetId: String): SearchResults[FieldValue] = {
-    val response = client.prepareSearch(config.index)
-                         .setTypes(config.fieldValueMapping.mappingType)
-                         .setQuery(byDatasetIdQuery(datasetId))
-                         .execute.actionGet
-    response.results[FieldValue]
-  }
-
   def deleteFieldValuesByDataset(datasetId: String): Unit =
     checkForFailures(client.prepareDeleteByQuery(config.index)
                            .setTypes(config.fieldValueMapping.mappingType)
                            .setQuery(byDatasetIdQuery(datasetId))
                            .execute.actionGet)
-
-  def searchFieldValuesByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[FieldValue] = {
-    val response = client.prepareSearch(config.index)
-                         .setTypes(config.fieldValueMapping.mappingType)
-                         .setQuery(byCopyNumberQuery(datasetId, copyNumber))
-                         .execute.actionGet
-    response.results[FieldValue]
-  }
 
   def deleteFieldValuesByCopyNumber(datasetId: String, copyNumber: Long): Unit =
     checkForFailures(client.prepareDeleteByQuery(config.index)
@@ -228,27 +200,11 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .setQuery(byCopyNumberQuery(datasetId, copyNumber))
                            .execute.actionGet)
 
-  def searchFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long): SearchResults[FieldValue] = {
-    val response = client.prepareSearch(config.index)
-                         .setTypes(config.fieldValueMapping.mappingType)
-                         .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))
-                         .execute.actionGet
-    response.results[FieldValue]
-  }
-
   def deleteFieldValuesByRowId(datasetId: String, copyNumber: Long, rowId: Long): Unit =
     checkForFailures(client.prepareDeleteByQuery(config.index)
                            .setTypes(config.fieldValueMapping.mappingType)
                            .setQuery(byRowIdQuery(datasetId, copyNumber, rowId))
                            .execute.actionGet)
-
-  def searchFieldValuesByRowId(datasetId: String, copyNumber: Long, rowId: Long): SearchResults[FieldValue] = {
-    val response = client.prepareSearch(config.index)
-                         .setTypes(config.fieldValueMapping.mappingType)
-                         .setQuery(byRowIdQuery(datasetId, copyNumber, rowId))
-                         .execute.actionGet
-    response.results[FieldValue]
-  }
 
   def deleteFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long): Unit =
     checkForFailures(client.prepareDeleteByQuery(config.index)
@@ -305,14 +261,6 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     val response = client.prepareGet(config.index, config.datasetCopyMapping.mappingType, id)
                          .execute.actionGet
     response.result[DatasetCopy]
-  }
-
-  def searchCopiesByDataset(datasetId: String): SearchResults[DatasetCopy] = {
-    val response = client.prepareSearch(config.index)
-                         .setTypes(config.datasetCopyMapping.mappingType)
-                         .setQuery(byDatasetIdQuery(datasetId))
-                         .execute.actionGet
-    response.results[DatasetCopy]
   }
 
   def deleteDatasetCopy(datasetId: String, copyNumber: Long): Unit =
