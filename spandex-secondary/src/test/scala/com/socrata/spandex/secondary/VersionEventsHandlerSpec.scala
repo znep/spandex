@@ -131,25 +131,32 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.getColumnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should not be 'defined
   }
 
-  test("WorkingCopyPublished - publish first working copy") {
-    client.putDatasetCopy("wcp-test", 1, 2, LifecycleStage.Unpublished, refresh = true)
+  test("WorkingCopyPublished - throw exception if the current copy is not Unpublished.") {
+    client.putDatasetCopy("wcp-invalid-test", 1, 2, LifecycleStage.Published, refresh = true)
 
-    handler.handle(datasets(0), 3, Seq(WorkingCopyPublished).iterator)
-
-    client.getDatasetCopy("wcp-test", 1) should be
-      (Some(DatasetCopy("wcp-test", 1, 3, LifecycleStage.Published)))
+    an [UnsupportedOperationException] should be thrownBy
+      handler.handle("wcp-invalid-test", 3, Seq(WorkingCopyPublished).iterator)
   }
 
-  test("WorkingCopyPublished - publish subsequent working copy") {
-   client.putDatasetCopy("wcp-test", 1, 2, LifecycleStage.Published, refresh = true)
-   client.putDatasetCopy("wcp-test", 2, 4, LifecycleStage.Unpublished, refresh = true)
+  test("WorkingCopyPublished - publish first working copy") {
+    client.putDatasetCopy("wcp-first-test", 1, 2, LifecycleStage.Unpublished, refresh = true)
 
-   handler.handle(datasets(0), 5, Seq(WorkingCopyPublished).iterator)
+    handler.handle("wcp-first-test", 3, Seq(WorkingCopyPublished).iterator)
 
-   client.getDatasetCopy("wcp-test", 1) should be
-     (Some(DatasetCopy("wcp-test", 1, 2, LifecycleStage.Snapshotted)))
-   client.getDatasetCopy("wcp-test", 2) should be
-     (Some(DatasetCopy("wcp-test", 2, 5, LifecycleStage.Published)))
+    client.getDatasetCopy("wcp-first-test", 1) should be
+      (Some(DatasetCopy("wcp-first-test", 1, 3, LifecycleStage.Published)))
+  }
+
+  test("WorkingCopyPublished - publish subsequent working copy, set previous published copies to snapshotted") {
+   client.putDatasetCopy("wcp-second-test", 1, 2, LifecycleStage.Published, refresh = true)
+   client.putDatasetCopy("wcp-second-test", 2, 4, LifecycleStage.Unpublished, refresh = true)
+
+   handler.handle("wcp-second-test", 5, Seq(WorkingCopyPublished).iterator)
+
+   client.getDatasetCopy("wcp-second-test", 1) should be
+     (Some(DatasetCopy("wcp-second-test", 1, 2, LifecycleStage.Snapshotted)))
+   client.getDatasetCopy("wcp-second-test", 2) should be
+     (Some(DatasetCopy("wcp-second-test", 2, 5, LifecycleStage.Published)))
   }
 
   test("WorkingCopyDropped - throw an exception if the copy is the initial copy") {
