@@ -2,6 +2,27 @@ spandex
 =======
 autocomplete with elasticsearch
 
+Make sure you're running ES 1.4.4 (NOT 1.5 which is installed by default by brew). https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-1.4.4.tar.gz
+
+Make sure your /etc/soda2.conf file is up-to-date. You'll need to add the metrics section "com.socrata.coordinator.secondary-watcher" to look like this:
+com.socrata.coordinator.secondary-watcher = ${com.socrata.coordinator.common} {
+  database.app-name = "data coordinator secondary watcher"
+  claim-timeout = 5m
+  watcher-id = 61e9a209-98e7-4daa-9c43-5778a96e1d8a
+  metrics {
+    # Should be unique for each service
+    prefix = "com.socrata.data.coordinator"
+    log-metrics = false
+    enable-graphite = false
+  }
+  tmpdir = ${java.io.tmpdir}
+}
+
+Edit your local elastic search configuration "config/elasticserach.yml" to un-comment the cluster.name key and set the value to "spandex" like this:
+
+cluster.name: spandex
+
+
 [![Codacy Badge](https://www.codacy.com/project/badge/821a4d00582d4c4b8a4641ee1ee94393)](https://www.codacy.com/public/johnkrah/spandex)
 
 ## Spandex-Http (autocomplete service) ##
@@ -19,6 +40,12 @@ If `browse` doesn't launch your browser, manually open [http://localhost:8042/](
 You can search what is currently indexed in spandex like this (searches "crimeType" for strings starting with "nar"):
 
 http://localhost:8042/suggest/primus.1234/2/3/dat
+
+Where `primus` is your pg secondary name
+Where `1234` is a tablespace number in your local machine
+Where `dat` is something.something.something
+
+Like this `http://localhost:8080/views/m27q-b6tw/columns/monster_5/suggest/fur`
 
 Also, you can interact directly with elastic search via its web API by browsing here (should show the entire index):
 
