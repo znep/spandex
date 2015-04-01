@@ -81,7 +81,7 @@ case class FieldValue(datasetId: String,
                       rowId: Long,
                       value: String) {
   lazy val docId = FieldValue.makeDocId(datasetId, copyNumber, columnId, rowId)
-  lazy val compositeId = s"$datasetId|$copyNumber|$columnId"
+  lazy val compositeId = FieldValue.makeCompositeId(datasetId, copyNumber, columnId)
 
   // Needed for codec builder
   def this(datasetId: String,
@@ -106,6 +106,9 @@ object FieldValue {
 
   def makeDocId(datasetId: String, copyNumber: Long, columnId: Long, rowId: Long): String =
     s"$datasetId|$copyNumber|$columnId|$rowId"
+
+  def makeCompositeId(datasetId: String, copyNumber: Long, columnId: Long): String =
+    s"$datasetId|$copyNumber|$columnId"
 }
 
 case class SearchResults[T: JsonDecode](totalHits: Long, thisPage: Seq[T])
