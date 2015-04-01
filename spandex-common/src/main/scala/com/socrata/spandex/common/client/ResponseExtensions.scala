@@ -52,7 +52,7 @@ case class ColumnMap(datasetId: String,
                      systemColumnId: Long,
                      userColumnId: String) {
   lazy val docId = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
-  lazy val composideId = ColumnMap.makeCompositeId(datasetId, copyNumber, systemColumnId)
+  lazy val compositeId = ColumnMap.makeCompositeId(datasetId, copyNumber, systemColumnId)
 }
 object ColumnMap {
   implicit val jCodec = AutomaticJsonCodecBuilder[ColumnMap]

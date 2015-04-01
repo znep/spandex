@@ -271,7 +271,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
   def getSuggestions(column: ColumnMap, text: String, fuzz: Fuzziness, size: Int): Suggest = {
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
-      .addContextField(SpandexFields.CompositeId, column.composideId)
+      .addContextField(SpandexFields.CompositeId, column.compositeId)
       .setFuzziness(fuzz)
       .field(SpandexFields.Value)
       .text(text)
