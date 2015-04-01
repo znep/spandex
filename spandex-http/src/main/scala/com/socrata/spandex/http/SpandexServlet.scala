@@ -18,18 +18,16 @@ class SpandexServlet(conf: SpandexConfig,
 
   val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
 
-  def columnMap(datasetId: String, copyNum: Long, userColumnId: String): ColumnMap = {
-    val column: ColumnMap = client.getColumnMap(datasetId, copyNum, userColumnId)
+  def columnMap(datasetId: String, copyNum: Long, userColumnId: String): ColumnMap =
+    client.getColumnMap(datasetId, copyNum, userColumnId)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
-    column
-  }
 
   get("/version") {
     contentType = ContentTypeJson
     version
   }
 
-  get("//?") {
+  get("/") {
     // TODO: com.socrata.spandex.secondary getting started and/or quick reference
     <html>
       <body>
@@ -38,41 +36,48 @@ class SpandexServlet(conf: SpandexConfig,
     </html>
   }
 
-  get("/health/?") {
+  get("/health") {
     contentType = ContentTypeJson
     val clusterAdminClient = client.client.admin().cluster()
     val req = new ClusterHealthRequest(index)
     clusterAdminClient.health(req).actionGet()
   }
 
-  get("/suggest/:datasetId/:copyNum/:userColumnId/:text/?") {
+  private[this] val paramDatasetId = "datasetId"
+  private[this] val paramCopyNum = "copyNum"
+  private[this] val copyNumMustBeNumeric = "Copy number must be numeric"
+  private[this] val paramUserColumnId = "userColumnId"
+  private[this] val paramText = "text"
+  private[this] val paramFuzz = "fuzz"
+  private[this] val paramFize = "size"
+  get(s"/suggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId/:$paramText") {
     contentType = ContentTypeJson
-    val datasetId = params.get("datasetId").get
-    val copyNum = Try(params.get("copyNum").get.toLong)
-      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
-    val userColumnId = params.get("userColumnId").get
-    val text = params.get("text").get
-    val fuzz = Fuzziness.build(params.getOrElse("fuzz", conf.suggestFuzziness))
-    val size = params.get("size").headOption.fold(conf.suggestSize)(_.toInt)
+    val datasetId = params.get(paramDatasetId).get
+    val copyNum = Try(params.get(paramCopyNum).get.toLong)
+      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, copyNumMustBeNumeric))
+    val userColumnId = params.get(paramUserColumnId).get
+    val text = params.get(paramText).get
+    val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
+    val size = params.get(paramFize).headOption.fold(conf.suggestSize)(_.toInt)
 
     val column = columnMap(datasetId, copyNum, userColumnId)
 
-    logger.info(s"GET /suggest ${column.docId} :: $text / fuzz:$fuzz size:$size")
+    logger.info(s"GET /suggest ${column.docId} :: $text / $paramFuzz:$fuzz $paramFize:$size")
     client.getSuggestions(column, text, fuzz, size)
     // TODO: strip elasticsearch artifacts before returning suggested options and scores
   }
 
-  get("/sample/:datasetId/:copyNum/:userColumnId/?") {
+  get(s"/sample/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
     contentType = ContentTypeJson
-    val datasetId = params.get("datasetId").get
-    val copyNum = Try(params.get("copyNum").get.toLong)
-      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
-    val userColumnId = params.get("userColumnId").get
-    val size = params.get("size").headOption.map{_.toInt}.getOrElse(conf.suggestSize)
+    val datasetId = params.get(paramDatasetId).get
+    val copyNum = Try(params.get(paramCopyNum).get.toLong)
+      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, copyNumMustBeNumeric))
+    val userColumnId = params.get(paramUserColumnId).get
+    val size = params.get(paramFize).headOption.map{_.toInt}.getOrElse(conf.suggestSize)
 
     val column = columnMap(datasetId, copyNum, userColumnId)
 
-    logger.info(s"GET /sample ${column.docId} / size:$size")
+    logger.info(s"GET /sample ${column.docId} / $paramFize:$size")
     client.getSamples(column, size).thisPage.map { src =>
       """{
         |"text" : "%s",

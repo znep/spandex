@@ -46,7 +46,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
                .must(termQuery(SpandexFields.CopyNumber, copyNumber))
                .must(termQuery(SpandexFields.ColumnId, columnId))
-  protected def byColumnCompositeId(column: Columnmap): QueryBuilder =
+  protected def byColumnCompositeId(column: ColumnMap): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.CompositeId, column.compositeId))
   protected def byRowIdQuery(datasetId: String, copyNumber: Long, rowId: Long): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
