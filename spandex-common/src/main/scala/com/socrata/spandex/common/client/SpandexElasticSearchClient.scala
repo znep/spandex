@@ -180,21 +180,24 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .setSize(config.dataCopyBatchSize)
                            .execute.actionGet
 
-    var done = false
-    while (!done) {
+    var batch = Seq.empty[Any]
+    do {
       val response = client.prepareSearchScroll(scrollInit.getScrollId)
                            .setScroll(timeout)
                            .execute.actionGet
 
-      val batch = response.results[FieldValue].thisPage.map { src =>
+      batch = response.results[FieldValue].thisPage.map { src =>
         getFieldValueIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.value))
       }
 
-      if (batch.isEmpty) {
-        done = true
-      } else {
-        sendBulkRequest(batch, refresh)
+      if (batch.nonEmpty) {
+        sendBulkRequest(batch, refresh = false)
       }
+    } while (batch.nonEmpty)
+
+    // TODO : Guarantee refresh before read instead of after write
+    if (refresh) {
+      this.refresh()
     }
   }
 
