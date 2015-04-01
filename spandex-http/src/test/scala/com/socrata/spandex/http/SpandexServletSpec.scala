@@ -71,6 +71,8 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
       contentType should include(ContentTypeJson)
       body should include(""""name":"spandex-http"""")
       body should include(""""version"""")
+      body should include(""""revision"""")
+      body should include(""""buildTime"""")
     }
   }
 

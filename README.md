@@ -25,15 +25,55 @@ Also, you can interact directly with elastic search via its web API by browsing 
 http://localhost:9200/spandex/_search?q=*
 
 ## Spandex-Secondary
-Spandex-Secondary is a Soda Server secondary service that replicates the data required for autocomplete to Elastic Search.
+Spandex-Secondary is a Soda Server secondary service that replicates the data required for autocomplete to Elastic Search. Below are the steps to get the secondary running on your local machine.
 
+###Build the secondary artifact
 ```sh
 $ cd $YOUR_SPANDEX_REPO
 $ sbt clean assembly
 $ ln -s $YOUR_SPANDEX_REPO/spandex-secondary/target/scala-2.10/spandex-secondary-assembly-*.jar ~/secondary-stores
+```
+
+###Register Spandex secondary in truth DB
+```sh
 $ psql -U blist -d datacoordinator
 datacoordinator=# INSERT INTO secondary_stores_config (store_id, next_run_time, interval_in_seconds) values ('spandex', now(), 5)
 ```
 
-TODO : Document soda2.conf changes
-TODO : Document running SW and replicating to Spandex 
+###Configuration changes
+* Append the entire contents of [reference.conf](https://github.com/socrata/spandex/blob/master/spandex-common/src/main/resources/reference.conf) to your `soda2.conf` file.
+* Find the `com.socrata.coordinator.common.secondary` section of your `soda2.conf` file.
+    * Add spandex to `defaultGroups`:
+```
+      secondary {
+        defaultGroups = [pg,spandex]
+        ...
+```
+    * Add the following element under `groups`:
+```
+      spandex {
+        numReplicas = 1
+        instances = [spandex]
+      }
+```
+    * Add the following element under `instances`:
+```
+    spandex {
+        secondaryType = spandex
+        config = ${com.socrata.spandex}
+        numWorkers = 2
+    }
+```
+
+###Service restarts
+Restart data coordinator and secondary watcher.
+If all went well, the secondary watcher log should be free of errors and the last few lines should look something like this:
+```sh
+[Worker 1 for secondary spandex] INFO SecondaryWatcher 2015-03-31 10:51:06,661 update-next-runtime: 1ms; [["store-id","spandex"]]
+[Worker 2 for secondary pg] INFO SecondaryWatcher 2015-03-31 10:51:06,661 update-next-runtime: 1ms; [["store-id","pg"]]
+[Worker 2 for secondary spandex] INFO SecondaryWatcher 2015-03-31 10:51:06,664 update-next-runtime: 30ms; [["store-id","spandex"]]
+[Worker 1 for secondary pg] INFO SecondaryWatcher 2015-03-31 10:51:06,664 update-next-runtime: 33ms; [["store-id","pg"]]
+```
+###Replicating a specific dataset to Spandex
+Execute the following query against Soda Fountain:
+`curl -X POST http://localhost:6010/dataset-copy/_{4x4}/spandex`
