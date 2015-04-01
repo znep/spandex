@@ -1,8 +1,7 @@
 package com.socrata.spandex.secondary
 
-import com.socrata.datacoordinator.id.{RowId, ColumnId}
 import com.socrata.datacoordinator.secondary._
-import com.socrata.soql.types.{SoQLValue, SoQLText}
+import com.socrata.soql.types.SoQLText
 import com.socrata.spandex.common.client._
 
 class VersionEventsHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
@@ -17,7 +16,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     // Find the latest dataset copy number. This *should* exist since
     // we have already handled creation of any initial working copies.
     val latest = client.getLatestCopyForDataset(datasetName).getOrElse(
-      throw new UnsupportedOperationException(s"Couldn't get latest copy number for dataset $datasetName"))
+      throw InvalidStateBeforeEvent(s"Couldn't get latest copy number for dataset $datasetName"))
 
     // Now handle everything else
     remainingEvents.foreach { event =>
@@ -25,7 +24,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
       event match {
         case DataCopied =>
           val latestPublished = client.getLatestCopyForDataset(datasetName, publishedOnly = true).getOrElse(
-            throw new UnsupportedOperationException(s"Could not find a published copy to copy data from"))
+            throw InvalidStateBeforeEvent(s"Could not find a published copy to copy data from"))
           logDataCopied(datasetName, latestPublished.copyNumber, latest.copyNumber)
           client.copyFieldValues(from = latestPublished, to = latest, refresh = true)
         case RowDataUpdated(ops) =>
@@ -67,7 +66,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     // Finally, get whatever the new latest copy is and bump its data version.
     logDataVersionBump(datasetName, latest.copyNumber, latest.version, dataVersion)
     val finalLatest = client.getLatestCopyForDataset(datasetName).getOrElse(
-      throw new UnsupportedOperationException(s"Couldn't get latest copy number for dataset $datasetName"))
+      throw InvalidStateAfterEvent(s"Couldn't get latest copy number for dataset $datasetName"))
     client.updateDatasetCopyVersion(finalLatest.copy(version = dataVersion), refresh = true)
   }
 }

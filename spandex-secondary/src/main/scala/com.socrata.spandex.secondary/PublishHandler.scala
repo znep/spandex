@@ -6,7 +6,7 @@ import com.socrata.spandex.common.client.{DatasetCopy, SpandexElasticSearchClien
 case class PublishHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
   def go(datasetName: String, latest: DatasetCopy): Unit = {
     if (latest.stage != LifecycleStage.Unpublished) {
-      throw new UnsupportedOperationException(
+      throw InvalidStateBeforeEvent(
         s"Expected latest copy to be Unpublished when receiving WorkingCopyPublished event. " +
           s"Actual: ${latest.stage}.")
     }

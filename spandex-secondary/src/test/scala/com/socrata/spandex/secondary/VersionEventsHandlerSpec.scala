@@ -134,7 +134,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   test("WorkingCopyPublished - throw exception if the current copy is not Unpublished.") {
     client.putDatasetCopy("wcp-invalid-test", 1, 2, LifecycleStage.Published, refresh = true)
 
-    an [UnsupportedOperationException] should be thrownBy
+    an [InvalidStateBeforeEvent] should be thrownBy
       handler.handle("wcp-invalid-test", 3, Seq(WorkingCopyPublished).iterator)
   }
 
@@ -165,7 +165,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val expectedBefore = Some(DatasetCopy("wcd-test-initial-copy", 1, 1, LifecycleStage.Unpublished))
     client.getLatestCopyForDataset("wcd-test-initial-copy") should be(expectedBefore)
 
-    an [UnsupportedOperationException] should be thrownBy
+    an [InvalidStateBeforeEvent] should be thrownBy
       handler.handle("wcd-test-initial-copy", 2, Seq(WorkingCopyDropped).iterator)
   }
 
@@ -175,7 +175,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val expectedBefore = Some(DatasetCopy("wcd-test-published", 2, 2, LifecycleStage.Published))
     client.getLatestCopyForDataset("wcd-test-published") should be(expectedBefore)
 
-    an [UnsupportedOperationException] should be thrownBy
+    an [InvalidStateBeforeEvent] should be thrownBy
       handler.handle("wcd-test-published", 3, Seq(WorkingCopyDropped).iterator)
   }
 
@@ -209,7 +209,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     val copyInfo = CopyInfo(new CopyId(100), 2, LifecycleStage.Unpublished, 2, DateTime.now)
     val events =  Seq(SnapshotDropped(copyInfo)).iterator
-    an [UnsupportedOperationException] should be thrownBy handler.handle("sd-test-notsnapshot", 3, events)
+    an [InvalidStateBeforeEvent] should be thrownBy handler.handle("sd-test-notsnapshot", 3, events)
   }
 
   test("SnapshotDropped - the specified snapshot should be dropped") {
