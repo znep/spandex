@@ -128,6 +128,17 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.searchFieldValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be (100)
   }
 
+  test("Search lots of column maps by copy number") {
+    // Make sure that searchLotsOfColumnMapsByCopyNumber returns more than the standard
+    // 10-result page of data. Start by creating column maps for a very wide dataset.
+    val columns = (1 to 1000).map { idx => ColumnMap("wide-dataset", 1, idx, "col" + idx) }
+    columns.foreach(client.putColumnMap(_, refresh = false))
+    client.refresh()
+
+    val retrieved = client.searchLotsOfColumnMapsByCopyNumber("wide-dataset", 1)
+    retrieved.thisPage.sortBy(_.systemColumnId) should be (columns)
+  }
+
   test("Put, get and delete column map") {
     client.getColumnMap(datasets(0), 1, "col1-1111") should not be 'defined
     client.getColumnMap(datasets(0), 1, "col2-2222") should not be 'defined
@@ -232,14 +243,14 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.indexFieldValue(fool, true)
     client.indexFieldValue(food, true)
 
-    val suggestions = client.getSuggestions(column, "foo")
+    val suggestions = client.getSuggestions(column, "foo", Fuzziness.AUTO, 10)
 
     suggestions.size() should be(1)
     suggestions.toString should include("\"options\" : [")
     suggestions.toString should include(food.value)
     suggestions.toString should include(fool.value)
 
-    val suggestionsUpper = client.getSuggestions(column, "FOO")
+    val suggestionsUpper = client.getSuggestions(column, "FOO", Fuzziness.AUTO, 10)
 
     suggestionsUpper.size() should be(1)
     suggestionsUpper.toString should include("\"options\" : [")

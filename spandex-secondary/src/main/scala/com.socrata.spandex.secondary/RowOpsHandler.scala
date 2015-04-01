@@ -27,7 +27,7 @@ case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) ext
     // If there are deletes, we need the dataset's column IDs. If not, save the call to ES.
     val columnIds =
       if (ops.exists(_.isInstanceOf[Delete])) {
-      client.searchColumnMapsByCopyNumber(datasetName, copyNumber)
+      client.searchLotsOfColumnMapsByCopyNumber(datasetName, copyNumber)
         .thisPage.map(_.systemColumnId)
       } else {
         Seq.empty
