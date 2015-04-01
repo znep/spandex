@@ -191,7 +191,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     handler.handle(datasets(1), expectedBefore.version + 1, Seq(WorkingCopyDropped).iterator)
 
-    val expectedAfter = copies(datasets(1))(1).updateCopy(expectedBefore.version + 1)
+    val expectedAfter = copies(datasets(1))(1).copy(version = expectedBefore.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
@@ -226,7 +226,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val copyInfo = CopyInfo(new CopyId(100), snapshot.copyNumber, snapshot.stage, snapshot.version, DateTime.now)
     handler.handle(datasets(1), expectedBefore.version + 1, Seq(SnapshotDropped(copyInfo)).iterator)
 
-    val expectedAfter = expectedBefore.updateCopy(expectedBefore.version + 1)
+    val expectedAfter = expectedBefore.copy(version = expectedBefore.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (0)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
@@ -251,7 +251,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val insertEvents = Seq(RowDataUpdated(Seq[Operation](insert))).iterator
     handler.handle(datasets(1), expectedBeforeInsert.version + 1, insertEvents)
 
-    val expectedAfterInsert = expectedBeforeInsert.updateCopy(expectedBeforeInsert.version + 1)
+    val expectedAfterInsert = expectedBeforeInsert.copy(version = expectedBeforeInsert.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfterInsert))
     client.searchFieldValuesByCopyNumber(
       datasets(1), expectedBeforeInsert.copyNumber).totalHits should be (16)
@@ -267,7 +267,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val updateEvents = Seq(RowDataUpdated(Seq[Operation](update))).iterator
     handler.handle(datasets(1), expectedAfterInsert.version + 1, updateEvents)
 
-    val expectedAfter = expectedAfterInsert.updateCopy(expectedAfterInsert.version + 1)
+    val expectedAfter = expectedAfterInsert.copy(version = expectedAfterInsert.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(
       datasets(1), expectedAfterInsert.copyNumber).totalHits should be (16)
@@ -294,7 +294,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
       Seq[Operation](Delete(new RowId(2))(None), Delete(new RowId(5))(None)))).iterator
     handler.handle(datasets(1), expectedBefore.version + 1, events)
 
-    val expectedAfter = expectedBefore.updateCopy(expectedBefore.version + 1)
+    val expectedAfter = expectedBefore.copy(version = expectedBefore.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), expectedAfter.copyNumber).totalHits should be (9)
     client.searchFieldValuesByRowId(datasets(1), expectedAfter.copyNumber, 2).totalHits should be (0)
@@ -312,7 +312,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     handler.handle(datasets(1), expectedBefore.version + 1, Seq(DataCopied).iterator)
 
-    val expectedAfter = expectedBefore.updateCopy(expectedBefore.version + 1)
+    val expectedAfter = expectedBefore.copy(version = expectedBefore.version + 1)
     client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)

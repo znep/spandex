@@ -68,6 +68,6 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
     logDataVersionBump(datasetName, latest.copyNumber, latest.version, dataVersion)
     val finalLatest = client.getLatestCopyForDataset(datasetName).getOrElse(
       throw new UnsupportedOperationException(s"Couldn't get latest copy number for dataset $datasetName"))
-    client.updateDatasetCopyVersion(finalLatest.updateCopy(dataVersion), refresh = true)
+    client.updateDatasetCopyVersion(finalLatest.copy(version = dataVersion), refresh = true)
   }
 }
