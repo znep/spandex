@@ -96,14 +96,6 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     response.result[ColumnMap]
   }
 
-  def getColumnMap(datasetId: String, copyNumber: Long, systemColumnId: Long): Option[ColumnMap] = {
-    val response = client.prepareSearch(config.index)
-      .setTypes(config.columnMapMapping.mappingType)
-      .setQuery(boolQuery().must(termQuery(SpandexFields.ColumnId, systemColumnId)))
-      .execute.actionGet
-    response.results[ColumnMap].thisPage.headOption
-  }
-
   def deleteColumnMap(datasetId: String, copyNumber: Long, userColumnId: String): Unit = {
     val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
     checkForFailures(client.prepareDelete(config.index, config.columnMapMapping.mappingType, id)
