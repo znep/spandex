@@ -258,4 +258,20 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 4, "data column 1 row 4"))
     samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 5, "data column 1 row 5"))
   }
+
+  test("lots of samples") {
+    val ds = datasets(0)
+    val cp = copies(ds)(1)
+    val col = ColumnMap(ds, cp.copyNumber, 42L, "col42")
+    val lots = 1000
+
+    val docs = for {row <- 1 to lots} yield {
+      FieldValue(col.datasetId, col.copyNumber, col.systemColumnId, row, makeRowData(col.systemColumnId, row))
+    }
+    docs.foreach(client.indexFieldValue(_, refresh = false))
+    client.refresh()
+
+    val retrieved = client.getSamples(col, lots)
+    retrieved.thisPage.sortBy(_.rowId) should be(docs)
+  }
 }
