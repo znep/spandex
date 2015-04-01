@@ -12,15 +12,9 @@ import org.elasticsearch.common.unit.Fuzziness
 
 import scala.util.Try
 
-class SpandexServlet(val conf: SpandexConfig) extends SpandexServletLike {
-  def client: SpandexElasticSearchClient = new SpandexElasticSearchClient(conf.es)
+class SpandexServlet(conf: SpandexConfig,
+                     client: SpandexElasticSearchClient) extends SpandexStack with Logging {
   def index: String = conf.es.index
-}
-
-trait SpandexServletLike extends SpandexStack with Logging {
-  val conf: SpandexConfig
-  def client: SpandexElasticSearchClient
-  def index: String
 
   val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
 
@@ -53,7 +47,7 @@ trait SpandexServletLike extends SpandexStack with Logging {
     val userColumnId = params.get("userColumnId").get
     val text = params.get("text").get
     val fuzz = Fuzziness.build(params.getOrElse("fuzz", conf.suggestFuzziness))
-    val size = params.get("size").headOption.map{_.toInt}.getOrElse(conf.suggestSize)
+    val size = params.get("size").headOption.fold(conf.suggestSize)(_.toInt)
 
     logger.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text / fuzz:$fuzz size:$size")
 
