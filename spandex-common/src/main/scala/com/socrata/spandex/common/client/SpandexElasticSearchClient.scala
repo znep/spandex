@@ -289,6 +289,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     val response = client.prepareSearch(config.index)
       .setTypes(config.fieldValueMapping.mappingType)
       .setQuery(byColumnCompositeId(column))
+      .setSize(size)
       .execute.actionGet
     response.results[FieldValue]
   }
