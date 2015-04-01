@@ -3,16 +3,9 @@ package com.socrata.spandex.http
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.socrata.spandex.common._
-import com.socrata.spandex.common.client.{SpandexElasticSearchClient, TestESClient}
-import org.eclipse.jetty.webapp.WebAppContext
+import com.socrata.spandex.common.client.TestESClient
 import org.scalatest.FunSuiteLike
-import org.scalatra.servlet.ScalatraListener
 import org.scalatra.test.scalatest._
-
-class TestSpandexServlet(val conf: SpandexConfig) extends SpandexServletLike {
-  override def client: SpandexElasticSearchClient = new TestESClient(conf.es)
-  override def index: String = conf.es.index
-}
 
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData {
@@ -21,23 +14,20 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   val pathRoot = "/"
   val optionsEmpty: String = "\"options\" : [ ]" // expecting empty result set
 
+  addServlet(new SpandexServlet(config, client), "/*")
+
+  private def getRandomPort: Int = 51200 + (util.Random.nextInt % 100)
+  override def localPort: Option[Int] = Some(getRandomPort)
+
   override def beforeAll(): Unit = {
-    val context = new WebAppContext
-    context.setContextPath(pathRoot)
-    context.setResourceBase("src/main/webapp")
-    context.addEventListener(new ScalatraListener)
-    context.addServlet(classOf[TestSpandexServlet], pathRoot)
-
-    server.setHandler(context)
-    server.start()
-
+    start()
     removeBootstrapData()
     bootstrapData()
   }
   override def afterAll(): Unit = {
     removeBootstrapData()
     client.close()
-    server.stop()
+    stop()
   }
 
   test("get of index page") {

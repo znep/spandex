@@ -73,7 +73,8 @@ object SpandexBuild extends Build {
             Sync.copy(from,to)
             to
           }
-      }
+      },
+      fork in Test := true
     )
   ).enablePlugins(BuildInfoPlugin).dependsOn(spandexCommon % "compile;test->test")
 
