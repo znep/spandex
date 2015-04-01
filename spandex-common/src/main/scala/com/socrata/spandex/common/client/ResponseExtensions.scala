@@ -17,6 +17,9 @@ case class DatasetCopy(datasetId: String, copyNumber: Long, version: Long, stage
   def updateCopy(newVersion: Long): DatasetCopy =
     DatasetCopy(datasetId, copyNumber, newVersion, stage)
 
+  def updateCopy(newStage: LifecycleStage): DatasetCopy =
+    DatasetCopy(datasetId, copyNumber, version, newStage)
+
   def updateCopy(newVersion: Long, newStage: LifecycleStage): DatasetCopy =
     DatasetCopy(datasetId, copyNumber, newVersion, newStage)
 

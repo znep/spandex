@@ -35,8 +35,14 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
           CopyDropHandler(client).dropWorkingCopy(datasetName, latest)
         case WorkingCopyPublished =>
           logWorkingCopyPublished(datasetName, latest.copyNumber)
+          val maybeLastPublished = client.getLatestCopyForDataset(datasetName, publishedOnly = true)
+          // Set the latest unpublished version to published
           client.updateDatasetCopyVersion(
-            latest.updateCopy(dataVersion, LifecycleStage.Published), refresh = true)
+            latest.updateCopy(dataVersion, LifecycleStage.Published), refresh = false)
+          // Set the previous published version (if any) to Snapshotted
+          maybeLastPublished.foreach { lastPublished =>
+            client.updateDatasetCopyVersion(lastPublished.updateCopy(LifecycleStage.Snapshotted), refresh = true)
+          }
         case ColumnCreated(info) =>
           if (info.typ == SoQLText) {
             logColumnCreated(datasetName, latest.copyNumber, info)

@@ -131,14 +131,25 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.getColumnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should not be 'defined
   }
 
-  test("WorkingCopyPublished - latest copy of dataset should be set to Published") {
-   val expectedLatestBefore = copies(datasets(0))(2)
-   client.getLatestCopyForDataset(datasets(0)) should be (Some(expectedLatestBefore))
+  test("WorkingCopyPublished - publish first working copy") {
+    client.putDatasetCopy("wcp-test", 1, 2, LifecycleStage.Unpublished, refresh = true)
 
-   handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(WorkingCopyPublished).iterator)
+    handler.handle(datasets(0), 3, Seq(WorkingCopyPublished).iterator)
 
-   val expectedAfter = expectedLatestBefore.updateCopy(expectedLatestBefore.version + 1, LifecycleStage.Published)
-   client.getLatestCopyForDataset(datasets(0)) should be (Some(expectedAfter))
+    client.getDatasetCopy("wcp-test", 1) should be
+      (Some(DatasetCopy("wcp-test", 1, 3, LifecycleStage.Published)))
+  }
+
+  test("WorkingCopyPublished - publish subsequent working copy") {
+   client.putDatasetCopy("wcp-test", 1, 2, LifecycleStage.Published, refresh = true)
+   client.putDatasetCopy("wcp-test", 2, 4, LifecycleStage.Unpublished, refresh = true)
+
+   handler.handle(datasets(0), 5, Seq(WorkingCopyPublished).iterator)
+
+   client.getDatasetCopy("wcp-test", 1) should be
+     (Some(DatasetCopy("wcp-test", 1, 2, LifecycleStage.Snapshotted)))
+   client.getDatasetCopy("wcp-test", 2) should be
+     (Some(DatasetCopy("wcp-test", 2, 5, LifecycleStage.Published)))
   }
 
   test("WorkingCopyDropped - throw an exception if the copy is the initial copy") {
