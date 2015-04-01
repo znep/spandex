@@ -26,6 +26,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient) extends Secondary
         case DataCopied =>
           val latestPublished = client.getLatestCopyForDataset(datasetName, publishedOnly = true).getOrElse(
             throw new UnsupportedOperationException(s"Could not find a published copy to copy data from"))
+          logDataCopied(datasetName, latestPublished.copyNumber, latest.copyNumber)
           client.copyFieldValues(from = latestPublished, to = latest, refresh = true)
         case RowDataUpdated(ops) =>
           RowOpsHandler(client).go(datasetName, latest.copyNumber, ops)
