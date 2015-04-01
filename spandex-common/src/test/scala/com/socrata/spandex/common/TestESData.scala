@@ -16,6 +16,12 @@ trait TestESData {
     Seq(snapshot, published, workingCopy).sortBy(_.copyNumber)
   }
 
+  def columns(dataset: String, copy: DatasetCopy) = {
+    for {column <- 1 to 3} yield {
+      ColumnMap(dataset, copy.copyNumber, column, s"col$column")
+    }
+  }
+
   def config: SpandexConfig
   def client: SpandexElasticSearchClient
 
@@ -30,15 +36,14 @@ trait TestESData {
       for { copy <- copies(ds) } {
         client.putDatasetCopy(ds, copy.copyNumber, copy.version, copy.stage, refresh = true)
 
-        for {column <- 1 to 3} {
-          val col = ColumnMap(ds, copy.copyNumber, column, "col" + column)
+        for {col <- columns(ds, copy)} {
           client.putColumnMap(
             ColumnMap(ds, copy.copyNumber, col.systemColumnId, col.userColumnId),
             refresh = true)
 
           for {row <- 1 to 5} {
-            def makeData(col: Int, row: Int): String = s"data column $column row $row"
-            val doc = FieldValue(ds, copy.copyNumber, column, row, makeData(column, row))
+            def makeData(col: Long, row: Long): String = s"data column $col row $row"
+            val doc = FieldValue(ds, copy.copyNumber, col.systemColumnId, row, makeData(col.systemColumnId, row))
             client.indexFieldValue(doc, refresh = true)
           }
         }
