@@ -18,6 +18,8 @@ class SpandexServlet(conf: SpandexConfig,
 
   val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
 
+  def urlDecode(s: String): String = java.net.URLDecoder.decode(s, "utf-8")
+
   get("/version") {
     contentType = ContentTypeJson
     version
@@ -45,7 +47,7 @@ class SpandexServlet(conf: SpandexConfig,
     val copyNum = Try(params.get("copyNum").get.toLong)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
     val userColumnId = params.get("userColumnId").get
-    val text = params.get("text").get
+    val text = urlDecode(params.get("text").get)
     val fuzz = Fuzziness.build(params.getOrElse("fuzz", conf.suggestFuzziness))
     val size = params.get("size").headOption.fold(conf.suggestSize)(_.toInt)
 

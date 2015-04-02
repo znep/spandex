@@ -16,6 +16,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
 
   addServlet(new SpandexServlet(config, client), "/*")
 
+  private def urlEncode(s: String): String = java.net.URLEncoder.encode(s, "utf-8")
   private def getRandomPort: Int = 51200 + (util.Random.nextInt % 100)
   override def localPort: Option[Int] = Some(getRandomPort)
 
@@ -87,8 +88,9 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
+  private[this] val prefix = urlEncode("data column 3")
   test("suggest - param size") {
-    get(s"$suggest/$dsid/$copynum/$colid/data+column+3", ("size", "10")) {
+    get(s"$suggest/$dsid/$copynum/$colid/$prefix", ("size", "10")) {
       status should equal(HttpStatus.SC_OK)
       body should include("data column 3 row 1")
       body should include("data column 3 row 2")
@@ -96,7 +98,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
       body should include("data column 3 row 4")
       body should include("data column 3 row 5")
     }
-    get(s"$suggest/$dsid/$copynum/$colid/data+column+3", ("size", "1")) {
+    get(s"$suggest/$dsid/$copynum/$colid/$prefix", ("size", "1")) {
       status should equal(HttpStatus.SC_OK)
       body should include("data column 3 row 1")
       body shouldNot include("data column 3 row 2")
