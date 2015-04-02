@@ -29,7 +29,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
       client.getFieldValue(fv) should not be 'defined
     }
 
-    val inserts = toInsert.map(client.getIndexRequest)
+    val inserts = toInsert.map(client.getFieldValueIndexRequest)
     client.sendBulkRequest(inserts, refresh = true)
 
     toInsert.foreach { fv =>
@@ -40,7 +40,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
       FieldValue("alpha.1337", 1, 20, 32, "Mexican axolotl"),
       FieldValue("alpha.1337", 1, 22, 32, "Enrique"))
 
-    val updates = toUpdate.map(client.getUpdateRequest)
+    val updates = toUpdate.map(client.getFieldValueUpdateRequest)
     client.sendBulkRequest(updates, refresh = true)
 
     client.getFieldValue(toInsert(0)).get should be (toUpdate(0))
@@ -115,7 +115,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
                    row <- 1 to 10
                  } yield FieldValue(from.datasetId, from.copyNumber, col, row, s"$col|$row")
 
-    val inserts = toCopy.map(client.getIndexRequest)
+    val inserts = toCopy.map(client.getFieldValueIndexRequest)
     client.sendBulkRequest(inserts, refresh = true)
 
     client.searchFieldValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)
@@ -125,6 +125,17 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
 
     client.searchFieldValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)
     client.searchFieldValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be (100)
+  }
+
+  test("Search lots of column maps by copy number") {
+    // Make sure that searchLotsOfColumnMapsByCopyNumber returns more than the standard
+    // 10-result page of data. Start by creating column maps for a very wide dataset.
+    val columns = (1 to 1000).map { idx => ColumnMap("wide-dataset", 1, idx, "col" + idx) }
+    columns.foreach(client.putColumnMap(_, refresh = false))
+    client.refresh()
+
+    val retrieved = client.searchLotsOfColumnMapsByCopyNumber("wide-dataset", 1)
+    retrieved.thisPage.sortBy(_.systemColumnId) should be (columns)
   }
 
   test("Put, get and delete column map") {

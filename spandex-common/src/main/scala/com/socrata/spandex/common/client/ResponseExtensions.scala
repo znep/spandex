@@ -73,8 +73,8 @@ case class FieldValue(datasetId: String,
                       columnId: Long,
                       rowId: Long,
                       value: String) {
-  lazy val docId = s"$datasetId|$copyNumber|$columnId|$rowId"
-  lazy val compositeId = s"$datasetId|$copyNumber|$columnId"
+  lazy val docId = FieldValue.makeDocId(datasetId, copyNumber, columnId, rowId)
+  lazy val compositeId = FieldValue.makeCompositeId(datasetId, copyNumber, columnId)
 
   // Needed for codec builder
   def this(datasetId: String,
@@ -96,6 +96,12 @@ object FieldValue {
 
   def apply(datasetName: String,copyNumber: Long, columnId: ColumnId, rowId: RowId, data: SoQLText): FieldValue =
     this(datasetName, copyNumber, columnId.underlying, rowId.underlying, data.value)
+
+  def makeDocId(datasetId: String, copyNumber: Long, columnId: Long, rowId: Long): String =
+    s"$datasetId|$copyNumber|$columnId|$rowId"
+
+  def makeCompositeId(datasetId: String, copyNumber: Long, columnId: Long): String =
+    s"$datasetId|$copyNumber|$columnId"
 }
 
 @JsonKeyStrategy(Strategy.Underscore)
