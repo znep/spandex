@@ -294,6 +294,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .addAggregation(
         terms(aggName)
         .field(SpandexFields.RawValue)
+        .size(size).shardSize(size*2)
         .order(Terms.Order.count(false)) // descending <- ascending=false
       )
       .setSize(size)

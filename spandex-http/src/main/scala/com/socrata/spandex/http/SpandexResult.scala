@@ -42,7 +42,7 @@ object SpandexResult {
     val paramSize = "size"
     val options = "options"
     val optionsJson = formatQuotedString(options)
-    val optionsEmptyJson = "\"%s\" : []" format options
+    val optionsEmptyJson = "\"%s\":[]" format options
     val text = "text"
     val textJson = formatQuotedString(text)
     val score = "score"

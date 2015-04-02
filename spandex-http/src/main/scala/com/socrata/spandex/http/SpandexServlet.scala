@@ -3,7 +3,6 @@ package com.socrata.spandex.http
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.rojoma.json.v3.ast.{JObject, JString}
-import com.rojoma.json.v3.codec.JsonEncode
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
@@ -68,7 +67,7 @@ class SpandexServlet(conf: SpandexConfig,
     val suggestions = client.getSuggestions(column, text, fuzz, size)
     val result = SpandexResult.fromSuggest(suggestions)
     logger.info(s"<<< $result")
-    JsonEncode.toJValue(result).toString()
+    JsonUtil.renderJson(result)
   }
 
   get(s"/sample/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
@@ -85,6 +84,6 @@ class SpandexServlet(conf: SpandexConfig,
     logger.info(s"GET /sample ${column.docId} / $paramSize:$size")
     val result = SpandexResult.fromSearch(client.getSamples(column, size))
     logger.info(s"<<< $result")
-    JsonEncode.toJValue(result).toString()
+    JsonUtil.renderJson(result)
   }
 }
