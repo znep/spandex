@@ -21,6 +21,7 @@ class SpandexServlet(conf: SpandexConfig,
   def columnMap(datasetId: String, copyNum: Long, userColumnId: String): ColumnMap =
     client.getColumnMap(datasetId, copyNum, userColumnId)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
+  def urlDecode(s: String): String = java.net.URLDecoder.decode(s, "utf-8")
 
   get("/version") {
     contentType = ContentTypeJson
@@ -73,7 +74,7 @@ class SpandexServlet(conf: SpandexConfig,
     val copyNum = Try(params.get(paramCopyNum).get.toLong)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, copyNumMustBeNumeric))
     val userColumnId = params.get(paramUserColumnId).get
-    val text = params.get(paramText).getOrElse("")
+    val text = urlDecode(params.get(paramText).getOrElse(""))
     val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
     val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
     logger.info(s">>> $datasetId, $copyNum, $userColumnId, $text, $fuzz, $size")

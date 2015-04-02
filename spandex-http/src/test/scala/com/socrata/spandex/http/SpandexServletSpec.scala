@@ -16,6 +16,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
 
   addServlet(new SpandexServlet(config, client), "/*")
 
+  private def urlEncode(s: String): String = java.net.URLEncoder.encode(s, "utf-8")
   private def getRandomPort: Int = 51200 + (util.Random.nextInt % 100)
   override def localPort: Option[Int] = Some(getRandomPort)
 
@@ -65,6 +66,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
+  private[this] val routeSuggest = "/suggest"
   private[this] val dsid = datasets(0)
   private[this] val copy = copies(dsid)(1)
   private[this] val copynum = copy.copyNumber
@@ -89,7 +91,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   }
 
   test("suggest - param size") {
-    val text = "data+column+3"
+    val text = urlEncode("data column 3")
     get(s"$routeSuggest/$dsid/$copynum/$colid/$text", (paramSize, "10")) {
       status should equal(HttpStatus.SC_OK)
       body should include(makeRowData(colsysid, 1))
