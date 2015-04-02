@@ -102,17 +102,19 @@ curl http://localhost:8042/suggest/primus.195/2/9gid-5p8z/j
 The response should look something like this:
 ```
 {
-  "suggest" : [ {
-    "text" : "j",
-    "offset" : 0,
-    "length" : 1,
-    "options" : [ {
-      "text" : "John Smith",
-      "score" : 2.0
-    } ]
+  "options" : [ {
+    "text" : "John Smith",
+    "score" : 2.0
   } ]
 }
 ```
+
+The next example queries for the top 10 values in that column, by frequency.
+```
+curl http://localhost:8042/sample/primus.195/2/9gid-5p8z
+```
+
+The response has the same format, and `score` is the count of documents with this value.
 
 ##### Querying autocomplete via Core
 Querying autocomplete through the full stack looks like this: 
