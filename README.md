@@ -109,12 +109,12 @@ The response should look something like this:
 }
 ```
 
-The next example queries for the top 10 values in that column, by frequency.
+The next example queries for some 10 values in that column, distinct but random.
 ```
-curl http://localhost:8042/sample/primus.195/2/9gid-5p8z
+curl http://localhost:8042/suggest/primus.195/2/9gid-5p8z
 ```
 
-The response has the same format, and `score` is the count of documents with this value.
+The response has the same format, but score is meaningless.
 
 ##### Querying autocomplete via Core
 Querying autocomplete through the full stack looks like this: 
