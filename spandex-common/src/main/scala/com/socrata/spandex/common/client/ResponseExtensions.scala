@@ -137,7 +137,6 @@ case class SearchResponseExtensions(response: SearchResponse) {
       response.getAggregations.get[Terms](k)
         .getBuckets.map { b => BucketCount(b.getKey, b.getDocCount) }
         .toSeq
-        // .getBuckets.map { b => JsonUtil.parseJson[T](b.toString).right.get }
     }
 
     SearchResults(totalHits, thisPage, aggs)
