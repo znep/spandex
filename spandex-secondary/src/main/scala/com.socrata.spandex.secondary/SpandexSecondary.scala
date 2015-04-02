@@ -22,6 +22,8 @@ class SpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike
   val batchSize = config.dataCopyBatchSize
 
   init(config)
+
+  def shutdown(): Unit = client.close()
 }
 
 trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
@@ -32,7 +34,6 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
   def init(config: ElasticSearchConfig): Unit = {
     SpandexBootstrap.ensureIndex(config, client)
   }
-  def shutdown(): Unit = ()
 
   def wantsWorkingCopies: Boolean = true
 

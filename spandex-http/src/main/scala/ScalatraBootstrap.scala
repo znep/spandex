@@ -13,4 +13,8 @@ class ScalatraBootstrap extends LifeCycle {
   override def init(context: ServletContext): Unit = {
     context.mount(new SpandexServlet(conf, client), "/*")
   }
+
+  override def destroy(context: ServletContext): Unit = {
+    client.close()
+  }
 }

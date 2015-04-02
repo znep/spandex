@@ -15,6 +15,8 @@ class TestSpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondary
   val client    = new TestESClient(config)
   val index     = config.index
   val batchSize = config.dataCopyBatchSize
+
+  def shutdown(): Unit = client.close()
 }
 
 // scalastyle:off
