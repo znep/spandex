@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.ActionResponse
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest
 import org.elasticsearch.action.bulk.BulkResponse
-import org.elasticsearch.action.delete.DeleteResponse
+import org.elasticsearch.action.delete.{DeleteRequestBuilder, DeleteResponse}
 import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse
 import org.elasticsearch.action.index.{IndexRequestBuilder, IndexResponse}
 import org.elasticsearch.action.search.SearchType
@@ -108,6 +108,15 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .setQuery(byDatasetIdQuery(datasetId))
                            .execute.actionGet)
 
+  // We don't expect the number of column maps to exceed config.dataCopyBatchSize.
+  // As of April 2015 the widest dataset is ~1000 cols wide.
+  def searchLotsOfColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[ColumnMap] =
+    client.prepareSearch(config.index)
+          .setTypes(config.columnMapMapping.mappingType)
+          .setQuery(byCopyNumberQuery(datasetId, copyNumber))
+          .setSize(config.dataCopyBatchSize)
+          .execute.actionGet.results[ColumnMap]
+
   def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): Unit =
     checkForFailures(client.prepareDeleteByQuery(config.index)
                            .setTypes(config.columnMapMapping.mappingType)
@@ -121,19 +130,27 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   def indexFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
-    checkForFailures(getIndexRequest(fieldValue).setRefresh(refresh).execute.actionGet)
+    checkForFailures(getFieldValueIndexRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
   def updateFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
-    checkForFailures(getUpdateRequest(fieldValue).setRefresh(refresh).execute.actionGet)
+    checkForFailures(getFieldValueUpdateRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
-  def getIndexRequest(fieldValue: FieldValue) : IndexRequestBuilder =
+  def getFieldValueIndexRequest(fieldValue: FieldValue) : IndexRequestBuilder =
     client.prepareIndex(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
           .setSource(JsonUtil.renderJson(fieldValue))
 
-  def getUpdateRequest(fieldValue: FieldValue): UpdateRequestBuilder = {
+  def getFieldValueUpdateRequest(fieldValue: FieldValue): UpdateRequestBuilder = {
     client.prepareUpdate(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
           .setDocAsUpsert(true)
           .setDoc(s"""{ value : "${fieldValue.value}" }""")
+  }
+
+  def getFieldValueDeleteRequest(datasetId: String,
+                                 copyNumber: Long,
+                                 columnId: Long,
+                                 rowId: Long): DeleteRequestBuilder = {
+    val docId = FieldValue.makeDocId(datasetId, copyNumber, columnId, rowId)
+    client.prepareDelete(config.index, config.fieldValueMapping.mappingType, docId)
   }
 
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
@@ -144,6 +161,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
         single match {
           case i: IndexRequestBuilder => bulk.add(i)
           case u: UpdateRequestBuilder => bulk.add(u)
+          case d: DeleteRequestBuilder => bulk.add(d)
           case a: Any =>
             throw new UnsupportedOperationException(
               s"Bulk requests with ${a.getClass.getSimpleName} not supported")
@@ -169,13 +187,12 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .execute.actionGet
 
       batch = response.results[FieldValue].thisPage.map { src =>
-        getIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.value))
+        getFieldValueIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.value))
       }
 
       if (batch.nonEmpty) {
         sendBulkRequest(batch, refresh = false)
       }
-
     } while (batch.nonEmpty)
 
     // TODO : Guarantee refresh before read instead of after write
@@ -273,7 +290,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
   def getSuggestions(column: ColumnMap, text: String, fuzz: Fuzziness, size: Int): Suggest = {
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
-      .addContextField(SpandexFields.CompositeId, column.composideId)
+      .addContextField(SpandexFields.CompositeId, column.compositeId)
       .setFuzziness(fuzz)
       .field(SpandexFields.Value)
       .text(text)

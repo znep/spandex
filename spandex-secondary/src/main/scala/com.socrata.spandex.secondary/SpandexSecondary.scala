@@ -59,7 +59,7 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
   }
 
   def version(datasetInfo: DatasetInfo, dataVersion: Long, cookie: Cookie, events: Iterator[Event]): Cookie = {
-    val handler = new VersionEventsHandler(client)
+    val handler = new VersionEventsHandler(client, batchSize)
     handler.handle(datasetInfo.internalName, dataVersion, events)
     cookie
   }
