@@ -8,6 +8,8 @@ class SpandexConfigSpec extends FunSuiteLike with Matchers {
     val conf = new SpandexConfig
     Some(conf.spandexPort) should be ('defined)
     Some(conf.suggestFuzziness) should be ('defined)
+    Some(conf.suggestFuzzLength) should be ('defined)
+    Some(conf.suggestFuzzPrefix) should be ('defined)
     Some(conf.suggestSize) should be ('defined)
   }
 

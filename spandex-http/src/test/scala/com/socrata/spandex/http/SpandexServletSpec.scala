@@ -141,10 +141,17 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
-  test("suggest without required params should return 404") {
+  test("suggest - samples") {
     get(s"$routeSuggest/$dsid/$copynum/$colid") {
-      status should equal(HttpStatus.SC_NOT_FOUND)
+      val contentType: String = header.getOrElse(ContentTypeHeader, "")
+      contentType should include(ContentTypeJson)
+      status should equal(HttpStatus.SC_OK)
+      body should include(optionsJson)
+      body should include(makeRowData(colsysid, 2))
     }
+  }
+
+  test("suggest without required params should return 404") {
     get(s"$routeSuggest/$dsid/$copynum") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
@@ -156,7 +163,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
-  test("sample") {
+  ignore("sample") {
     get(s"$routeSample/$dsid/$copynum/$colid") {
       val contentType: String = header.getOrElse(ContentTypeHeader, "")
       contentType should include(ContentTypeJson)
@@ -166,7 +173,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
-  test("sample without required params should return 404") {
+  ignore("sample without required params should return 404") {
     get(s"$routeSample/$dsid/$copynum") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }

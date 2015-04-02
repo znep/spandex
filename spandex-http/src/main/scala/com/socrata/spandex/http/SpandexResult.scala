@@ -29,6 +29,9 @@ object SpandexResult {
     })
   }
 
+  /* Not yet used.
+   * Transforms a search result with aggregation into spandex result options
+   */
   def apply(response: SearchResults[FieldValue]): SpandexResult =
     SpandexResult(response.aggs.map { src =>
       SpandexOption(src.key, Some(src.docCount))

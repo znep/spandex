@@ -129,6 +129,10 @@ case class SearchResponseExtensions(response: SearchResponse) {
     val thisPage = sources.map { source => JsonUtil.parseJson[T](source).right.get }
     val totalHits = Option(response.getHits).fold(0L)(_.totalHits)
 
+    /* Not yet used.
+     * captures search aggregation results
+     * TODO: multiple aggs at once
+     */
     val aggs = aggKey.fold(Seq.empty[BucketCount]) { k =>
       response.getAggregations.get[Terms](k)
         .getBuckets.map { b => BucketCount(b.getKey, b.getDocCount) }

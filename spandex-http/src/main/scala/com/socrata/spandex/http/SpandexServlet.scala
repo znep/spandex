@@ -43,20 +43,37 @@ class SpandexServlet(conf: SpandexConfig,
     clusterAdminClient.health(req).actionGet()
   }
 
+  private[this] val routeSuggest = "suggest"
   private[this] val paramDatasetId = "datasetId"
   private[this] val paramCopyNum = "copyNum"
-  private[this] val copyNumMustBeNumeric = "Copy number must be numeric"
   private[this] val paramUserColumnId = "userColumnId"
   private[this] val paramText = "text"
-  private[this] val paramFuzz = "fuzz"
-  private[this] val paramSize = "size"
-  get(s"/suggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId/:$paramText") {
+  get(s"/$routeSuggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId/:$paramText") {
+    suggest { (col, text, fuzz, size) =>
+      SpandexResult(client.getSuggestions(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
+    }
+  }
+  get(s"/$routeSuggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
+    val sampleText = "a"
+    val sampleFuzz = Fuzziness.ONE
+    val sampleFuzzLen = 0
+    val sampleFuzzPre = 0
+    suggest { (col, _, _, size) =>
+      SpandexResult(client.getSuggestions(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
+    }
+  }
+
+  def suggest(f: (ColumnMap, String, Fuzziness, Int) => SpandexResult): String = {
+    val copyNumMustBeNumeric = "Copy number must be numeric"
+    val paramFuzz = "fuzz"
+    val paramSize = "size"
+
     contentType = ContentTypeJson
     val datasetId = params.get(paramDatasetId).get
     val copyNum = Try(params.get(paramCopyNum).get.toLong)
       .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, copyNumMustBeNumeric))
     val userColumnId = params.get(paramUserColumnId).get
-    val text = params.get(paramText).get
+    val text = params.get(paramText).getOrElse("")
     val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
     val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
     logger.info(s">>> $datasetId, $copyNum, $userColumnId, $text, $fuzz, $size")
@@ -64,26 +81,15 @@ class SpandexServlet(conf: SpandexConfig,
     val column = columnMap(datasetId, copyNum, userColumnId)
     logger.info(s"found column $column")
 
-    val suggestions = client.getSuggestions(column, text, fuzz, size)
-    val result = SpandexResult(suggestions)
+    val result = f(column, text, fuzz, size)
     logger.info(s"<<< $result")
     JsonUtil.renderJson(result)
   }
 
+  /* Not yet used.
+   * sample endpoint exposes query by column with aggregation on doc count
+   */
   get(s"/sample/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
-    contentType = ContentTypeJson
-    val datasetId = params.get(paramDatasetId).get
-    val copyNum = Try(params.get(paramCopyNum).get.toLong)
-      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, copyNumMustBeNumeric))
-    val userColumnId = params.get(paramUserColumnId).get
-    val size = params.get(paramSize).headOption.map{_.toInt}.getOrElse(conf.suggestSize)
-    logger.info(s">>> $datasetId, $copyNum, $userColumnId, $size")
-
-    val column = columnMap(datasetId, copyNum, userColumnId)
-    logger.info(s"found column $column")
-
-    val result = SpandexResult(client.getSamples(column, size))
-    logger.info(s"<<< $result")
-    JsonUtil.renderJson(result)
+    suggest { (col, _, _, size) => SpandexResult(client.getSamples(col, size)) }
   }
 }

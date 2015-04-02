@@ -291,10 +291,11 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .setQuery(byDatasetIdQuery(datasetId))
       .execute.actionGet
 
-  def getSuggestions(column: ColumnMap, text: String, fuzz: Fuzziness, size: Int): Suggest = {
+  def getSuggestions(column: ColumnMap, size: Int, text: String,
+                     fuzz: Fuzziness, fuzzLength: Int, fuzzPrefix: Int): Suggest = {
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
       .addContextField(SpandexFields.CompositeId, column.compositeId)
-      .setFuzziness(fuzz)
+      .setFuzziness(fuzz).setFuzzyPrefixLength(fuzzPrefix).setFuzzyMinLength(fuzzLength)
       .field(SpandexFields.Value)
       .text(text)
       .size(size)
@@ -306,6 +307,9 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     response.getSuggest
   }
 
+  /* Not yet used.
+   * This grabs the TOP N documents by frequency.
+   */
   def getSamples(column: ColumnMap, size: Int): SearchResults[FieldValue] = {
     val aggName = "values"
     val response = client.prepareSearch(config.index)
