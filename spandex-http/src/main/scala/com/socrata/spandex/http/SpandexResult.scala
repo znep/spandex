@@ -20,7 +20,7 @@ case class SpandexResult(options: Seq[SpandexOption])
 object SpandexResult {
   implicit val jCodec = AutomaticJsonCodecBuilder[SpandexResult]
 
-  def fromSuggest(response: Suggest): SpandexResult = {
+  def apply(response: Suggest): SpandexResult = {
     val suggest = response.getSuggestion[Suggestion[Entry]]("suggest")
     val entries = suggest.getEntries
     val options = entries.get(0).getOptions
@@ -29,7 +29,7 @@ object SpandexResult {
     })
   }
 
-  def fromSearch(response: SearchResults[FieldValue]): SpandexResult =
+  def apply(response: SearchResults[FieldValue]): SpandexResult =
     SpandexResult(response.aggs.map { src =>
       SpandexOption(src.key, Some(src.docCount))
     })

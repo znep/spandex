@@ -65,7 +65,7 @@ class SpandexServlet(conf: SpandexConfig,
 
     logger.info(s"GET /suggest ${column.docId} :: $text / $paramFuzz:${fuzz.asInt} $paramSize:$size")
     val suggestions = client.getSuggestions(column, text, fuzz, size)
-    val result = SpandexResult.fromSuggest(suggestions)
+    val result = SpandexResult(suggestions)
     logger.info(s"<<< $result")
     JsonUtil.renderJson(result)
   }
@@ -82,7 +82,7 @@ class SpandexServlet(conf: SpandexConfig,
     val column = columnMap(datasetId, copyNum, userColumnId)
 
     logger.info(s"GET /sample ${column.docId} / $paramSize:$size")
-    val result = SpandexResult.fromSearch(client.getSamples(column, size))
+    val result = SpandexResult(client.getSamples(column, size))
     logger.info(s"<<< $result")
     JsonUtil.renderJson(result)
   }

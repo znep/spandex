@@ -58,7 +58,7 @@ class SpandexResultSpec extends FunSuiteLike with ShouldMatchers with TestESData
     val copy = copies(ds)(1)
     val col = columns(ds, copy)(2)
     val suggest = client.getSuggestions(col, "dat", Fuzziness.TWO, 10)
-    val js = JsonUtil.renderJson(SpandexResult.fromSuggest(suggest))
+    val js = JsonUtil.renderJson(SpandexResult(suggest))
     js should include(optionsJson)
     js should include(rows(col)(0).value)
   }
@@ -68,7 +68,7 @@ class SpandexResultSpec extends FunSuiteLike with ShouldMatchers with TestESData
     val copy = copies(ds)(1)
     val col = columns(ds, copy)(2)
     val sample = client.getSamples(col, 10)
-    val js = JsonUtil.renderJson(SpandexResult.fromSearch(sample))
+    val js = JsonUtil.renderJson(SpandexResult(sample))
     js should include(optionsJson)
     js should include(rows(col)(0).value)
   }
