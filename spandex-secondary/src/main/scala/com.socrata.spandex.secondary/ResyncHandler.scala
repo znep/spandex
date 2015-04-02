@@ -7,12 +7,14 @@ import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types.{SoQLText, SoQLID, SoQLValue, SoQLType}
 import com.socrata.spandex.common.client.{ColumnMap, SpandexElasticSearchClient}
 
-case class ResyncHandler(client: SpandexElasticSearchClient) {
+case class ResyncHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
   def go(datasetInfo: DatasetInfo,
          copyInfo: CopyInfo,
          schema: ColumnIdMap[ColumnInfo[SoQLType]],
          rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],
          batchSize: Int): Unit = {
+    logResync(datasetInfo.internalName, copyInfo.copyNumber)
+
     // Add dataset copy
     // Don't refresh ES during resync
     client.putDatasetCopy(datasetInfo.internalName,

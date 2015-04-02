@@ -16,15 +16,6 @@ import scala.language.implicitConversions
 
 @JsonKeyStrategy(Strategy.Underscore)
 case class DatasetCopy(datasetId: String, copyNumber: Long, version: Long, stage: LifecycleStage) {
-  def updateCopy(newVersion: Long): DatasetCopy =
-    DatasetCopy(datasetId, copyNumber, newVersion, stage)
-
-  def updateCopy(newVersion: Long, newStage: LifecycleStage): DatasetCopy =
-    DatasetCopy(datasetId, copyNumber, newVersion, newStage)
-
-  def nextCopy(newCopyNumber: Long, newVersion: Long, newStage: LifecycleStage): DatasetCopy =
-    DatasetCopy(datasetId, newCopyNumber, newVersion, newStage)
-
   lazy val docId = DatasetCopy.makeDocId(datasetId, copyNumber)
 }
 object DatasetCopy {

@@ -6,7 +6,8 @@ import com.socrata.spandex.common.client.{SpandexElasticSearchClient, DatasetCop
 case class CopyDropHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
   private def checkStage(expected: LifecycleStage, actual: LifecycleStage): Unit =
     if (actual != expected) {
-      throw new UnsupportedOperationException(s"Copy is in unexpected stage: $actual. Expected: $expected")
+      throw InvalidStateBeforeEvent(
+        s"Copy is in unexpected stage: $actual. Expected: $expected")
     }
 
   def dropSnapshot(datasetName: String, info: CopyInfo): Unit = {
@@ -21,7 +22,7 @@ case class CopyDropHandler(client: SpandexElasticSearchClient) extends Secondary
     checkStage(LifecycleStage.Unpublished, latest.stage)
 
     if (latest.copyNumber < 2) {
-      throw new UnsupportedOperationException("Cannot drop initial working copy")
+      throw InvalidStateBeforeEvent("Cannot drop initial working copy")
     }
 
     logWorkingCopyDropped(datasetName, latest.copyNumber)

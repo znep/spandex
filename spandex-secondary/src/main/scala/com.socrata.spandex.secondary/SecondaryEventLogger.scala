@@ -11,9 +11,16 @@ trait SecondaryEventLogger extends Logging {
   def logDataVersionBump(dataset:String, copyNumber: Long, oldVersion: Long, newVersion: Long): Unit =
     logger.info(s"Bumping data version to $newVersion for dataset $dataset copy $copyNumber")
 
+  def logResync(dataset: String, copyNumber: Long): Unit =
+    logEvent("Resync", s"Resyncing dataset $dataset copy $copyNumber")
+
   def logWorkingCopyCreated(dataset: String, copyNumber: Long): Unit =
     logEvent("WorkingCopyCreated",
              s"registering new copy number $copyNumber for dataset $dataset")
+
+  def logDataCopied(dataset: String, fromCopyNumber: Long, toCopyNumber: Long): Unit =
+    logEvent("DataCopied",
+      s"Copying data from dataset $dataset copy $fromCopyNumber to copy $toCopyNumber")
 
   def logColumnCreated(dataset: String, copyNumber: Long, info: ColumnInfo[_]): Unit =
     logEvent("ColumnCreated",

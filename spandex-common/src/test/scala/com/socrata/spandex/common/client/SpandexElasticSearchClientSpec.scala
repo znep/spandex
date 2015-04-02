@@ -203,7 +203,9 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     current.get.version should be (2)
     current.get.stage should be (LifecycleStage.Unpublished)
 
-    client.updateDatasetCopyVersion(current.get.updateCopy(5, LifecycleStage.Published), refresh = true)
+    client.updateDatasetCopyVersion(
+      current.get.copy(version = 5, stage = LifecycleStage.Published),
+      refresh = true)
 
     client.getDatasetCopy(datasets(1), 1) should be ('defined)
     client.getDatasetCopy(datasets(1), 1).get.version should be (5)
