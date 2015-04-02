@@ -8,7 +8,9 @@ object SpandexBootstrap extends Logging {
   def ensureIndex(config: ElasticSearchConfig, esClient: SpandexElasticSearchClient): Unit = {
     if (!esClient.indexExists) {
       logger.info("creating index {} on {}", config.index, config.clusterName)
-      esClient.client.admin().indices().create(Requests.createIndexRequest(config.index)).actionGet
+      esClient.client.admin().indices().prepareCreate(config.index)
+                                       .setSettings(config.settings)
+                                       .execute.actionGet
 
       // Add field_value mapping
       esClient.client.admin().indices().preparePutMapping(config.index)
