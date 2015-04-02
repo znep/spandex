@@ -237,16 +237,22 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.getDatasetCopy(datasets(0), 2) should not be ('defined)
   }
 
-  test("suggest is case insensitive") {
+  test("suggest is case insensitive and supports numbers and symbols") {
     val column = ColumnMap(datasets(0), 1, 1, "col1-1111")
     val fool = FieldValue(datasets(0), 1, 1, 42L, "fool")
     val food = FieldValue(datasets(0), 1, 1, 43L, "FOOD")
+    val date = FieldValue(datasets(0), 1, 1, 44L, "04/2014")
+    val sym  = FieldValue(datasets(0), 1, 1, 45L, "@giraffe")
 
-    client.indexFieldValue(fool, true)
-    client.indexFieldValue(food, true)
+    client.indexFieldValue(fool, refresh = true)
+    client.indexFieldValue(food, refresh = true)
+    client.indexFieldValue(date, refresh = true)
+    client.indexFieldValue(sym, refresh = true)
 
     val suggestions = client.getSuggestions(column, "foo", Fuzziness.AUTO, 10)
 
+    // Urmila is scratching her head about what size() represents,
+    // if there are 2 items returned but size() == 1
     suggestions.size() should be(1)
     suggestions.toString should include("\"options\" : [")
     suggestions.toString should include(food.value)
@@ -258,5 +264,17 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     suggestionsUpper.toString should include("\"options\" : [")
     suggestionsUpper.toString should include(food.value)
     suggestionsUpper.toString should include(fool.value)
+
+    val suggestionsNum = client.getSuggestions(column, "0", Fuzziness.AUTO, 10)
+
+    suggestionsNum.size() should be(1)
+    suggestionsNum.toString should include("\"options\" : [")
+    suggestionsNum.toString should include(date.value)
+
+    val suggestionsSym = client.getSuggestions(column, "@", Fuzziness.AUTO, 10)
+
+    suggestionsSym.size() should be(1)
+    suggestionsSym.toString should include("\"options\" : [")
+    suggestionsSym.toString should include(sym.value)
   }
 }
