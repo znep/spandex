@@ -121,7 +121,9 @@ object ResponseExtensions {
 }
 
 case class SearchResponseExtensions(response: SearchResponse) {
-  def results[T : JsonDecode](aggKey: Option[String] = None): SearchResults[T] = {
+  def results[T : JsonDecode]: SearchResults[T] = results(None)
+  def results[T : JsonDecode](aggKey: String): SearchResults[T] = results(Some(aggKey))
+  protected def results[T : JsonDecode](aggKey: Option[String]): SearchResults[T] = {
     val hits = Option(response.getHits).fold(Seq.empty[SearchHit])(_.getHits.toSeq)
     val sources = hits.map { hit => Option(hit.getSourceAsString) }.flatten
     val thisPage = sources.map { source => JsonUtil.parseJson[T](source).right.get }

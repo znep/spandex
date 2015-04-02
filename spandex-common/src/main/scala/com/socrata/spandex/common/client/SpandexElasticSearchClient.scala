@@ -118,7 +118,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
           .setTypes(config.columnMapMapping.mappingType)
           .setQuery(byCopyNumberQuery(datasetId, copyNumber))
           .setSize(config.dataCopyBatchSize)
-          .execute.actionGet.results[ColumnMap]()
+          .execute.actionGet.results[ColumnMap]
 
   def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): Unit =
     checkForFailures(client.prepareDeleteByQuery(config.index)
@@ -189,7 +189,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .setScroll(timeout)
                            .execute.actionGet
 
-      batch = response.results[FieldValue]().thisPage.map { src =>
+      batch = response.results[FieldValue].thisPage.map { src =>
         getFieldValueIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.value))
       }
 
@@ -268,7 +268,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                          .addSort(SpandexFields.CopyNumber, SortOrder.DESC)
                          .addAggregation(max(latestCopyPlaceholder).field(SpandexFields.CopyNumber))
                          .execute.actionGet
-    val results = response.results[DatasetCopy]()
+    val results = response.results[DatasetCopy]
     results.thisPage.headOption
   }
 
@@ -320,6 +320,6 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       )
       .setSize(size)
       .execute.actionGet
-    response.results[FieldValue](Some(aggName))
+    response.results[FieldValue](aggName)
   }
 }

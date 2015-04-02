@@ -50,20 +50,20 @@ class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends S
     client.prepareSearch(config.index)
           .setTypes(config.columnMapMapping.mappingType)
           .setQuery(byDatasetIdQuery(datasetId))
-          .execute.actionGet.results[ColumnMap]()
+          .execute.actionGet.results[ColumnMap]
 
   def searchColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[ColumnMap] =
     client.prepareSearch(config.index)
           .setTypes(config.columnMapMapping.mappingType)
           .setQuery(byCopyNumberQuery(datasetId, copyNumber))
-          .execute.actionGet.results[ColumnMap]()
+          .execute.actionGet.results[ColumnMap]
 
   def searchFieldValuesByDataset(datasetId: String): SearchResults[FieldValue] = {
     val response = client.prepareSearch(config.index)
                          .setTypes(config.fieldValueMapping.mappingType)
                          .setQuery(byDatasetIdQuery(datasetId))
                          .execute.actionGet
-    response.results[FieldValue]()
+    response.results[FieldValue]
   }
 
   def searchFieldValuesByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[FieldValue] = {
@@ -71,7 +71,7 @@ class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends S
                          .setTypes(config.fieldValueMapping.mappingType)
                          .setQuery(byCopyNumberQuery(datasetId, copyNumber))
                          .execute.actionGet
-    response.results[FieldValue]()
+    response.results[FieldValue]
   }
 
   def searchFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long): SearchResults[FieldValue] = {
@@ -79,7 +79,7 @@ class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends S
                          .setTypes(config.fieldValueMapping.mappingType)
                          .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))
                          .execute.actionGet
-    response.results[FieldValue]()
+    response.results[FieldValue]
   }
 
   def searchFieldValuesByRowId(datasetId: String, copyNumber: Long, rowId: Long): SearchResults[FieldValue] = {
@@ -87,7 +87,7 @@ class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends S
                          .setTypes(config.fieldValueMapping.mappingType)
                          .setQuery(byRowIdQuery(datasetId, copyNumber, rowId))
                          .execute.actionGet
-    response.results[FieldValue]()
+    response.results[FieldValue]
   }
 
   def searchCopiesByDataset(datasetId: String): SearchResults[DatasetCopy] = {
@@ -95,6 +95,6 @@ class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends S
                          .setTypes(config.datasetCopyMapping.mappingType)
                          .setQuery(byDatasetIdQuery(datasetId))
                          .execute.actionGet
-    response.results[DatasetCopy]()
+    response.results[DatasetCopy]
   }
 }
