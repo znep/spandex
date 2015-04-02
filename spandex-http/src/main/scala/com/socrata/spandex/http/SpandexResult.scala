@@ -30,8 +30,8 @@ object SpandexResult {
   }
 
   def fromSearch(response: SearchResults[FieldValue]): SpandexResult =
-    SpandexResult(response.thisPage.map { src =>
-      SpandexOption(src.value, None)
+    SpandexResult(response.aggs.map { src =>
+      SpandexOption(src.key, Some(src.docCount))
     })
 
   object Fields {

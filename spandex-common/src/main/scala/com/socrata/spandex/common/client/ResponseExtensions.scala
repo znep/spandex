@@ -1,15 +1,17 @@
 package com.socrata.spandex.common.client
 
 import com.rojoma.json.v3.ast.{JString, JValue}
-import com.rojoma.json.v3.codec.{DecodeError, JsonEncode, JsonDecode}
-import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, SimpleJsonCodecBuilder, Strategy, JsonKeyStrategy, JsonUtil}
+import com.rojoma.json.v3.codec.{DecodeError, JsonDecode, JsonEncode}
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, JsonUtil, SimpleJsonCodecBuilder, Strategy}
 import com.socrata.datacoordinator.id.{ColumnId, RowId}
 import com.socrata.datacoordinator.secondary.{ColumnInfo, LifecycleStage}
 import com.socrata.soql.types.SoQLText
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.SearchHit
+import org.elasticsearch.search.aggregations.bucket.terms.Terms
 
+import scala.collection.JavaConversions._
 import scala.language.implicitConversions
 
 @JsonKeyStrategy(Strategy.Underscore)
@@ -105,7 +107,13 @@ object FieldValue {
     this(datasetName, copyNumber, columnId.underlying, rowId.underlying, data.value)
 }
 
-case class SearchResults[T: JsonDecode](totalHits: Long, thisPage: Seq[T])
+@JsonKeyStrategy(Strategy.Underscore)
+case class BucketCount(key: String, docCount: Long)
+object BucketCount {
+  implicit val jCodec = AutomaticJsonCodecBuilder[BucketCount]
+}
+
+case class SearchResults[T: JsonDecode](totalHits: Long, thisPage: Seq[T], aggs: Seq[BucketCount])
 
 object ResponseExtensions {
   implicit def toExtendedResponse(response: SearchResponse): SearchResponseExtensions =
@@ -116,12 +124,20 @@ object ResponseExtensions {
 }
 
 case class SearchResponseExtensions(response: SearchResponse) {
-  def results[T : JsonDecode]: SearchResults[T] = {
+  def results[T : JsonDecode](aggKey: Option[String] = None): SearchResults[T] = {
     val hits = Option(response.getHits).fold(Seq.empty[SearchHit])(_.getHits.toSeq)
     val sources = hits.map { hit => Option(hit.getSourceAsString) }.flatten
     val thisPage = sources.map { source => JsonUtil.parseJson[T](source).right.get }
     val totalHits = Option(response.getHits).fold(0L)(_.totalHits)
-    SearchResults(totalHits, thisPage)
+
+    val aggs = aggKey.fold(Seq.empty[BucketCount]) { k =>
+      response.getAggregations.get[Terms](k)
+        .getBuckets.map { b => BucketCount(b.getKey, b.getDocCount) }
+        .toSeq
+        // .getBuckets.map { b => JsonUtil.parseJson[T](b.toString).right.get }
+    }
+
+    SearchResults(totalHits, thisPage, aggs)
   }
 }
 

@@ -17,6 +17,7 @@ import org.elasticsearch.common.unit.{Fuzziness, TimeValue}
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.search.aggregations.AggregationBuilders._
+import org.elasticsearch.search.aggregations.bucket.terms.Terms
 import org.elasticsearch.search.sort.SortOrder
 import org.elasticsearch.search.suggest.Suggest
 import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
@@ -170,7 +171,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .setScroll(timeout)
                            .execute.actionGet
 
-      val batch = response.results[FieldValue].thisPage.map { src =>
+      val batch = response.results[FieldValue]().thisPage.map { src =>
         getIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.value))
       }
 
@@ -246,7 +247,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                          .addSort(SpandexFields.CopyNumber, SortOrder.DESC)
                          .addAggregation(max(latestCopyPlaceholder).field(SpandexFields.CopyNumber))
                          .execute.actionGet
-    val results = response.results[DatasetCopy]
+    val results = response.results[DatasetCopy]()
     results.thisPage.headOption
   }
 
@@ -284,13 +285,19 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     response.getSuggest
   }
 
-  // TODO sort frequency descending
   def getSamples(column: ColumnMap, size: Int): SearchResults[FieldValue] = {
+    val aggName = "values"
     val response = client.prepareSearch(config.index)
       .setTypes(config.fieldValueMapping.mappingType)
       .setQuery(byColumnCompositeId(column))
+      .setSearchType(SearchType.COUNT)
+      .addAggregation(
+        terms(aggName)
+        .field(SpandexFields.RawValue)
+        .order(Terms.Order.count(false)) // descending <- ascending=false
+      )
       .setSize(size)
       .execute.actionGet
-    response.results[FieldValue]
+    response.results[FieldValue](Some(aggName))
   }
 }

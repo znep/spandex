@@ -252,11 +252,11 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     val samples = client.getSamples(column, 10)
 
     samples.totalHits should be(5)
-    samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 1, "data column 1 row 1"))
-    samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 2, "data column 1 row 2"))
-    samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 3, "data column 1 row 3"))
-    samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 4, "data column 1 row 4"))
-    samples.thisPage should contain(FieldValue(datasets(0), 1, 1, 5, "data column 1 row 5"))
+    samples.aggs should contain(BucketCount(makeRowData(1, 1), 1))
+    samples.aggs should contain(BucketCount(makeRowData(1, 2), 1))
+    samples.aggs should contain(BucketCount(makeRowData(1, 3), 1))
+    samples.aggs should contain(BucketCount(makeRowData(1, 4), 1))
+    samples.aggs should contain(BucketCount(makeRowData(1, 5), 1))
   }
 
   test("lots of samples") {
@@ -268,10 +268,34 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     val docs = for {row <- 1 to lots} yield {
       FieldValue(col.datasetId, col.copyNumber, col.systemColumnId, row, makeRowData(col.systemColumnId, row))
     }
+    val expected = docs
+      .groupBy(q => q.value).map(r => BucketCount(r._1, r._2.length))
+      .toSeq.sortBy(_.key)
     docs.foreach(client.indexFieldValue(_, refresh = false))
     client.refresh()
 
     val retrieved = client.getSamples(col, lots)
-    retrieved.thisPage.sortBy(_.rowId) should be(docs)
+    retrieved.aggs.sortBy(_.key) should be(expected)
+  }
+
+  test("sort by frequency") {
+    val ds = datasets(0)
+    val cp = copies(ds)(1)
+    val col = ColumnMap(ds, cp.copyNumber, 47L, "col47")
+    val generated = 32
+    val selected = 10
+
+    val docs = for {row <- 1 to generated} yield {
+      FieldValue(col.datasetId, col.copyNumber, col.systemColumnId, row, Math.log(row).floor.toString)
+    }
+    val expected = docs
+      .groupBy(q => q.value).map(r => BucketCount(r._1, r._2.length))
+      .toSeq.sortBy(-_.docCount)
+      .take(selected)
+    docs.foreach(client.indexFieldValue(_, refresh = false))
+    client.refresh()
+
+    val retrieved = client.getSamples(col, selected)
+    retrieved.aggs should be(expected)
   }
 }
