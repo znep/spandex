@@ -21,7 +21,7 @@ class SpandexServlet(conf: SpandexConfig,
   def columnMap(datasetId: String, copyNum: Long, userColumnId: String): ColumnMap =
     client.getColumnMap(datasetId, copyNum, userColumnId)
       .getOrElse(halt(HttpStatus.SC_NOT_FOUND, SpandexError("Column not found", Some(userColumnId))))
-  def urlDecode(s: String): String = java.net.URLDecoder.decode(s, "utf-8")
+  def urlDecode(s: String): String = java.net.URLDecoder.decode(s, EncodingUtf8)
 
   get("/version") {
     contentType = ContentTypeJson
