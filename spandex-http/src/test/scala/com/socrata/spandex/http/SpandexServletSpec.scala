@@ -130,16 +130,24 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   }
 
   test("suggest - non-numeric copy number should return 400") {
-    get(s"$routeSuggest/$dsid/giraffe/$colid/$textPrefix") {
+    val donut = "donut"
+    get(s"$routeSuggest/$dsid/$donut/$colid/$textPrefix") {
+      val contentType: String = header.getOrElse(ContentTypeHeader, "")
+      contentType should include(ContentTypeJson)
       status should equal (HttpStatus.SC_BAD_REQUEST)
-      body should be ("Copy number must be numeric")
+      body should include("Copy number must be numeric")
+      body should include(donut)
     }
   }
 
-  test("suggest - non-existent column should return 400") {
-    get(s"$routeSuggest/$dsid/$copynum/giraffe/$textPrefix") {
-      status should equal (HttpStatus.SC_BAD_REQUEST)
-      body should be (s"column 'giraffe' not found")
+  test("suggest - non-existent column should return 404") {
+    val coconut = "coconut"
+    get(s"$routeSuggest/$dsid/$copynum/$coconut/$textPrefix") {
+      val contentType: String = header.getOrElse(ContentTypeHeader, "")
+      contentType should include(ContentTypeJson)
+      status should equal (HttpStatus.SC_NOT_FOUND)
+      body should include("Column not found")
+      body should include(coconut)
     }
   }
 
