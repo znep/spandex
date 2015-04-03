@@ -4,7 +4,6 @@ import com.socrata.datacoordinator.secondary.LifecycleStage
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
 import org.elasticsearch.action.index.IndexRequestBuilder
 import org.elasticsearch.common.unit.Fuzziness
-import org.elasticsearch.search.suggest.completion.CompletionSuggestionBuilder
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 // scalastyle:off
@@ -249,7 +248,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.indexFieldValue(date, refresh = true)
     client.indexFieldValue(sym, refresh = true)
 
-    val suggestions = client.getSuggestions(column, "foo", Fuzziness.AUTO, 10)
+    val suggestions = client.getSuggestions(column, 10, "foo", Fuzziness.AUTO, 3, 1)
 
     // Urmila is scratching her head about what size() represents,
     // if there are 2 items returned but size() == 1
@@ -258,23 +257,76 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     suggestions.toString should include(food.value)
     suggestions.toString should include(fool.value)
 
-    val suggestionsUpper = client.getSuggestions(column, "FOO", Fuzziness.AUTO, 10)
+    val suggestionsUpper = client.getSuggestions(column, 10, "foo", Fuzziness.AUTO, 3, 1)
 
     suggestionsUpper.size() should be(1)
     suggestionsUpper.toString should include("\"options\" : [")
     suggestionsUpper.toString should include(food.value)
     suggestionsUpper.toString should include(fool.value)
 
-    val suggestionsNum = client.getSuggestions(column, "0", Fuzziness.AUTO, 10)
+    val suggestionsNum = client.getSuggestions(column, 10, "0", Fuzziness.AUTO, 3, 1)
 
     suggestionsNum.size() should be(1)
     suggestionsNum.toString should include("\"options\" : [")
     suggestionsNum.toString should include(date.value)
 
-    val suggestionsSym = client.getSuggestions(column, "@", Fuzziness.AUTO, 10)
+    val suggestionsSym = client.getSuggestions(column, 10, "@", Fuzziness.AUTO, 3, 1)
 
     suggestionsSym.size() should be(1)
     suggestionsSym.toString should include("\"options\" : [")
     suggestionsSym.toString should include(sym.value)
+  }
+
+  ignore("samples") {
+    val column = ColumnMap(datasets(0), 1, 1, "col1-1111")
+
+    val samples = client.getSamples(column, 10)
+
+    samples.totalHits should be(5)
+    samples.aggs should contain(BucketCount(makeRowData(1, 1), 1))
+    samples.aggs should contain(BucketCount(makeRowData(1, 2), 1))
+    samples.aggs should contain(BucketCount(makeRowData(1, 3), 1))
+    samples.aggs should contain(BucketCount(makeRowData(1, 4), 1))
+    samples.aggs should contain(BucketCount(makeRowData(1, 5), 1))
+  }
+
+  ignore("lots of samples") {
+    val ds = datasets(0)
+    val cp = copies(ds)(1)
+    val col = ColumnMap(ds, cp.copyNumber, 42L, "col42")
+    val lots = 1000
+
+    val docs = for {row <- 1 to lots} yield {
+      FieldValue(col.datasetId, col.copyNumber, col.systemColumnId, row, makeRowData(col.systemColumnId, row))
+    }
+    val expected = docs
+      .groupBy(q => q.value).map(r => BucketCount(r._1, r._2.length))
+      .toSeq.sortBy(_.key)
+    docs.foreach(client.indexFieldValue(_, refresh = false))
+    client.refresh()
+
+    val retrieved = client.getSamples(col, lots)
+    retrieved.aggs.sortBy(_.key) should be(expected)
+  }
+
+  ignore("sort by frequency") {
+    val ds = datasets(0)
+    val cp = copies(ds)(1)
+    val col = ColumnMap(ds, cp.copyNumber, 47L, "col47")
+    val generated = 32
+    val selected = 10
+
+    val docs = for {row <- 1 to generated} yield {
+      FieldValue(col.datasetId, col.copyNumber, col.systemColumnId, row, Math.log(row).floor.toString)
+    }
+    val expected = docs
+      .groupBy(q => q.value).map(r => BucketCount(r._1, r._2.length))
+      .toSeq.sortBy(-_.docCount)
+      .take(selected)
+    docs.foreach(client.indexFieldValue(_, refresh = false))
+    client.refresh()
+
+    val retrieved = client.getSamples(col, selected)
+    retrieved.aggs should be(expected)
   }
 }

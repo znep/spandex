@@ -1,6 +1,5 @@
 package com.socrata.spandex.common
 
-import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import com.socrata.spandex.common.client._
 
@@ -14,6 +13,19 @@ trait TestESData {
     val published   = DatasetCopy(dataset, 2, 10, LifecycleStage.Published) // scalastyle:ignore magic.number
     val workingCopy = DatasetCopy(dataset, 3, 15, LifecycleStage.Unpublished) // scalastyle:ignore magic.number
     Seq(snapshot, published, workingCopy).sortBy(_.copyNumber)
+  }
+
+  def columns(dataset: String, copy: DatasetCopy): Seq[ColumnMap] = {
+    for {column <- 1 to 3} yield {
+      ColumnMap(dataset, copy.copyNumber, column, s"col$column")
+    }
+  }
+
+  def makeRowData(col: Long, row: Long): String = s"data column $col row $row"
+  def rows(col: ColumnMap): Seq[FieldValue] = {
+    for {row <- 1 to 5} yield {
+      FieldValue(col.datasetId, col.copyNumber, col.systemColumnId, row, makeRowData(col.systemColumnId, row))
+    }
   }
 
   def config: SpandexConfig
@@ -30,15 +42,12 @@ trait TestESData {
       for { copy <- copies(ds) } {
         client.putDatasetCopy(ds, copy.copyNumber, copy.version, copy.stage, refresh = true)
 
-        for {column <- 1 to 3} {
-          val col = ColumnMap(ds, copy.copyNumber, column, "col" + column)
+        for {col <- columns(ds, copy)} {
           client.putColumnMap(
             ColumnMap(ds, copy.copyNumber, col.systemColumnId, col.userColumnId),
             refresh = true)
 
-          for {row <- 1 to 5} {
-            def makeData(col: Int, row: Int): String = s"data column $column row $row"
-            val doc = FieldValue(ds, copy.copyNumber, column, row, makeData(column, row))
+          for {doc <- rows(col)} {
             client.indexFieldValue(doc, refresh = true)
           }
         }

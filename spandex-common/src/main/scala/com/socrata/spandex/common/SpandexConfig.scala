@@ -9,6 +9,8 @@ class SpandexConfig(config: Config = ConfigFactory.load().getConfig("com.socrata
   val es                 = new ElasticSearchConfig(config.getConfig("elastic-search"))
 
   val suggestFuzziness   = config.getString("suggest-fuzziness")
+  val suggestFuzzLength  = config.getInt("suggest-fuzziness-length")
+  val suggestFuzzPrefix  = config.getInt("suggest-fuzziness-prefix")
   val suggestSize        = config.getInt("suggest-size")
 }
 

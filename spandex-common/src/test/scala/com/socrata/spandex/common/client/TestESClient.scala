@@ -2,8 +2,8 @@ package com.socrata.spandex.common.client
 
 import java.nio.file.Files
 
-import com.socrata.spandex.common.{ElasticSearchConfig, SpandexBootstrap}
 import com.socrata.spandex.common.client.ResponseExtensions._
+import com.socrata.spandex.common.{ElasticSearchConfig, SpandexBootstrap}
 import org.apache.commons.io.FileUtils
 import org.elasticsearch.client.{Client, Requests}
 import org.elasticsearch.common.settings.ImmutableSettings

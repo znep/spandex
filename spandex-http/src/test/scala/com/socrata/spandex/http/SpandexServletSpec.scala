@@ -4,15 +4,15 @@ import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client.TestESClient
+import com.socrata.spandex.http.SpandexResult.Fields._
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
 
+// scalastyle:off magic.number
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData {
   val config = new SpandexConfig
   val client = new TestESClient(config.es, false)
-  val pathRoot = "/"
-  val optionsEmpty: String = "\"options\" : [ ]" // expecting empty result set
 
   addServlet(new SpandexServlet(config, client), "/*")
 
@@ -32,7 +32,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   }
 
   test("get of index page") {
-    get(pathRoot) {
+    get("/") {
       status should equal(HttpStatus.SC_OK)
       val contentType: String = header.getOrElse("Content-Type", "")
       contentType should include("text/html")
@@ -66,91 +66,123 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
-  private[this] val suggest = "/suggest"
+  private[this] val routeSuggest = "/suggest"
   private[this] val dsid = datasets(0)
-  private[this] val copyid = 2
-  private[this] val copynum = copyid.toString
-  private[this] val colsysid = 3
-  private[this] val colid = s"col$colsysid"
+  private[this] val copy = copies(dsid)(1)
+  private[this] val copynum = copy.copyNumber
+  private[this] val col = columns(dsid, copy)(2)
+  private[this] val colsysid = col.systemColumnId
+  private[this] val colid = col.userColumnId
+  private[this] val textPrefix = "dat"
   test("suggest - some hits") {
-    get(s"$suggest/$dsid/$copynum/$colid/dat") {
+    get(s"$routeSuggest/$dsid/$copynum/$colid/$textPrefix") {
       status should equal(HttpStatus.SC_OK)
       val contentType: String = header.getOrElse(ContentTypeHeader, "")
       contentType should include(ContentTypeJson)
-      body should include("\"options\"")
-      body shouldNot include("data column 3 row 0")
-      body should include("data column 3 row 1")
-      body should include("data column 3 row 2")
-      body should include("data column 3 row 3")
-      body should include("data column 3 row 4")
-      body should include("data column 3 row 5")
-      body shouldNot include("data column 3 row 6")
+      body should include(optionsJson)
+      body shouldNot include(makeRowData(colsysid, 0))
+      body should include(makeRowData(colsysid, 1))
+      body should include(makeRowData(colsysid, 2))
+      body should include(makeRowData(colsysid, 3))
+      body should include(makeRowData(colsysid, 4))
+      body should include(makeRowData(colsysid, 5))
+      body shouldNot include(makeRowData(colsysid, 6))
     }
   }
 
-  private[this] val prefix = urlEncode("data column 3")
   test("suggest - param size") {
-    get(s"$suggest/$dsid/$copynum/$colid/$prefix", ("size", "10")) {
+    val text = urlEncode("data column 3")
+    get(s"$routeSuggest/$dsid/$copynum/$colid/$text", (paramSize, "10")) {
       status should equal(HttpStatus.SC_OK)
-      body should include("data column 3 row 1")
-      body should include("data column 3 row 2")
-      body should include("data column 3 row 3")
-      body should include("data column 3 row 4")
-      body should include("data column 3 row 5")
+      body should include(makeRowData(colsysid, 1))
+      body should include(makeRowData(colsysid, 2))
+      body should include(makeRowData(colsysid, 3))
+      body should include(makeRowData(colsysid, 4))
+      body should include(makeRowData(colsysid, 5))
     }
-    get(s"$suggest/$dsid/$copynum/$colid/$prefix", ("size", "1")) {
+    get(s"$routeSuggest/$dsid/$copynum/$colid/$text", (paramSize, "1")) {
       status should equal(HttpStatus.SC_OK)
-      body should include("data column 3 row 1")
-      body shouldNot include("data column 3 row 2")
-      body shouldNot include("data column 3 row 3")
-      body shouldNot include("data column 3 row 4")
-      body shouldNot include("data column 3 row 5")
+      body should include(makeRowData(colsysid, 1))
+      body shouldNot include(makeRowData(colsysid, 2))
+      body shouldNot include(makeRowData(colsysid, 3))
+      body shouldNot include(makeRowData(colsysid, 4))
+      body shouldNot include(makeRowData(colsysid, 5))
     }
   }
 
   test("suggest - param fuzz(iness)") {
-    get(s"$suggest/$dsid/$copynum/$colid/drat", ("fuzz", "0")) {
+    val text = "drat"
+    get(s"$routeSuggest/$dsid/$copynum/$colid/$text", (paramFuzz, "0")) {
       status should equal(HttpStatus.SC_OK)
-      body should include(optionsEmpty)
+      body should include(optionsEmptyJson)
     }
-    get(s"$suggest/$dsid/$copynum/$colid/drat", ("fuzz", "2")) {
+    get(s"$routeSuggest/$dsid/$copynum/$colid/$text", (paramFuzz, "2")) {
       status should equal(HttpStatus.SC_OK)
-      body should include("data column 3 row 1")
+      body should include(makeRowData(colsysid, 1))
     }
   }
 
   test("suggest - no hits") {
-    get(s"$suggest/$dsid/$copynum/$colid/nar") {
+    get(s"$routeSuggest/$dsid/$copynum/$colid/nar") {
       status should equal(HttpStatus.SC_OK)
-      body should include(optionsEmpty)
+      body should include(optionsEmptyJson)
     }
   }
 
   test("suggest - non-numeric copy number should return 400") {
-    get(s"$suggest/$dsid/giraffe/$colid/dat") {
+    get(s"$routeSuggest/$dsid/giraffe/$colid/$textPrefix") {
       status should equal (HttpStatus.SC_BAD_REQUEST)
       body should be ("Copy number must be numeric")
     }
   }
 
   test("suggest - non-existent column should return 400") {
-    get(s"$suggest/$dsid/$copynum/giraffe/dat") {
+    get(s"$routeSuggest/$dsid/$copynum/giraffe/$textPrefix") {
       status should equal (HttpStatus.SC_BAD_REQUEST)
       body should be (s"column 'giraffe' not found")
     }
   }
 
+  test("suggest - samples") {
+    get(s"$routeSuggest/$dsid/$copynum/$colid") {
+      val contentType: String = header.getOrElse(ContentTypeHeader, "")
+      contentType should include(ContentTypeJson)
+      status should equal(HttpStatus.SC_OK)
+      body should include(optionsJson)
+      body should include(makeRowData(colsysid, 2))
+    }
+  }
+
   test("suggest without required params should return 404") {
-    get(s"$suggest/$dsid/$copynum/$colid/") {
+    get(s"$routeSuggest/$dsid/$copynum") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
-    get(s"$suggest/$dsid/$copynum/") {
+    get(s"$routeSuggest/$dsid") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
-    get(s"$suggest/$dsid/") {
+    get(s"$routeSuggest") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
-    get(s"$suggest/") {
+  }
+
+  ignore("sample") {
+    get(s"$routeSample/$dsid/$copynum/$colid") {
+      val contentType: String = header.getOrElse(ContentTypeHeader, "")
+      contentType should include(ContentTypeJson)
+      status should equal(HttpStatus.SC_OK)
+      body should include(optionsJson)
+      body should include(makeRowData(colsysid, 2))
+    }
+  }
+
+  ignore("sample without required params should return 404") {
+    get(s"$routeSample/$dsid/$copynum") {
+      status should equal(HttpStatus.SC_NOT_FOUND)
+    }
+    get(s"$routeSample/$dsid") {
+      status should equal(HttpStatus.SC_NOT_FOUND)
+    }
+    get(s"$routeSample") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
   }

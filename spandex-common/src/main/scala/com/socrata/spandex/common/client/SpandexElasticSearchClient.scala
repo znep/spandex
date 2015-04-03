@@ -17,6 +17,7 @@ import org.elasticsearch.common.unit.{Fuzziness, TimeValue}
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.search.aggregations.AggregationBuilders._
+import org.elasticsearch.search.aggregations.bucket.terms.Terms
 import org.elasticsearch.search.sort.SortOrder
 import org.elasticsearch.search.suggest.Suggest
 import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
@@ -46,6 +47,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
                .must(termQuery(SpandexFields.CopyNumber, copyNumber))
                .must(termQuery(SpandexFields.ColumnId, columnId))
+  protected def byColumnCompositeId(column: ColumnMap): QueryBuilder =
+    boolQuery().must(termQuery(SpandexFields.CompositeId, column.compositeId))
   protected def byRowIdQuery(datasetId: String, copyNumber: Long, rowId: Long): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
                .must(termQuery(SpandexFields.CopyNumber, copyNumber))
@@ -288,19 +291,39 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .setQuery(byDatasetIdQuery(datasetId))
       .execute.actionGet
 
-  def getSuggestions(column: ColumnMap, text: String, fuzz: Fuzziness, size: Int): Suggest = {
+  def getSuggestions(column: ColumnMap, size: Int, text: String,
+                     fuzz: Fuzziness, fuzzLength: Int, fuzzPrefix: Int): Suggest = {
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
       .addContextField(SpandexFields.CompositeId, column.compositeId)
-      .setFuzziness(fuzz)
+      .setFuzziness(fuzz).setFuzzyPrefixLength(fuzzPrefix).setFuzzyMinLength(fuzzLength)
       .field(SpandexFields.Value)
       .text(text)
       .size(size)
 
-    val response = client
-      .prepareSuggest(config.index)
+    val response = client.prepareSuggest(config.index)
       .addSuggestion(suggestion)
       .execute().actionGet()
 
     response.getSuggest
+  }
+
+  /* Not yet used.
+   * This grabs the TOP N documents by frequency.
+   */
+  def getSamples(column: ColumnMap, size: Int): SearchResults[FieldValue] = {
+    val aggName = "values"
+    val response = client.prepareSearch(config.index)
+      .setTypes(config.fieldValueMapping.mappingType)
+      .setQuery(byColumnCompositeId(column))
+      .setSearchType(SearchType.COUNT)
+      .addAggregation(
+        terms(aggName)
+        .field(SpandexFields.RawValue)
+        .size(size).shardSize(size*2)
+        .order(Terms.Order.count(false)) // descending <- ascending=false
+      )
+      .setSize(size)
+      .execute.actionGet
+    response.results[FieldValue](aggName)
   }
 }

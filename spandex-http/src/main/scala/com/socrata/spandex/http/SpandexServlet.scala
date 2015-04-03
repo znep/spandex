@@ -2,7 +2,7 @@ package com.socrata.spandex.http
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
-import com.rojoma.json.v3.ast.{JString, JObject}
+import com.rojoma.json.v3.ast.{JObject, JString}
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
@@ -18,6 +18,9 @@ class SpandexServlet(conf: SpandexConfig,
 
   val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
 
+  def columnMap(datasetId: String, copyNum: Long, userColumnId: String): ColumnMap =
+    client.getColumnMap(datasetId, copyNum, userColumnId)
+      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
   def urlDecode(s: String): String = java.net.URLDecoder.decode(s, "utf-8")
 
   get("/version") {
@@ -25,7 +28,7 @@ class SpandexServlet(conf: SpandexConfig,
     version
   }
 
-  get("//?") {
+  get("/") {
     // TODO: com.socrata.spandex.secondary getting started and/or quick reference
     <html>
       <body>
@@ -34,29 +37,69 @@ class SpandexServlet(conf: SpandexConfig,
     </html>
   }
 
-  get ("/health/?"){
+  get("/health") {
     contentType = ContentTypeJson
     val clusterAdminClient = client.client.admin().cluster()
     val req = new ClusterHealthRequest(index)
     clusterAdminClient.health(req).actionGet()
   }
 
-  get ("/suggest/:datasetId/:copyNum/:userColumnId/:text/?") {
+  private[this] val routeSuggest = "suggest"
+  private[this] val paramDatasetId = "datasetId"
+  private[this] val paramCopyNum = "copyNum"
+  private[this] val paramUserColumnId = "userColumnId"
+  private[this] val paramText = "text"
+  get(s"/$routeSuggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId/:$paramText") {
+    suggest { (col, text, fuzz, size) =>
+      SpandexResult(client.getSuggestions(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
+    }
+  }
+  get(s"/$routeSuggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
+    /* How to get all the results out of Lucene.
+     * Ignore the provided text and fuzziness parameters and replace as follows.
+     * Text "1 character" => blank string is not allowed, but through the fuzziness below
+     *                       this 1 character will be factored out.
+     * Fuzziness ONE => approximately allows 1 edit distance from the given to result texts.
+     * Fuzz Length 0 => start giving fuzzy results from any length of input text.
+     * Fuzz Prefix 0 => allow all results no matter how badly matched.
+     * TA-DA!
+     */
+    val sampleText = "a"
+    val sampleFuzz = Fuzziness.ONE
+    val sampleFuzzLen = 0
+    val sampleFuzzPre = 0
+    suggest { (col, _, _, size) =>
+      SpandexResult(client.getSuggestions(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
+    }
+  }
+
+  def suggest(f: (ColumnMap, String, Fuzziness, Int) => SpandexResult): String = {
+    val copyNumMustBeNumeric = "Copy number must be numeric"
+    val paramFuzz = "fuzz"
+    val paramSize = "size"
+
     contentType = ContentTypeJson
-    val datasetId = params.get("datasetId").get
-    val copyNum = Try(params.get("copyNum").get.toLong)
-      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"Copy number must be numeric"))
-    val userColumnId = params.get("userColumnId").get
-    val text = urlDecode(params.get("text").get)
-    val fuzz = Fuzziness.build(params.getOrElse("fuzz", conf.suggestFuzziness))
-    val size = params.get("size").headOption.fold(conf.suggestSize)(_.toInt)
+    val datasetId = params.get(paramDatasetId).get
+    val copyNum = Try(params.get(paramCopyNum).get.toLong)
+      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, copyNumMustBeNumeric))
+    val userColumnId = params.get(paramUserColumnId).get
+    val text = urlDecode(params.get(paramText).getOrElse(""))
+    val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
+    val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
+    logger.info(s">>> $datasetId, $copyNum, $userColumnId, $text, $fuzz, $size")
 
-    logger.info(s"GET /suggest $datasetId|$copyNum|$userColumnId :: $text / fuzz:$fuzz size:$size")
+    val column = columnMap(datasetId, copyNum, userColumnId)
+    logger.info(s"found column $column")
 
-    val column: ColumnMap = client.getColumnMap(datasetId, copyNum, userColumnId)
-      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST, s"column '$userColumnId' not found"))
+    val result = f(column, text, fuzz, size)
+    logger.info(s"<<< $result")
+    JsonUtil.renderJson(result)
+  }
 
-    client.getSuggestions(column, text, fuzz, size)
-    // TODO: strip elasticsearch artifacts before returning suggested options and scores
+  /* Not yet used.
+   * sample endpoint exposes query by column with aggregation on doc count
+   */
+  get(s"/sample/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
+    suggest { (col, _, _, size) => SpandexResult(client.getSamples(col, size)) }
   }
 }
