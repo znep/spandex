@@ -16,11 +16,11 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
 
   addServlet(new SpandexServlet(config, client), "/*")
 
-  private def contentTypeShouldBe(contentType: String): Unit =
+  private[this] def contentTypeShouldBe(contentType: String): Unit =
     header.getOrElse(ContentTypeHeader, "") should include(contentType)
 
-  private def urlEncode(s: String): String = java.net.URLEncoder.encode(s, EncodingUtf8)
-  private def getRandomPort: Int = 51200 + (util.Random.nextInt % 100)
+  private[this] def urlEncode(s: String): String = java.net.URLEncoder.encode(s, EncodingUtf8)
+  private[this] def getRandomPort: Int = 51200 + (util.Random.nextInt % 100)
   override def localPort: Option[Int] = Some(getRandomPort)
 
   override def beforeAll(): Unit = {

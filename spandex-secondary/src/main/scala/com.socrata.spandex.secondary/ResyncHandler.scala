@@ -38,7 +38,7 @@ case class ResyncHandler(client: SpandexElasticSearchClient) extends SecondaryEv
     client.refresh()
   }
 
-  private def insertRows(datasetInfo: DatasetInfo,
+  private[this] def insertRows(datasetInfo: DatasetInfo,
                          copyInfo: CopyInfo,
                          schema: ColumnIdMap[ColumnInfo[SoQLType]],
                          rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],

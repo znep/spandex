@@ -4,7 +4,7 @@ import com.socrata.datacoordinator.secondary.{CopyInfo, LifecycleStage}
 import com.socrata.spandex.common.client.{SpandexElasticSearchClient, DatasetCopy}
 
 case class CopyDropHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
-  private def checkStage(expected: LifecycleStage, actual: LifecycleStage): Unit =
+  private[this] def checkStage(expected: LifecycleStage, actual: LifecycleStage): Unit =
     if (actual != expected) {
       throw InvalidStateBeforeEvent(
         s"Copy is in unexpected stage: $actual. Expected: $expected")
