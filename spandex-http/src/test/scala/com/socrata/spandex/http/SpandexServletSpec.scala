@@ -16,8 +16,11 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
 
   addServlet(new SpandexServlet(config, client), "/*")
 
-  private def urlEncode(s: String): String = java.net.URLEncoder.encode(s, "utf-8")
-  private def getRandomPort: Int = 51200 + (util.Random.nextInt % 100)
+  private[this] def contentTypeShouldBe(contentType: String): Unit =
+    header.getOrElse(ContentTypeHeader, "") should include(contentType)
+
+  private[this] def urlEncode(s: String): String = java.net.URLEncoder.encode(s, EncodingUtf8)
+  private[this] def getRandomPort: Int = 51200 + (util.Random.nextInt % 100)
   override def localPort: Option[Int] = Some(getRandomPort)
 
   override def beforeAll(): Unit = {
@@ -34,8 +37,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   test("get of index page") {
     get("/") {
       status should equal(HttpStatus.SC_OK)
-      val contentType: String = header.getOrElse("Content-Type", "")
-      contentType should include("text/html")
+      contentTypeShouldBe(ContentTypeHtml)
       body should include("Hello, spandex")
     }
   }
@@ -49,16 +51,14 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   test("get health status page") {
     get("/health") {
       status should equal(HttpStatus.SC_OK)
-      val contentType: String = header.getOrElse(ContentTypeHeader, "")
-      contentType should include(ContentTypeJson)
+      contentTypeShouldBe(ContentTypeJson)
     }
   }
 
   test("get version") {
     get("/version") {
       status should equal(HttpStatus.SC_OK)
-      val contentType: String = header.getOrElse(ContentTypeHeader, "")
-      contentType should include(ContentTypeJson)
+      contentTypeShouldBe(ContentTypeJson)
       body should include(""""name":"spandex-http"""")
       body should include(""""version"""")
       body should include(""""revision"""")
@@ -77,8 +77,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   test("suggest - some hits") {
     get(s"$routeSuggest/$dsid/$copynum/$colid/$textPrefix") {
       status should equal(HttpStatus.SC_OK)
-      val contentType: String = header.getOrElse(ContentTypeHeader, "")
-      contentType should include(ContentTypeJson)
+      contentTypeShouldBe(ContentTypeJson)
       body should include(optionsJson)
       body shouldNot include(makeRowData(colsysid, 0))
       body should include(makeRowData(colsysid, 1))
@@ -130,23 +129,28 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   }
 
   test("suggest - non-numeric copy number should return 400") {
-    get(s"$routeSuggest/$dsid/giraffe/$colid/$textPrefix") {
+    val donut = "donut"
+    get(s"$routeSuggest/$dsid/$donut/$colid/$textPrefix") {
+      contentTypeShouldBe(ContentTypeJson)
       status should equal (HttpStatus.SC_BAD_REQUEST)
-      body should be ("Copy number must be numeric")
+      body should include("Copy number must be numeric")
+      body should include(donut)
     }
   }
 
-  test("suggest - non-existent column should return 400") {
-    get(s"$routeSuggest/$dsid/$copynum/giraffe/$textPrefix") {
-      status should equal (HttpStatus.SC_BAD_REQUEST)
-      body should be (s"column 'giraffe' not found")
+  test("suggest - non-existent column should return 404") {
+    val coconut = "coconut"
+    get(s"$routeSuggest/$dsid/$copynum/$coconut/$textPrefix") {
+      contentTypeShouldBe(ContentTypeJson)
+      status should equal (HttpStatus.SC_NOT_FOUND)
+      body should include("Column not found")
+      body should include(coconut)
     }
   }
 
   test("suggest - samples") {
     get(s"$routeSuggest/$dsid/$copynum/$colid") {
-      val contentType: String = header.getOrElse(ContentTypeHeader, "")
-      contentType should include(ContentTypeJson)
+      contentTypeShouldBe(ContentTypeJson)
       status should equal(HttpStatus.SC_OK)
       body should include(optionsJson)
       body should include(makeRowData(colsysid, 2))
@@ -167,8 +171,7 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
 
   ignore("sample") {
     get(s"$routeSample/$dsid/$copynum/$colid") {
-      val contentType: String = header.getOrElse(ContentTypeHeader, "")
-      contentType should include(ContentTypeJson)
+      contentTypeShouldBe(ContentTypeJson)
       status should equal(HttpStatus.SC_OK)
       body should include(optionsJson)
       body should include(makeRowData(colsysid, 2))

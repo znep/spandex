@@ -11,7 +11,7 @@ import RowOpsHandler._
 case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) extends Logging {
   type RequestBuilder = ActionRequestBuilder[_,_,_,_]
 
-  private def requestsForRow(datasetName: String,
+  private[this] def requestsForRow(datasetName: String,
                              copyNumber: Long,
                              rowId: RowId,
                              data: Row[SoQLValue],

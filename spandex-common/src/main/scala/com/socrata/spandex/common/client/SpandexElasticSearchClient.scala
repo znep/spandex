@@ -54,7 +54,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                .must(termQuery(SpandexFields.CopyNumber, copyNumber))
                .must(termQuery(SpandexFields.RowId, rowId))
 
-  private def checkForFailures(response: ActionResponse): Unit = response match {
+  private[this] def checkForFailures(response: ActionResponse): Unit = response match {
     case i: IndexResponse =>
       if (!i.isCreated) throw ElasticSearchResponseFailed(
         s"${i.getType} doc with id ${i.getId} was not successfully indexed")
