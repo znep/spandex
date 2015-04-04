@@ -56,8 +56,8 @@ case class ResyncHandler(client: SpandexElasticSearchClient) extends SecondaryEv
     for { iter <- rows } {
       val requests =
         for {
-          row <- iter.toSeq
-          (id, value: SoQLText) <- row.toSeq
+          row <- iter
+          (id, value: SoQLText) <- row.iterator
         } yield {
           client.getFieldValueIndexRequest(RowOpsHandler.fieldValueFromDatum(
             datasetInfo.internalName, copyInfo.copyNumber, getRowId(row), (id, value)))
