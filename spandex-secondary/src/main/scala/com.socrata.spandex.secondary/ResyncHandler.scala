@@ -53,9 +53,9 @@ case class ResyncHandler(client: SpandexElasticSearchClient) extends SecondaryEv
     }
 
     // Add field values for text columns
-    // val requests =
-      for { iter <- rows } {
-        val requests = for {
+    for { iter <- rows } {
+      val requests =
+        for {
           row <- iter.toSeq
           (id, value: SoQLText) <- row.toSeq
         } yield {
@@ -63,20 +63,10 @@ case class ResyncHandler(client: SpandexElasticSearchClient) extends SecondaryEv
             datasetInfo.internalName, copyInfo.copyNumber, getRowId(row), (id, value)))
         }
 
-        // Don't refresh ES during resync
-        for { batch <- requests.grouped(batchSize) } {
-          client.sendBulkRequest(batch, refresh = false)
-        }
+      // Don't refresh ES during resync
+      for { batch <- requests.grouped(batchSize) } {
+        client.sendBulkRequest(batch, refresh = false)
       }
-    /*  for {
-        iter <- rows
-        row  <- iter.toSeq
-        (id, value: SoQLText) <- row.toSeq
-      } yield {
-        client.getFieldValueIndexRequest(RowOpsHandler.fieldValueFromDatum(
-          datasetInfo.internalName, copyInfo.copyNumber, getRowId(row), (id, value)))
-      }
-*/
-
+    }
   }
 }
