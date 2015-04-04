@@ -53,7 +53,7 @@ case class ResyncHandler(client: SpandexElasticSearchClient) extends SecondaryEv
     }
 
     // Add field values for text columns
-    //val requests =
+    // val requests =
       for { iter <- rows } {
         val requests = for {
           row <- iter.toSeq
