@@ -2,12 +2,12 @@ package com.socrata.spandex.http
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
+import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client.TestESClient
 import com.socrata.spandex.http.SpandexResult.Fields._
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
-import com.rojoma.json.v3.util.JsonUtil
 
 // scalastyle:off magic.number
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
