@@ -6,14 +6,13 @@ import com.rojoma.json.v3.ast.{JObject, JString}
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
-import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.common.unit.Fuzziness
 
 import scala.util.Try
 
 class SpandexServlet(conf: SpandexConfig,
-                     client: SpandexElasticSearchClient) extends SpandexStack with Logging {
+                     client: SpandexElasticSearchClient) extends SpandexStack {
   def index: String = conf.es.index
 
   val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
@@ -87,7 +86,7 @@ class SpandexServlet(conf: SpandexConfig,
     val text = urlDecode(params.get(paramText).getOrElse(""))
     val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
     val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
-    logger.info(s">>> $datasetId, $copyNum, $userColumnId, $text, $fuzz, $size")
+    logger.info(s">>> $datasetId, $copyNum, $userColumnId, $text, ${fuzz.asDistance}, $size")
 
     val column = columnMap(datasetId, copyNum, userColumnId)
     logger.info(s"found column $column")
