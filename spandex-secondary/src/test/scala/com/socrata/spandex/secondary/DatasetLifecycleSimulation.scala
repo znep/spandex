@@ -1,14 +1,14 @@
 package com.socrata.spandex.secondary
 
-import org.scalatest.{Matchers, FunSuiteLike}
+import com.socrata.datacoordinator.id.{RowId, UserColumnId, ColumnId, CopyId}
+import com.socrata.datacoordinator.secondary._
+import com.socrata.datacoordinator.util.collection.ColumnIdMap
+import com.socrata.soql.types._
 import com.socrata.spandex.common.SpandexConfig
 import com.socrata.spandex.common.client.{FieldValue, ColumnMap, DatasetCopy, TestESClient}
-import com.socrata.datacoordinator.secondary._
-import com.socrata.datacoordinator.id.{RowId, UserColumnId, ColumnId, CopyId}
-import com.socrata.soql.types._
-import org.joda.time.DateTime
-import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import java.math.BigDecimal
+import org.joda.time.DateTime
+import org.scalatest.{Matchers, FunSuiteLike}
 
 /**
  * This test is as much documentation as it is a test.
