@@ -19,8 +19,8 @@ class SpandexServlet(conf: SpandexConfig,
   val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
 
   def columnMap(datasetId: String, copyNum: Long, userColumnId: String): ColumnMap =
-    client.getColumnMap(datasetId, copyNum, userColumnId)
-      .getOrElse(halt(HttpStatus.SC_NOT_FOUND, SpandexError("Column not found", Some(userColumnId))))
+    client.getColumnMap(datasetId, copyNum, userColumnId).getOrElse(halt(
+      HttpStatus.SC_NOT_FOUND, JsonUtil.renderJson(SpandexError("Column not found", Some(userColumnId)))))
   def urlDecode(s: String): String = java.net.URLDecoder.decode(s, EncodingUtf8)
 
   get("/version") {
@@ -81,8 +81,8 @@ class SpandexServlet(conf: SpandexConfig,
     contentType = ContentTypeJson
     val datasetId = params.get(paramDatasetId).get
     val copyNumText = params.get(paramCopyNum).get
-    val copyNum = Try(copyNumText.toLong)
-      .getOrElse(halt(HttpStatus.SC_BAD_REQUEST,SpandexError(copyNumMustBeNumeric, Some(copyNumText))))
+    val copyNum = Try(copyNumText.toLong).getOrElse(halt(
+      HttpStatus.SC_BAD_REQUEST, JsonUtil.renderJson(SpandexError(copyNumMustBeNumeric, Some(copyNumText)))))
     val userColumnId = params.get(paramUserColumnId).get
     val text = urlDecode(params.get(paramText).getOrElse(""))
     val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))

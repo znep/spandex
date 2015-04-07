@@ -2,6 +2,7 @@ package com.socrata.spandex.http
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
+import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client.TestESClient
 import com.socrata.spandex.http.SpandexResult.Fields._
@@ -133,8 +134,11 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     get(s"$routeSuggest/$dsid/$donut/$colid/$textPrefix") {
       contentTypeShouldBe(ContentTypeJson)
       status should equal (HttpStatus.SC_BAD_REQUEST)
-      body should include("Copy number must be numeric")
-      body should include(donut)
+      val parsed = JsonUtil.parseJson[SpandexError](body)
+      parsed should be ('right)
+      parsed.right.get.message should be ("Copy number must be numeric")
+      parsed.right.get.entity should be (Some(donut))
+      parsed.right.get.source should be ("spandex-http")
     }
   }
 
@@ -143,8 +147,11 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     get(s"$routeSuggest/$dsid/$copynum/$coconut/$textPrefix") {
       contentTypeShouldBe(ContentTypeJson)
       status should equal (HttpStatus.SC_NOT_FOUND)
-      body should include("Column not found")
-      body should include(coconut)
+      val parsed = JsonUtil.parseJson[SpandexError](body)
+      parsed should be ('right)
+      parsed.right.get.message should be ("Column not found")
+      parsed.right.get.entity should be (Some(coconut))
+      parsed.right.get.source should be ("spandex-http")
     }
   }
 
