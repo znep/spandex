@@ -122,7 +122,7 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     // - LastModifiedChanged event - sent along with any change to the dataset
     ////////////////////////////////////////////////////////////////////////////////////////////////
     val addTextColumnEvents = locally {
-      val addColumn = ColumnCreated(ColumnInfo(
+      val addTextColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(4),
         id = new UserColumnId("ggha-z6i9"),
         typ = SoQLText,
@@ -132,7 +132,7 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
 
       val lastModifiedChanged = LastModifiedChanged(DateTime.now)
 
-      Iterator(addColumn, lastModifiedChanged)
+      Iterator(addTextColumn, lastModifiedChanged)
     }
 
     // Secondary processes the add column events
@@ -149,7 +149,7 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     // Spandex only indexes text columns.
     // If I add a non-text column, it won't be indexed.
     val addNumberColumnEvents = locally {
-      val addColumn = ColumnCreated(ColumnInfo(
+      val addNumberColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(5),
         id = new UserColumnId("j9bp-sh9q"),
         typ = SoQLNumber,
@@ -159,7 +159,7 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
 
       val lastModifiedChanged = LastModifiedChanged(DateTime.now)
 
-      Iterator(addColumn, lastModifiedChanged)
+      Iterator(addNumberColumn, lastModifiedChanged)
     }
 
     // Secondary processes the add column events
@@ -202,11 +202,43 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     client.getDatasetCopy(dataset.internalName, 1).get should be
       (DatasetCopy(dataset.internalName, 1, 4, LifecycleStage.Unpublished))
 
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // REPLACE ROWS
+    // Soda Fountain API: PUT /resource/{resource_name}
+    // Resulting secondary events:
+    // - Truncated event
+    // - LastModifiedChanged event - sent along with any change to the dataset
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    val rowReplaceEvents = locally {
+      val inserts = (1 to 10).map { i =>
+        Insert(new RowId(i), ColumnIdMap[SoQLValue](
+          new ColumnId(4) -> SoQLText("axolotl " + i), new ColumnId(5) -> SoQLNumber(new BigDecimal(5))))
+      }
+      val rowDataUpdated = RowDataUpdated(inserts)
+
+      val lastModifiedChanged = LastModifiedChanged(DateTime.now)
+
+      Iterator(Truncated, rowDataUpdated, lastModifiedChanged)
+    }
+
+    // Secondary processes the row replace events
+    secondary.version(dataset, 5, None, rowReplaceEvents)
+
+    // We should see 10 different field_value docs in Elastic Search
+    client.searchFieldValuesByCopyNumber(dataset.internalName, 1).totalHits should be (10)
+    client.searchFieldValuesByCopyNumber(dataset.internalName, 1).thisPage.sortBy(_.rowId) should be
+    ((1 to 10).map { i => FieldValue(dataset.internalName, 1, 4, i, "axolotl " + i) })
+    // And the current copy should be bumped to the latest data version
+    client.getDatasetCopy(dataset.internalName, 1).get should be
+    (DatasetCopy(dataset.internalName, 1, 5, LifecycleStage.Unpublished))
+
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // PUBLISH
     // Soda Fountain API: PUT /dataset-copy/{resource_name}
     // Resulting secondary events:
     // - WorkingCopyPublished event
+    // - RowDataUpdated event
     // - LastModifiedChanged event - sent along with any change to the dataset
     ////////////////////////////////////////////////////////////////////////////////////////////////
     val publishedEvents = locally {
@@ -215,11 +247,11 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     }
 
     // Secondary processes the publish events
-    secondary.version(dataset, 5, None, publishedEvents)
+    secondary.version(dataset, 6, None, publishedEvents)
 
     // The current copy should be bumped to the latest data version AND marked as Published.
     client.getDatasetCopy(dataset.internalName, 1).get should be
-      (DatasetCopy(dataset.internalName, 1, 5, LifecycleStage.Published))
+      (DatasetCopy(dataset.internalName, 1, 6, LifecycleStage.Published))
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // MAKE A WORKING COPY
@@ -228,8 +260,156 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     // - WorkingCopyCreated event
     // - One ColumnCreated event for every column in the dataset, both system and user columns
     // - DataCopied event to copy over the rows
+    // - VersionColumnChanged event designating the default version column on the new copy
+    // - SystemRowIdentifierChanged event designating the system row identifier on the new copy
     // - LastModifiedChanged event - sent along with any change to the dataset
     ////////////////////////////////////////////////////////////////////////////////////////////////
+    val workingCopyCreatedEvents = locally {
+      val workingCopyCreated = WorkingCopyCreated(CopyInfo(
+        systemId = new CopyId(297),
+        copyNumber = 2,
+        lifecycleStage = LifecycleStage.Unpublished,
+        dataVersion = 5,
+        lastModified = DateTime.now))
 
+      val addUpdatedAtColumn = ColumnCreated(ColumnInfo(
+        systemId = new ColumnId(0),
+        id = new UserColumnId(":updated_at"),
+        typ = SoQLFixedTimestamp,
+        isSystemPrimaryKey = false,
+        isUserPrimaryKey = false,
+        isVersion = false))
+
+      val addVersionColumn = ColumnCreated(ColumnInfo(
+        systemId = new ColumnId(1),
+        id = new UserColumnId(":version"),
+        typ = SoQLVersion,
+        isSystemPrimaryKey = false,
+        isUserPrimaryKey = false,
+        isVersion = false))
+
+      val addIdColumn = ColumnCreated(ColumnInfo(
+        systemId = new ColumnId(2),
+        id = new UserColumnId(":id"),
+        typ = SoQLID,
+        isSystemPrimaryKey = false,
+        isUserPrimaryKey = false,
+        isVersion = false))
+
+      val addCreatedAtColumn = ColumnCreated(ColumnInfo(
+        systemId = new ColumnId(3),
+        id = new UserColumnId(":created_at"),
+        typ = SoQLFixedTimestamp,
+        isSystemPrimaryKey = false,
+        isUserPrimaryKey = false,
+        isVersion = false))
+
+      val addTextColumn = ColumnCreated(ColumnInfo(
+        systemId = new ColumnId(4),
+        id = new UserColumnId("ggha-z6i9"),
+        typ = SoQLText,
+        isSystemPrimaryKey = false,
+        isUserPrimaryKey = false,
+        isVersion = false))
+
+      val addNumberColumn = ColumnCreated(ColumnInfo(
+        systemId = new ColumnId(5),
+        id = new UserColumnId("j9bp-sh9q"),
+        typ = SoQLNumber,
+        isSystemPrimaryKey = false,
+        isUserPrimaryKey = false,
+        isVersion = false))
+
+      val versionColumnChanged = VersionColumnChanged(ColumnInfo(
+        systemId = new ColumnId(1),
+        id = new UserColumnId(":version"),
+        typ = SoQLVersion,
+        isSystemPrimaryKey = false,
+        isUserPrimaryKey = false,
+        isVersion = true))
+
+      val systemRowIdChanged = SystemRowIdentifierChanged(ColumnInfo(
+        systemId = new ColumnId(2),
+        id = new UserColumnId(":id"),
+        typ = SoQLID,
+        isSystemPrimaryKey = true,
+        isUserPrimaryKey = false,
+        isVersion = false))
+
+      val lastModifiedChanged = LastModifiedChanged(DateTime.now)
+
+      Iterator(workingCopyCreated, addUpdatedAtColumn, addVersionColumn, addIdColumn, addCreatedAtColumn,
+        addTextColumn, addNumberColumn, DataCopied, versionColumnChanged, systemRowIdChanged, lastModifiedChanged)
+    }
+
+    // Secondary processes the gigamundo bundle of events
+    secondary.version(dataset, 7, None, workingCopyCreatedEvents)
+
+    // We should now see a brand new dataset_copy doc in Elastic Search
+    client.getDatasetCopy(dataset.internalName, 1) should be
+      (DatasetCopy(dataset.internalName, 1, 6, LifecycleStage.Published))
+    client.getDatasetCopy(dataset.internalName, 2).get should be
+      (DatasetCopy(dataset.internalName, 2, 7, LifecycleStage.Unpublished))
+    // All column maps that exist on copy 1 should now exist on copy 2
+    client.getColumnMap(dataset.internalName, 2, "ggha-z6i9").get should be
+      (ColumnMap(dataset.internalName, 2, 4, "ggha-z6i9"))
+    // All rows that exist on copy 1 should not exist on copy 2
+    client.searchFieldValuesByCopyNumber(dataset.internalName, 2).totalHits should be (10)
+    client.searchFieldValuesByCopyNumber(dataset.internalName, 2).thisPage.sortBy(_.rowId) should be
+      ((1 to 10).map { i => FieldValue(dataset.internalName, 2, 4, i, "giraffe " + i) })
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // DROP COLUMN
+    // Soda Fountain API: DELETE /dataset/{resource_name}/{column_name}
+    // Resulting secondary events:
+    // - ColumnRemoved event
+    // - LastModifiedChanged event - sent along with any change to the dataset
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    val columnRemovedEvents = locally {
+      val columnRemoved = ColumnRemoved(ColumnInfo(
+        systemId = new ColumnId(4),
+        id = new UserColumnId("ggha-z6i9"),
+        typ = SoQLText,
+        isSystemPrimaryKey = false,
+        isUserPrimaryKey = false,
+        isVersion = false))
+
+      val lastModifiedChanged = LastModifiedChanged(DateTime.now)
+
+      Iterator(columnRemoved, lastModifiedChanged)
+    }
+
+    // Secondary processes the events
+    secondary.version(dataset, 8, None, columnRemovedEvents)
+
+    // The column mapping and any related field values should be removed from the index
+    client.getColumnMap(dataset.internalName, 2, "ggha-z6i9") should not be 'defined
+    client.searchFieldValuesByColumnId(dataset.internalName, 2, 4).totalHits should be (0)
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // DROP WORKING COPY
+    // Soda Fountain API: DELETE /dataset-copy/{resource_name}
+    // Resulting secondary events:
+    // - WorkingCopyDropped event
+    // - LastModifiedChanged event - sent along with any change to the dataset
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    val workingCopyDroppedEvents = locally {
+      val lastModifiedChanged = LastModifiedChanged(DateTime.now)
+      Iterator(WorkingCopyDropped, lastModifiedChanged)
+    }
+
+    // Secondary processes the events
+    secondary.version(dataset, 9, None, workingCopyDroppedEvents)
+
+    // All signs of the working copy should be gone from Elastic Search
+    // Data version on previous published copy should be updated
+    client.getDatasetCopy(dataset.internalName, 1).get should be
+      (DatasetCopy(dataset.internalName, 1, 9, LifecycleStage.Published))
+    client.getDatasetCopy(dataset.internalName, 2) should not be 'defined
+    client.searchColumnMapsByCopyNumber(dataset.internalName, 2).totalHits should be (0)
+    client.searchFieldValuesByCopyNumber(dataset.internalName, 2).totalHits should be (0)
+
+    // TODO : SnapshotDropped
   }
 }
