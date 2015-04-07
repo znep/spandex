@@ -17,7 +17,7 @@ case class PublishHandler(client: SpandexElasticSearchClient) extends SecondaryE
 
     // Set the latest unpublished version to published
     client.updateDatasetCopyVersion(
-      latest.copy(stage = LifecycleStage.Published), refresh = false)
+      latest.copy(stage = LifecycleStage.Published), refresh = true)
 
     // Set the previous published version (if any) to Snapshotted
     maybeLastPublished.foreach { lastPublished =>
