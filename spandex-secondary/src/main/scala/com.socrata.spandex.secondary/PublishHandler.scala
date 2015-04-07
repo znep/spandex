@@ -22,7 +22,9 @@ case class PublishHandler(client: SpandexElasticSearchClient) extends SecondaryE
     // Set the previous published version (if any) to Snapshotted
     maybeLastPublished.foreach { lastPublished =>
       client.updateDatasetCopyVersion(
-        lastPublished.copy(stage = LifecycleStage.Snapshotted), refresh = true)
+        lastPublished.copy(stage = LifecycleStage.Snapshotted), refresh = false)
     }
+
+    client.refresh()
   }
 }

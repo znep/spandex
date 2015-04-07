@@ -8,4 +8,7 @@ case class SpandexError(message: String,
 
 object SpandexError {
   implicit val jCode = AutomaticJsonCodecBuilder[SpandexError]
+
+  def apply(e: Exception): SpandexError =
+    SpandexError(s"${e.getClass.getSimpleName}: ${e.getMessage}\n${e.getStackTraceString}")
 }
