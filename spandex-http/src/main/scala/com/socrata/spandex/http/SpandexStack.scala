@@ -7,11 +7,16 @@ import com.typesafe.scalalogging.slf4j.Logging
 import org.fusesource.scalate.TemplateEngine
 import org.fusesource.scalate.layout.DefaultLayoutStrategy
 import org.scalatra._
+import org.scalatra.metrics.{HealthChecksSupport, MetricsSupport}
 import org.scalatra.scalate.ScalateSupport
 
 import scala.collection.mutable.{Map => MutableMap}
 
-trait SpandexStack extends ScalatraServlet with ScalateSupport with Logging {
+trait SpandexStack extends ScalatraServlet
+                      with ScalateSupport
+                      with MetricsSupport
+                      with HealthChecksSupport
+                      with Logging {
 
   /* wire up the precompiled templates */
   override protected def defaultTemplatePath: List[String] = List("/WEB-INF/templates/views")
@@ -29,6 +34,7 @@ trait SpandexStack extends ScalatraServlet with ScalateSupport with Logging {
   }
 
   notFound {
+    counter("notFound") += 1
     // remove content type in case it was set through an action
     contentType = ""
     // Try to render a ScalateTemplate if no route matched
@@ -40,6 +46,7 @@ trait SpandexStack extends ScalatraServlet with ScalateSupport with Logging {
 
   error {
     case e: Exception =>
+      counter("error") += 1
       logger.error("Exception was thrown", e)
       InternalServerError(JsonUtil.renderJson(SpandexError(e)))
   }

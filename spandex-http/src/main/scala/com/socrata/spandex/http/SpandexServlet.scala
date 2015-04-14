@@ -22,13 +22,17 @@ class SpandexServlet(conf: SpandexConfig,
       HttpStatus.SC_NOT_FOUND, JsonUtil.renderJson(SpandexError("Column not found", Some(userColumnId)))))
   def urlDecode(s: String): String = java.net.URLDecoder.decode(s, EncodingUtf8)
 
+  healthCheck("alive") {true}
+  healthCheck("version") {Try {version}}
+  healthCheck("esClusterHealth") {Try {esClusterHealth}}
+
   get("/version") {
     contentType = ContentTypeJson
     version
   }
 
   get("/") {
-    // TODO: com.socrata.spandex.secondary getting started and/or quick reference
+    // TODO: getting started and/or quick reference
     <html>
       <body>
         <h1>Hello, spandex</h1>
@@ -36,11 +40,10 @@ class SpandexServlet(conf: SpandexConfig,
     </html>
   }
 
-  get("/health") {
-    contentType = ContentTypeJson
+  def esClusterHealth: String = {
     val clusterAdminClient = client.client.admin().cluster()
     val req = new ClusterHealthRequest(index)
-    clusterAdminClient.health(req).actionGet()
+    clusterAdminClient.health(req).actionGet().toString
   }
 
   private[this] val routeSuggest = "suggest"
@@ -49,10 +52,13 @@ class SpandexServlet(conf: SpandexConfig,
   private[this] val paramUserColumnId = "userColumnId"
   private[this] val paramText = "text"
   get(s"/$routeSuggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId/:$paramText") {
-    suggest { (col, text, fuzz, size) =>
-      SpandexResult(client.getSuggestions(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
-    }
+    timer("suggestText") {
+      suggest { (col, text, fuzz, size) =>
+        SpandexResult(client.getSuggestions(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
+      }
+    }.call()
   }
+
   get(s"/$routeSuggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
     /* How to get all the results out of Lucene.
      * Ignore the provided text and fuzziness parameters and replace as follows.
@@ -63,13 +69,15 @@ class SpandexServlet(conf: SpandexConfig,
      * Fuzz Prefix 0 => allow all results no matter how badly matched.
      * TA-DA!
      */
-    val sampleText = "a"
-    val sampleFuzz = Fuzziness.ONE
-    val sampleFuzzLen = 0
-    val sampleFuzzPre = 0
-    suggest { (col, _, _, size) =>
-      SpandexResult(client.getSuggestions(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
-    }
+    timer("suggestSample") {
+      val sampleText = "a"
+      val sampleFuzz = Fuzziness.ONE
+      val sampleFuzzLen = 0
+      val sampleFuzzPre = 0
+      suggest { (col, _, _, size) =>
+        SpandexResult(client.getSuggestions(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
+      }
+    }.call()
   }
 
   def suggest(f: (ColumnMap, String, Fuzziness, Int) => SpandexResult): String = {
@@ -100,6 +108,9 @@ class SpandexServlet(conf: SpandexConfig,
    * sample endpoint exposes query by column with aggregation on doc count
    */
   get(s"/sample/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
-    suggest { (col, _, _, size) => SpandexResult(client.getSamples(col, size)) }
+    timer("sample") {
+      suggest { (col, _, _, size) => SpandexResult(client.getSamples(col, size)) }
+    }.call()
   }
+
 }

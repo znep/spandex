@@ -4,13 +4,13 @@ import com.mojolly.scalate.ScalatePlugin._
 import org.scalatra.sbt._
 import sbt.Keys._
 import sbt._
-import sbtbuildinfo.{BuildInfoOption, BuildInfoKey, BuildInfoPlugin}
 import sbtbuildinfo.BuildInfoKeys._
-import scoverage.ScoverageSbtPlugin.ScoverageKeys.{coverageExcludedPackages, coverageMinimum, coverageFailOnMinimum}
+import sbtbuildinfo.{BuildInfoKey, BuildInfoOption, BuildInfoPlugin}
+import scoverage.ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages
 
 object SpandexBuild extends Build {
   val Name = "com.socrata.spandex"
-  val ScalaVersion = "2.10.4"
+  val ScalaVersion = "2.10.5"
   val JettyConf = config("container")
   val JettyListenPort = 8042 // required for container embedded jetty
 
@@ -90,10 +90,11 @@ object SpandexBuild extends Build {
 }
 
 object Deps {
-  val ScalatraVersion = "2.3.0"
+  val ScalatraVersion = "2.4.0.M3"
   val JettyVersion = "9.2.1.v20140609" // pinned to this version in Scalatra
 
   lazy val resolverList = Seq(
+    "Scalaz Bintray Repo" at "https://dl.bintray.com/scalaz/releases", // scalaz-stream used in scalatra 2.4.x
     "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release"
   )
 
@@ -105,6 +106,7 @@ object Deps {
   lazy val http = Seq(
     "org.scalatra" %% "scalatra" % ScalatraVersion,
     "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
+    "org.scalatra" %% "scalatra-metrics" % ScalatraVersion,
     "ch.qos.logback" % "logback-classic" % "1.1.2" % "runtime",
     "org.eclipse.jetty" % "jetty-webapp" % JettyVersion % "container;compile",
     "org.eclipse.jetty" % "jetty-plus" % JettyVersion % "container"
