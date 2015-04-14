@@ -1,5 +1,6 @@
 package com.socrata.spandex.common.client
 
+import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
 import org.elasticsearch.action.index.IndexRequestBuilder
@@ -19,6 +20,12 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
   }
   override def afterEach(): Unit = removeBootstrapData()
 
+  def verifyFieldValue(fieldValue: FieldValue): Option[FieldValue] =
+    client.client
+      .prepareGet(config.es.index, config.es.fieldValueMapping.mappingType, fieldValue.docId)
+      .execute.actionGet
+      .result[FieldValue]
+
   test("Insert, update, get field values") {
     val toInsert = Seq(
       FieldValue("alpha.1337", 1, 20, 32, "axolotl"),
@@ -26,26 +33,26 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
       FieldValue("alpha.1337", 1, 22, 32, "Henry"))
 
     toInsert.foreach { fv =>
-      client.getFieldValue(fv) should not be 'defined
+      verifyFieldValue(fv) should not be 'defined
     }
 
-    val inserts = toInsert.map(client.getFieldValueIndexRequest)
+    val inserts = toInsert.map(client.fieldValueIndexRequest)
     client.sendBulkRequest(inserts, refresh = true)
 
     toInsert.foreach { fv =>
-      client.getFieldValue(fv) should be (Some(fv))
+      verifyFieldValue(fv) should be (Some(fv))
     }
 
     val toUpdate = Seq(
       FieldValue("alpha.1337", 1, 20, 32, "Mexican axolotl"),
       FieldValue("alpha.1337", 1, 22, 32, "Enrique"))
 
-    val updates = toUpdate.map(client.getFieldValueUpdateRequest)
+    val updates = toUpdate.map(client.fieldValueUpdateRequest)
     client.sendBulkRequest(updates, refresh = true)
 
-    client.getFieldValue(toInsert(0)).get should be (toUpdate(0))
-    client.getFieldValue(toInsert(1)).get should be (toInsert(1))
-    client.getFieldValue(toInsert(2)).get should be (toUpdate(1))
+    verifyFieldValue(toInsert(0)).get should be (toUpdate(0))
+    verifyFieldValue(toInsert(1)).get should be (toInsert(1))
+    verifyFieldValue(toInsert(2)).get should be (toUpdate(1))
   }
 
   test("Don't send empty bulk requests to Elastic Search") {
@@ -115,7 +122,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
                    row <- 1 to 10
                  } yield FieldValue(from.datasetId, from.copyNumber, col, row, s"$col|$row")
 
-    val inserts = toCopy.map(client.getFieldValueIndexRequest)
+    val inserts = toCopy.map(client.fieldValueIndexRequest)
     client.sendBulkRequest(inserts, refresh = true)
 
     client.searchFieldValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)
@@ -139,20 +146,20 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
   }
 
   test("Put, get and delete column map") {
-    client.getColumnMap(datasets(0), 1, "col1-1111") should not be 'defined
-    client.getColumnMap(datasets(0), 1, "col2-2222") should not be 'defined
+    client.columnMap(datasets(0), 1, "col1-1111") should not be 'defined
+    client.columnMap(datasets(0), 1, "col2-2222") should not be 'defined
 
     val colMap = ColumnMap(datasets(0), 1, 1, "col1-1111")
     client.putColumnMap(colMap, refresh = true)
 
-    val colMap1 = client.getColumnMap(datasets(0), 1, "col1-1111")
+    val colMap1 = client.columnMap(datasets(0), 1, "col1-1111")
     colMap1 should be (Some(colMap))
-    val colMap2 = client.getColumnMap(datasets(0), 1, "col2-2222")
+    val colMap2 = client.columnMap(datasets(0), 1, "col2-2222")
     colMap2 should not be 'defined
 
     client.deleteColumnMap(colMap.datasetId, colMap.copyNumber, colMap.userColumnId)
 
-    client.getColumnMap(datasets(0), 1, "col1-1111") should not be 'defined
+    client.columnMap(datasets(0), 1, "col1-1111") should not be 'defined
   }
 
   test("Delete column map by dataset") {
@@ -180,15 +187,15 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     dsCopies.totalHits should be (3)
     dsCopies.thisPage.sortBy(_.copyNumber) should be (copies(datasets(0)))
 
-    client.getDatasetCopy(datasets(0), 3) should be (Some(copies(datasets(0))(2)))
-    client.getDatasetCopy(datasets(0), 4) should not be 'defined
+    client.datasetCopy(datasets(0), 3) should be (Some(copies(datasets(0))(2)))
+    client.datasetCopy(datasets(0), 4) should not be 'defined
 
     client.putDatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished, refresh = true)
-    client.getDatasetCopy(datasets(0), 4) should be
+    client.datasetCopy(datasets(0), 4) should be
       (Some(DatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished)))
 
     client.deleteDatasetCopy(datasets(0), 4)
-    client.getDatasetCopy(datasets(0), 4) should not be 'defined
+    client.datasetCopy(datasets(0), 4) should not be 'defined
     client.searchCopiesByDataset(datasets(0)).totalHits should be (3)
 
     client.deleteDatasetCopiesByDataset(datasets(0))
@@ -196,20 +203,20 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
   }
 
   test("Get latest copy of dataset (published or all)") {
-    client.getLatestCopyForDataset(datasets(0)) should be ('defined)
-    client.getLatestCopyForDataset(datasets(0)).get.copyNumber should be (3)
-    client.getLatestCopyForDataset(datasets(0), publishedOnly = false) should be ('defined)
-    client.getLatestCopyForDataset(datasets(0), publishedOnly = false).get.copyNumber should be (3)
-    client.getLatestCopyForDataset(datasets(0), publishedOnly = true) should be ('defined)
-    client.getLatestCopyForDataset(datasets(0), publishedOnly = true).get.copyNumber should be (2)
+    client.datasetCopyLatest(datasets(0)) should be ('defined)
+    client.datasetCopyLatest(datasets(0)).get.copyNumber should be (3)
+    client.datasetCopyLatest(datasets(0), publishedOnly = false) should be ('defined)
+    client.datasetCopyLatest(datasets(0), publishedOnly = false).get.copyNumber should be (3)
+    client.datasetCopyLatest(datasets(0), publishedOnly = true) should be ('defined)
+    client.datasetCopyLatest(datasets(0), publishedOnly = true).get.copyNumber should be (2)
 
-    client.getLatestCopyForDataset("foo") should not be 'defined
+    client.datasetCopyLatest("foo") should not be 'defined
   }
 
   test("Update dataset copy version") {
     client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Unpublished, refresh = true)
 
-    val current = client.getDatasetCopy(datasets(1), 1)
+    val current = client.datasetCopy(datasets(1), 1)
     current should be ('defined)
     current.get.version should be (2)
     current.get.stage should be (LifecycleStage.Unpublished)
@@ -218,22 +225,22 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
       current.get.copy(version = 5, stage = LifecycleStage.Published),
       refresh = true)
 
-    client.getDatasetCopy(datasets(1), 1) should be ('defined)
-    client.getDatasetCopy(datasets(1), 1).get.version should be (5)
-    client.getDatasetCopy(datasets(1), 1).get.stage should be (LifecycleStage.Published)
+    client.datasetCopy(datasets(1), 1) should be ('defined)
+    client.datasetCopy(datasets(1), 1).get.version should be (5)
+    client.datasetCopy(datasets(1), 1).get.stage should be (LifecycleStage.Published)
   }
 
   test("Delete dataset copy by copy number") {
     client.putDatasetCopy(datasets(0), 1, 50L, LifecycleStage.Unpublished, refresh = true)
     client.putDatasetCopy(datasets(0), 2, 100L, LifecycleStage.Published, refresh = true)
 
-    client.getDatasetCopy(datasets(0), 1) should be ('defined)
-    client.getDatasetCopy(datasets(0), 2) should be ('defined)
+    client.datasetCopy(datasets(0), 1) should be ('defined)
+    client.datasetCopy(datasets(0), 2) should be ('defined)
 
     client.deleteDatasetCopy(datasets(0), 2)
 
-    client.getDatasetCopy(datasets(0), 1) should be ('defined)
-    client.getDatasetCopy(datasets(0), 2) should not be ('defined)
+    client.datasetCopy(datasets(0), 1) should be ('defined)
+    client.datasetCopy(datasets(0), 2) should not be ('defined)
   }
 
   test("suggest is case insensitive and supports numbers and symbols") {
@@ -248,7 +255,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.indexFieldValue(date, refresh = true)
     client.indexFieldValue(sym, refresh = true)
 
-    val suggestions = client.getSuggestions(column, 10, "foo", Fuzziness.AUTO, 3, 1)
+    val suggestions = client.suggest(column, 10, "foo", Fuzziness.AUTO, 3, 1)
 
     // Urmila is scratching her head about what size() represents,
     // if there are 2 items returned but size() == 1
@@ -257,20 +264,20 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     suggestions.toString should include(food.value)
     suggestions.toString should include(fool.value)
 
-    val suggestionsUpper = client.getSuggestions(column, 10, "foo", Fuzziness.AUTO, 3, 1)
+    val suggestionsUpper = client.suggest(column, 10, "foo", Fuzziness.AUTO, 3, 1)
 
     suggestionsUpper.size() should be(1)
     suggestionsUpper.toString should include("\"options\" : [")
     suggestionsUpper.toString should include(food.value)
     suggestionsUpper.toString should include(fool.value)
 
-    val suggestionsNum = client.getSuggestions(column, 10, "0", Fuzziness.AUTO, 3, 1)
+    val suggestionsNum = client.suggest(column, 10, "0", Fuzziness.AUTO, 3, 1)
 
     suggestionsNum.size() should be(1)
     suggestionsNum.toString should include("\"options\" : [")
     suggestionsNum.toString should include(date.value)
 
-    val suggestionsSym = client.getSuggestions(column, 10, "@", Fuzziness.AUTO, 3, 1)
+    val suggestionsSym = client.suggest(column, 10, "@", Fuzziness.AUTO, 3, 1)
 
     suggestionsSym.size() should be(1)
     suggestionsSym.toString should include("\"options\" : [")
@@ -280,7 +287,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
   ignore("samples") {
     val column = ColumnMap(datasets(0), 1, 1, "col1-1111")
 
-    val samples = client.getSamples(column, 10)
+    val samples = client.sample(column, 10)
 
     samples.totalHits should be(5)
     samples.aggs should contain(BucketCount(makeRowData(1, 1), 1))
@@ -305,7 +312,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     docs.foreach(client.indexFieldValue(_, refresh = false))
     client.refresh()
 
-    val retrieved = client.getSamples(col, lots)
+    val retrieved = client.sample(col, lots)
     retrieved.aggs.sortBy(_.key) should be(expected)
   }
 
@@ -326,7 +333,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     docs.foreach(client.indexFieldValue(_, refresh = false))
     client.refresh()
 
-    val retrieved = client.getSamples(col, selected)
+    val retrieved = client.sample(col, selected)
     retrieved.aggs should be(expected)
   }
 }

@@ -18,7 +18,7 @@ class SpandexServlet(conf: SpandexConfig,
   val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
 
   def columnMap(datasetId: String, copyNum: Long, userColumnId: String): ColumnMap =
-    client.getColumnMap(datasetId, copyNum, userColumnId).getOrElse(halt(
+    client.columnMap(datasetId, copyNum, userColumnId).getOrElse(halt(
       HttpStatus.SC_NOT_FOUND, JsonUtil.renderJson(SpandexError("Column not found", Some(userColumnId)))))
   def urlDecode(s: String): String = java.net.URLDecoder.decode(s, EncodingUtf8)
 
@@ -54,7 +54,7 @@ class SpandexServlet(conf: SpandexConfig,
   get(s"/$routeSuggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId/:$paramText") {
     timer("suggestText") {
       suggest { (col, text, fuzz, size) =>
-        SpandexResult(client.getSuggestions(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
+        SpandexResult(client.suggest(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
       }
     }.call()
   }
@@ -75,7 +75,7 @@ class SpandexServlet(conf: SpandexConfig,
       val sampleFuzzLen = 0
       val sampleFuzzPre = 0
       suggest { (col, _, _, size) =>
-        SpandexResult(client.getSuggestions(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
+        SpandexResult(client.suggest(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
       }
     }.call()
   }
@@ -109,7 +109,7 @@ class SpandexServlet(conf: SpandexConfig,
    */
   get(s"/sample/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
     timer("sample") {
-      suggest { (col, _, _, size) => SpandexResult(client.getSamples(col, size)) }
+      suggest { (col, _, _, size) => SpandexResult(client.sample(col, size)) }
     }.call()
   }
 

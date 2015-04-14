@@ -47,7 +47,7 @@ case class ResyncHandler(client: SpandexElasticSearchClient) extends SecondaryEv
     // This logic is adapted from PG Secondary code in soql-postgres-adapter
     // store-pg/src/main/scala/com/socrata/pg/store/PGSecondary.scala#L415
     val systemIdColumn = schema.values.find(_.isSystemPrimaryKey).get
-    def getRowId(row: ColumnIdMap[SoQLValue]): RowId = {
+    def rowId(row: ColumnIdMap[SoQLValue]): RowId = {
       val rowPk = row.get(systemIdColumn.systemId).get
       new RowId(rowPk.asInstanceOf[SoQLID].value)
     }
@@ -59,8 +59,8 @@ case class ResyncHandler(client: SpandexElasticSearchClient) extends SecondaryEv
           row <- iter
           (id, value: SoQLText) <- row.iterator
         } yield {
-          client.getFieldValueIndexRequest(RowOpsHandler.fieldValueFromDatum(
-            datasetInfo.internalName, copyInfo.copyNumber, getRowId(row), (id, value)))
+          client.fieldValueIndexRequest(RowOpsHandler.fieldValueFromDatum(
+            datasetInfo.internalName, copyInfo.copyNumber, rowId(row), (id, value)))
         }
 
       // Don't refresh ES during resync

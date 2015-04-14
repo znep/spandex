@@ -92,7 +92,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
           .setRefresh(refresh)
           .execute.actionGet)
 
-  def getColumnMap(datasetId: String, copyNumber: Long, userColumnId: String): Option[ColumnMap] = {
+  def columnMap(datasetId: String, copyNumber: Long, userColumnId: String): Option[ColumnMap] = {
     val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
     val response = client.prepareGet(config.index, config.columnMapMapping.mappingType, id)
                          .execute.actionGet
@@ -126,29 +126,23 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .setQuery(byCopyNumberQuery(datasetId, copyNumber))
                            .execute.actionGet)
 
-  def getFieldValue(fieldValue: FieldValue): Option[FieldValue] = {
-    val response = client.prepareGet(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
-                         .execute.actionGet
-    response.result[FieldValue]
-  }
-
   def indexFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
-    checkForFailures(getFieldValueIndexRequest(fieldValue).setRefresh(refresh).execute.actionGet)
+    checkForFailures(fieldValueIndexRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
   def updateFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
-    checkForFailures(getFieldValueUpdateRequest(fieldValue).setRefresh(refresh).execute.actionGet)
+    checkForFailures(fieldValueUpdateRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
-  def getFieldValueIndexRequest(fieldValue: FieldValue) : IndexRequestBuilder =
+  def fieldValueIndexRequest(fieldValue: FieldValue) : IndexRequestBuilder =
     client.prepareIndex(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
           .setSource(JsonUtil.renderJson(fieldValue))
 
-  def getFieldValueUpdateRequest(fieldValue: FieldValue): UpdateRequestBuilder = {
+  def fieldValueUpdateRequest(fieldValue: FieldValue): UpdateRequestBuilder = {
     client.prepareUpdate(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
           .setDocAsUpsert(true)
           .setDoc(s"""{ value : "${fieldValue.value}" }""")
   }
 
-  def getFieldValueDeleteRequest(datasetId: String,
+  def fieldValueDeleteRequest(datasetId: String,
                                  copyNumber: Long,
                                  columnId: Long,
                                  rowId: Long): DeleteRequestBuilder = {
@@ -190,7 +184,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
                            .execute.actionGet
 
       batch = response.results[FieldValue].thisPage.map { src =>
-        getFieldValueIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.value))
+        fieldValueIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.value))
       }
 
       if (batch.nonEmpty) {
@@ -251,8 +245,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
             .execute.actionGet)
   }
 
-  def getLatestCopyForDataset(datasetId: String,
-                              publishedOnly: Boolean = false): Option[DatasetCopy] = {
+  def datasetCopyLatest(datasetId: String, publishedOnly: Boolean = false): Option[DatasetCopy] = {
     val latestCopyPlaceholder = "latest_copy"
     val query =
       if (publishedOnly) {
@@ -272,7 +265,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     results.thisPage.headOption
   }
 
-  def getDatasetCopy(datasetId: String, copyNumber: Long): Option[DatasetCopy] = {
+  def datasetCopy(datasetId: String, copyNumber: Long): Option[DatasetCopy] = {
     val id = DatasetCopy.makeDocId(datasetId, copyNumber)
     val response = client.prepareGet(config.index, config.datasetCopyMapping.mappingType, id)
                          .execute.actionGet
@@ -291,7 +284,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .setQuery(byDatasetIdQuery(datasetId))
       .execute.actionGet
 
-  def getSuggestions(column: ColumnMap, size: Int, text: String,
+  def suggest(column: ColumnMap, size: Int, text: String,
                      fuzz: Fuzziness, fuzzLength: Int, fuzzPrefix: Int): Suggest = {
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
       .addContextField(SpandexFields.CompositeId, column.compositeId)
@@ -310,7 +303,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   /* Not yet used.
    * This grabs the TOP N documents by frequency.
    */
-  def getSamples(column: ColumnMap, size: Int): SearchResults[FieldValue] = {
+  def sample(column: ColumnMap, size: Int): SearchResults[FieldValue] = {
     val aggName = "values"
     val response = client.prepareSearch(config.index)
       .setTypes(config.fieldValueMapping.mappingType)

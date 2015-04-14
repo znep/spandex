@@ -51,8 +51,8 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
   test("drop copy") {
     client.searchFieldValuesByCopyNumber(datasets(0), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (15)
-    client.getDatasetCopy(datasets(0), 1) should be ('defined)
-    client.getDatasetCopy(datasets(0), 2) should be ('defined)
+    client.datasetCopy(datasets(0), 1) should be ('defined)
+    client.datasetCopy(datasets(0), 2) should be ('defined)
     client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (3)
     client.searchColumnMapsByCopyNumber(datasets(0), 2).totalHits should be (3)
 
@@ -60,8 +60,8 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
 
     client.searchFieldValuesByCopyNumber(datasets(0), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (0)
-    client.getDatasetCopy(datasets(0), 1) should be ('defined)
-    client.getDatasetCopy(datasets(0), 2) should not be 'defined
+    client.datasetCopy(datasets(0), 1) should be ('defined)
+    client.datasetCopy(datasets(0), 2) should not be 'defined
     client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (3)
     client.searchColumnMapsByCopyNumber(datasets(0), 2).totalHits should be (0)
   }

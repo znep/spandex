@@ -14,7 +14,7 @@ case class WorkingCopyCreatedHandler(client: SpandexElasticSearchClient) extends
       wccEvents.next() match {
         case WorkingCopyCreated(copyInfo) =>
           // Make sure the copy we want to create doesn't already exist.
-          val existingCopy = client.getDatasetCopy(datasetName, copyInfo.copyNumber)
+          val existingCopy = client.datasetCopy(datasetName, copyInfo.copyNumber)
           if (existingCopy.isDefined) {
             logger.info(s"dataset $datasetName copy ${copyInfo.copyNumber} already exists - resync!")
             throw new ResyncSecondaryException("Dataset copy already exists")
