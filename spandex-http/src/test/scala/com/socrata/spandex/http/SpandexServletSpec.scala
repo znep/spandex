@@ -49,13 +49,6 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
-  test("get health status page") {
-    get("/health") {
-      status should equal(HttpStatus.SC_OK)
-      contentTypeShouldBe(ContentTypeJson)
-    }
-  }
-
   test("get version") {
     get("/version") {
       status should equal(HttpStatus.SC_OK)
