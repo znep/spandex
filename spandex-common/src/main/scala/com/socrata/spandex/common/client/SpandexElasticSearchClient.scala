@@ -59,10 +59,10 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       if (!i.isCreated) throw ElasticSearchResponseFailed(
         s"${i.getType} doc with id ${i.getId} was not successfully indexed")
     case u: UpdateResponse =>
-      // No op - UpdateResponse doesn't have any useful state to check
+    // No op - UpdateResponse doesn't have any useful state to check
     case d: DeleteResponse =>
-      // No op - we don't care to throw an exception if d.isFound is false,
-      // since that means the document is effectively deleted.
+    // No op - we don't care to throw an exception if d.isFound is false,
+    // since that means the document is effectively deleted.
     case dbq: DeleteByQueryResponse =>
       val failures = dbq.getIndex(config.index).getFailures
       if (failures.nonEmpty) {
@@ -88,9 +88,9 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def putColumnMap(columnMap: ColumnMap, refresh: Boolean): Unit =
     checkForFailures(
       client.prepareIndex(config.index, config.columnMapMapping.mappingType, columnMap.docId)
-          .setSource(JsonUtil.renderJson(columnMap))
-          .setRefresh(refresh)
-          .execute.actionGet)
+            .setSource(JsonUtil.renderJson(columnMap))
+            .setRefresh(refresh)
+            .execute.actionGet)
 
   def columnMap(datasetId: String, copyNumber: Long, userColumnId: String): Option[ColumnMap] = {
     val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
@@ -132,7 +132,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def updateFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
     checkForFailures(fieldValueUpdateRequest(fieldValue).setRefresh(refresh).execute.actionGet)
 
-  def fieldValueIndexRequest(fieldValue: FieldValue) : IndexRequestBuilder =
+  def fieldValueIndexRequest(fieldValue: FieldValue): IndexRequestBuilder =
     client.prepareIndex(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
           .setSource(JsonUtil.renderJson(fieldValue))
 
@@ -143,9 +143,9 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   def fieldValueDeleteRequest(datasetId: String,
-                                 copyNumber: Long,
-                                 columnId: Long,
-                                 rowId: Long): DeleteRequestBuilder = {
+                              copyNumber: Long,
+                              columnId: Long,
+                              rowId: Long): DeleteRequestBuilder = {
     val docId = FieldValue.makeDocId(datasetId, copyNumber, columnId, rowId)
     client.prepareDelete(config.index, config.fieldValueMapping.mappingType, docId)
   }
@@ -285,7 +285,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .execute.actionGet
 
   def suggest(column: ColumnMap, size: Int, text: String,
-                     fuzz: Fuzziness, fuzzLength: Int, fuzzPrefix: Int): Suggest = {
+              fuzz: Fuzziness, fuzzLength: Int, fuzzPrefix: Int): Suggest = {
     val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
       .addContextField(SpandexFields.CompositeId, column.compositeId)
       .setFuzziness(fuzz).setFuzzyPrefixLength(fuzzPrefix).setFuzzyMinLength(fuzzLength)
@@ -311,9 +311,9 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .setSearchType(SearchType.COUNT)
       .addAggregation(
         terms(aggName)
-        .field(SpandexFields.RawValue)
-        .size(size).shardSize(size*2)
-        .order(Terms.Order.count(false)) // descending <- ascending=false
+          .field(SpandexFields.RawValue)
+          .size(size).shardSize(size * 2)
+          .order(Terms.Order.count(false)) // descending <- ascending=false
       )
       .setSize(size)
       .execute.actionGet

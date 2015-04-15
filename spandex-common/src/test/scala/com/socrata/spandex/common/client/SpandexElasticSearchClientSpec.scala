@@ -1,7 +1,7 @@
 package com.socrata.spandex.common.client
 
-import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.datacoordinator.secondary.LifecycleStage
+import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
 import org.elasticsearch.action.index.IndexRequestBuilder
 import org.elasticsearch.common.unit.Fuzziness
