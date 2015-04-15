@@ -8,7 +8,7 @@ import org.scalatra._
 class ScalatraBootstrap extends LifeCycle {
   val conf = new SpandexConfig
 
-  val client = new SpandexElasticSearchClient(conf.es)
+  lazy val client = new SpandexElasticSearchClient(conf.es)
 
   override def init(context: ServletContext): Unit = {
     context.mount(new SpandexServlet(conf, client), "/*")

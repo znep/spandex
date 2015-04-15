@@ -12,7 +12,7 @@ import org.elasticsearch.common.unit.Fuzziness
 import scala.util.Try
 
 class SpandexServlet(conf: SpandexConfig,
-                     client: SpandexElasticSearchClient) extends SpandexStack {
+                     client: => SpandexElasticSearchClient) extends SpandexStack {
   def index: String = conf.es.index
 
   val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
@@ -23,7 +23,9 @@ class SpandexServlet(conf: SpandexConfig,
   def urlDecode(s: String): String = java.net.URLDecoder.decode(s, EncodingUtf8)
 
   get("/version") {
+    logger.info(">>> /version")
     contentType = ContentTypeJson
+    logger.info(s"<<< $version")
     version
   }
 
@@ -37,10 +39,13 @@ class SpandexServlet(conf: SpandexConfig,
   }
 
   get("/health") {
+    logger.info(">>> /health")
     contentType = ContentTypeJson
     val clusterAdminClient = client.client.admin().cluster()
     val req = new ClusterHealthRequest(index)
-    clusterAdminClient.health(req).actionGet()
+    val result = clusterAdminClient.health(req).actionGet()
+    logger.info(s"<<< $result")
+    result
   }
 
   private[this] val routeSuggest = "suggest"
