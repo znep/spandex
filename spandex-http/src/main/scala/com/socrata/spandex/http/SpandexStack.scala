@@ -34,20 +34,22 @@ trait SpandexStack extends ScalatraServlet
   }
 
   notFound {
-    counter("notFound") += 1
-    // remove content type in case it was set through an action
-    contentType = ""
-    // Try to render a ScalateTemplate if no route matched
-    findTemplate(requestPath) map { path =>
-      contentType = "text/html"
-      layoutTemplate(path)
-    } orElse serveStaticResource() getOrElse resourceNotFound()
+    timer("notFound") {
+      // remove content type in case it was set through an action
+      contentType = ""
+      // Try to render a ScalateTemplate if no route matched
+      findTemplate(requestPath) map { path =>
+        contentType = "text/html"
+        layoutTemplate(path)
+      } orElse serveStaticResource() getOrElse resourceNotFound()
+    }.call()
   }
 
   error {
     case e: Exception =>
-      counter("error") += 1
-      logger.error("Exception was thrown", e)
-      InternalServerError(JsonUtil.renderJson(SpandexError(e)))
+      timer("error") {
+        logger.error("Exception was thrown", e)
+        InternalServerError(JsonUtil.renderJson(SpandexError(e)))
+      }.call()
   }
 }
