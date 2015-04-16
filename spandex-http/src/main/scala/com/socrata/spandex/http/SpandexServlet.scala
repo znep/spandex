@@ -12,7 +12,7 @@ import org.elasticsearch.common.unit.Fuzziness
 import scala.util.Try
 
 class SpandexServlet(conf: SpandexConfig,
-                     client: SpandexElasticSearchClient) extends SpandexStack {
+                     client: => SpandexElasticSearchClient) extends SpandexStack {
   def index: String = conf.es.index
 
   val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
@@ -27,7 +27,9 @@ class SpandexServlet(conf: SpandexConfig,
   healthCheck("esClusterHealth") {Try {esClusterHealth}}
 
   get("/version") {
+    logger.info(">>> /version")
     contentType = ContentTypeJson
+    logger.info(s"<<< $version")
     version
   }
 
