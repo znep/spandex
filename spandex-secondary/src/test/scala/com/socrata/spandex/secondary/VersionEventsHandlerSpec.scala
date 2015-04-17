@@ -61,10 +61,10 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val copyInfo = CopyInfo(new CopyId(100), 45, LifecycleStage.Unpublished, 1, DateTime.now)
     val events = Seq(WorkingCopyCreated(copyInfo)).iterator
 
-    client.getDatasetCopy(dataset, copyInfo.copyNumber) should not be 'defined
+    client.datasetCopy(dataset, copyInfo.copyNumber) should not be 'defined
 
     handler.handle(dataset, dataVersion, events)
-    val maybeCopyRecord = client.getDatasetCopy(dataset, copyInfo.copyNumber)
+    val maybeCopyRecord = client.datasetCopy(dataset, copyInfo.copyNumber)
     maybeCopyRecord should be ('defined)
     maybeCopyRecord.get should be (DatasetCopy(dataset, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage))
   }
@@ -72,7 +72,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   test("Truncate - field values in latest copy of dataset should be dropped") {
     val expectedLatestBefore = copies(datasets(0)).last
 
-    val latestBefore = client.getLatestCopyForDataset(datasets(0))
+    val latestBefore = client.datasetCopyLatest(datasets(0))
     latestBefore should be ('defined)
     latestBefore.get.copyNumber should be (expectedLatestBefore.copyNumber)
     latestBefore.get.version should be (expectedLatestBefore.version)
@@ -80,7 +80,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(Truncated).iterator)
 
-    val latestAfter = client.getLatestCopyForDataset(datasets(0))
+    val latestAfter = client.datasetCopyLatest(datasets(0))
     latestAfter should be ('defined)
     latestAfter.get.copyNumber should be (expectedLatestBefore.copyNumber)
     latestAfter.get.version should be (expectedLatestBefore.version + 1)
@@ -94,9 +94,9 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     // Create column
     handler.handle(datasets(0), 3, Seq(ColumnCreated(numCol), ColumnCreated(textCol)).iterator)
 
-    val latest = client.getLatestCopyForDataset(datasets(0))
-    client.getColumnMap(datasets(0), latest.get.copyNumber, numCol.id.underlying) should not be 'defined
-    val textColMap = client.getColumnMap(datasets(0), latest.get.copyNumber, textCol.id.underlying)
+    val latest = client.datasetCopyLatest(datasets(0))
+    client.columnMap(datasets(0), latest.get.copyNumber, numCol.id.underlying) should not be 'defined
+    val textColMap = client.columnMap(datasets(0), latest.get.copyNumber, textCol.id.underlying)
     textColMap should be
       (Some(ColumnMap(datasets(0), latest.get.copyNumber, textCol.systemId.underlying, textCol.id.underlying)))
   }
@@ -105,16 +105,16 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val expectedLatestBefore = copies(datasets(0)).last
     val info = ColumnInfo(new ColumnId(3), new UserColumnId("blah-1234"), SoQLText, false, false, false)
 
-    val latestBeforeAdd = client.getLatestCopyForDataset(datasets(0))
+    val latestBeforeAdd = client.datasetCopyLatest(datasets(0))
     latestBeforeAdd should be ('defined)
     latestBeforeAdd.get.copyNumber should be (expectedLatestBefore.copyNumber)
     latestBeforeAdd.get.version should be (expectedLatestBefore.version)
-    client.getColumnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should not be 'defined
+    client.columnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should not be 'defined
 
     // Create column
     handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(ColumnCreated(info)).iterator)
 
-    client.getColumnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should be
+    client.columnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should be
       (Some(ColumnMap(datasets(0), 2, info.systemId.underlying, info.id.underlying)))
 
     // Pretend we added some data in between (which actually got added during bootstrap)
@@ -123,13 +123,13 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     // Remove column
     handler.handle(datasets(0), expectedLatestBefore.version + 1, Seq(ColumnRemoved(info)).iterator)
 
-    val latestAfterDelete = client.getLatestCopyForDataset(datasets(0))
+    val latestAfterDelete = client.datasetCopyLatest(datasets(0))
     latestAfterDelete should be ('defined)
     latestAfterDelete.get.copyNumber should be (expectedLatestBefore.copyNumber)
     latestAfterDelete.get.version should be (expectedLatestBefore.version + 1)
     client.searchFieldValuesByColumnId(
       datasets(0), expectedLatestBefore.copyNumber, info.systemId.underlying).totalHits should be (0)
-    client.getColumnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should not be 'defined
+    client.columnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should not be 'defined
   }
 
   test("WorkingCopyPublished - throw exception if the current copy is not Unpublished.") {
@@ -144,7 +144,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     handler.handle("wcp-first-test", 3, Seq(WorkingCopyPublished).iterator)
 
-    client.getDatasetCopy("wcp-first-test", 1) should be
+    client.datasetCopy("wcp-first-test", 1) should be
       (Some(DatasetCopy("wcp-first-test", 1, 3, LifecycleStage.Published)))
   }
 
@@ -154,9 +154,9 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
    handler.handle("wcp-second-test", 5, Seq(WorkingCopyPublished).iterator)
 
-   client.getDatasetCopy("wcp-second-test", 1) should be
+   client.datasetCopy("wcp-second-test", 1) should be
      (Some(DatasetCopy("wcp-second-test", 1, 2, LifecycleStage.Snapshotted)))
-   client.getDatasetCopy("wcp-second-test", 2) should be
+   client.datasetCopy("wcp-second-test", 2) should be
      (Some(DatasetCopy("wcp-second-test", 2, 5, LifecycleStage.Published)))
   }
 
@@ -164,7 +164,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.putDatasetCopy("wcd-test-initial-copy", 1, 1, LifecycleStage.Unpublished, refresh = true)
 
     val expectedBefore = Some(DatasetCopy("wcd-test-initial-copy", 1, 1, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset("wcd-test-initial-copy") should be(expectedBefore)
+    client.datasetCopyLatest("wcd-test-initial-copy") should be(expectedBefore)
 
     an [InvalidStateBeforeEvent] should be thrownBy
       handler.handle("wcd-test-initial-copy", 2, Seq(WorkingCopyDropped).iterator)
@@ -174,7 +174,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.putDatasetCopy("wcd-test-published", 2, 2, LifecycleStage.Published, refresh = true)
 
     val expectedBefore = Some(DatasetCopy("wcd-test-published", 2, 2, LifecycleStage.Published))
-    client.getLatestCopyForDataset("wcd-test-published") should be(expectedBefore)
+    client.datasetCopyLatest("wcd-test-published") should be(expectedBefore)
 
     an [InvalidStateBeforeEvent] should be thrownBy
       handler.handle("wcd-test-published", 3, Seq(WorkingCopyDropped).iterator)
@@ -182,7 +182,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   test("WorkingCopyDropped - latest working copy should be dropped") {
     val expectedBefore = copies(datasets(1)).last
-    client.getLatestCopyForDataset(datasets(1)) should be(Some(expectedBefore))
+    client.datasetCopyLatest(datasets(1)) should be(Some(expectedBefore))
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
@@ -193,7 +193,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     handler.handle(datasets(1), expectedBefore.version + 1, Seq(WorkingCopyDropped).iterator)
 
     val expectedAfter = copies(datasets(1))(1).copy(version = expectedBefore.version + 1)
-    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
+    client.datasetCopyLatest(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (0)
@@ -206,7 +206,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.putDatasetCopy("sd-test-notsnapshot", 2, 2, LifecycleStage.Unpublished, refresh = true)
 
     val expectedBefore = Some(DatasetCopy("sd-test-notsnapshot", 2, 2, LifecycleStage.Unpublished))
-    client.getLatestCopyForDataset("sd-test-notsnapshot") should be (expectedBefore)
+    client.datasetCopyLatest("sd-test-notsnapshot") should be (expectedBefore)
 
     val copyInfo = CopyInfo(new CopyId(100), 2, LifecycleStage.Unpublished, 2, DateTime.now)
     val events =  Seq(SnapshotDropped(copyInfo)).iterator
@@ -215,7 +215,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   test("SnapshotDropped - the specified snapshot should be dropped") {
     val expectedBefore = copies(datasets(1)).last
-    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedBefore))
+    client.datasetCopyLatest(datasets(1)) should be (Some(expectedBefore))
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
@@ -228,7 +228,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     handler.handle(datasets(1), expectedBefore.version + 1, Seq(SnapshotDropped(copyInfo)).iterator)
 
     val expectedAfter = expectedBefore.copy(version = expectedBefore.version + 1)
-    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
+    client.datasetCopyLatest(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (0)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
@@ -242,7 +242,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val insert = Insert(new RowId(6), ColumnIdMap[SoQLValue](
       new ColumnId(5) -> SoQLText("index me!"), new ColumnId(9) -> SoQLNumber(new BigDecimal(5))))
 
-    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedBeforeInsert))
+    client.datasetCopyLatest(datasets(1)) should be (Some(expectedBeforeInsert))
     client.searchFieldValuesByCopyNumber(
       datasets(1), expectedBeforeInsert.copyNumber).totalHits should be (15)
     client.searchFieldValuesByRowId(
@@ -253,7 +253,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     handler.handle(datasets(1), expectedBeforeInsert.version + 1, insertEvents)
 
     val expectedAfterInsert = expectedBeforeInsert.copy(version = expectedBeforeInsert.version + 1)
-    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfterInsert))
+    client.datasetCopyLatest(datasets(1)) should be (Some(expectedAfterInsert))
     client.searchFieldValuesByCopyNumber(
       datasets(1), expectedBeforeInsert.copyNumber).totalHits should be (16)
     val newEntries = client.searchFieldValuesByRowId(
@@ -269,7 +269,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     handler.handle(datasets(1), expectedAfterInsert.version + 1, updateEvents)
 
     val expectedAfter = expectedAfterInsert.copy(version = expectedAfterInsert.version + 1)
-    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
+    client.datasetCopyLatest(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(
       datasets(1), expectedAfterInsert.copyNumber).totalHits should be (16)
     val updatedRow = client.searchFieldValuesByRowId(
@@ -286,7 +286,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   test("RowDataUpdated - Delete") {
     val expectedBefore = copies(datasets(1)).last
-    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedBefore))
+    client.datasetCopyLatest(datasets(1)) should be (Some(expectedBefore))
     client.searchFieldValuesByCopyNumber(datasets(1), expectedBefore.copyNumber).totalHits should be (15)
     client.searchFieldValuesByRowId(datasets(1), expectedBefore.copyNumber, 2).totalHits should be (3)
     client.searchFieldValuesByRowId(datasets(1), expectedBefore.copyNumber, 5).totalHits should be (3)
@@ -296,7 +296,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     handler.handle(datasets(1), expectedBefore.version + 1, events)
 
     val expectedAfter = expectedBefore.copy(version = expectedBefore.version + 1)
-    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
+    client.datasetCopyLatest(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), expectedAfter.copyNumber).totalHits should be (9)
     client.searchFieldValuesByRowId(datasets(1), expectedAfter.copyNumber, 2).totalHits should be (0)
     client.searchFieldValuesByRowId(datasets(1), expectedAfter.copyNumber, 5).totalHits should be (0)
@@ -342,14 +342,14 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.deleteFieldValuesByCopyNumber(datasets(1), 3)
 
     val expectedBefore = copies(datasets(1)).last
-    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedBefore))
+    client.datasetCopyLatest(datasets(1)) should be (Some(expectedBefore))
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (0)
 
     handler.handle(datasets(1), expectedBefore.version + 1, Seq(DataCopied).iterator)
 
     val expectedAfter = expectedBefore.copy(version = expectedBefore.version + 1)
-    client.getLatestCopyForDataset(datasets(1)) should be (Some(expectedAfter))
+    client.datasetCopyLatest(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
   }

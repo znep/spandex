@@ -21,8 +21,8 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     header.getOrElse(ContentTypeHeader, "") should include(contentType)
 
   private[this] def urlEncode(s: String): String = java.net.URLEncoder.encode(s, EncodingUtf8)
-  private[this] def getRandomPort: Int = 51200 + (util.Random.nextInt % 100)
-  override def localPort: Option[Int] = Some(getRandomPort)
+  private[this] def randomPort: Int = 51200 + (util.Random.nextInt % 100)
+  override def localPort: Option[Int] = Some(randomPort)
 
   override def beforeAll(): Unit = {
     start()
@@ -46,13 +46,6 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
   test("get of non-existent page") {
     get("/goodbye-world") {
       status should equal(HttpStatus.SC_NOT_FOUND)
-    }
-  }
-
-  test("get health status page") {
-    get("/health") {
-      status should equal(HttpStatus.SC_OK)
-      contentTypeShouldBe(ContentTypeJson)
     }
   }
 

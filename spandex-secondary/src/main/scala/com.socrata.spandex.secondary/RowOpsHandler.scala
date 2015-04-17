@@ -37,12 +37,12 @@ case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) ext
       logger.debug("Received row operation: " + op)
       op match {
         case Insert(rowId, data) =>
-          requestsForRow(datasetName, copyNumber, rowId, data, client.getFieldValueIndexRequest)
+          requestsForRow(datasetName, copyNumber, rowId, data, client.fieldValueIndexRequest)
         case Update(rowId, data) =>
-          requestsForRow(datasetName, copyNumber, rowId, data, client.getFieldValueUpdateRequest)
+          requestsForRow(datasetName, copyNumber, rowId, data, client.fieldValueUpdateRequest)
         case Delete(rowId)       =>
           columnIds.map { colId =>
-            client.getFieldValueDeleteRequest(datasetName, copyNumber, colId, rowId.underlying)
+            client.fieldValueDeleteRequest(datasetName, copyNumber, colId, rowId.underlying)
           }
       }
     }

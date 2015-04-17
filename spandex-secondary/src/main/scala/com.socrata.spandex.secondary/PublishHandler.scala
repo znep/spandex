@@ -13,7 +13,7 @@ case class PublishHandler(client: SpandexElasticSearchClient) extends SecondaryE
 
     logWorkingCopyPublished(datasetName, latest.copyNumber)
 
-    val maybeLastPublished = client.getLatestCopyForDataset(datasetName, publishedOnly = true)
+    val maybeLastPublished = client.datasetCopyLatest(datasetName, publishedOnly = true)
 
     // Set the latest unpublished version to published
     client.updateDatasetCopyVersion(

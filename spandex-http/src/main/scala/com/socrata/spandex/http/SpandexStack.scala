@@ -7,11 +7,16 @@ import com.typesafe.scalalogging.slf4j.Logging
 import org.fusesource.scalate.TemplateEngine
 import org.fusesource.scalate.layout.DefaultLayoutStrategy
 import org.scalatra._
+import org.scalatra.metrics.{HealthChecksSupport, MetricsSupport}
 import org.scalatra.scalate.ScalateSupport
 
 import scala.collection.mutable.{Map => MutableMap}
 
-trait SpandexStack extends ScalatraServlet with ScalateSupport with Logging {
+trait SpandexStack extends ScalatraServlet
+                      with ScalateSupport
+                      with MetricsSupport
+                      with HealthChecksSupport
+                      with Logging {
 
   /* wire up the precompiled templates */
   override protected def defaultTemplatePath: List[String] = List("/WEB-INF/templates/views")
@@ -29,18 +34,22 @@ trait SpandexStack extends ScalatraServlet with ScalateSupport with Logging {
   }
 
   notFound {
-    // remove content type in case it was set through an action
-    contentType = ""
-    // Try to render a ScalateTemplate if no route matched
-    findTemplate(requestPath) map { path =>
-      contentType = "text/html"
-      layoutTemplate(path)
-    } orElse serveStaticResource() getOrElse resourceNotFound()
+    timer("notFound") {
+      // remove content type in case it was set through an action
+      contentType = ""
+      // Try to render a ScalateTemplate if no route matched
+      findTemplate(requestPath) map { path =>
+        contentType = "text/html"
+        layoutTemplate(path)
+      } orElse serveStaticResource() getOrElse resourceNotFound()
+    }.call()
   }
 
   error {
     case e: Exception =>
-      logger.error("Exception was thrown", e)
-      InternalServerError(JsonUtil.renderJson(SpandexError(e)))
+      timer("error") {
+        logger.error("Exception was thrown", e)
+        InternalServerError(JsonUtil.renderJson(SpandexError(e)))
+      }.call()
   }
 }

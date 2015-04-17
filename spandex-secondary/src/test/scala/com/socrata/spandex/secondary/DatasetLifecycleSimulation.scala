@@ -17,6 +17,7 @@ import org.scalatest.{Matchers, FunSuiteLike}
  * and capturing the batches of events that were passed to spandex secondary.
  * This test aims to be a good starting point to understand how the spandex secondary works.
  */
+// scalastyle:off
 class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
   val config = new SpandexConfig
   val client = new TestESClient(config.es)
@@ -105,8 +106,8 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     secondary.version(dataset, 1, None, datasetCreateEvents)
 
     // We should now see a corresponding dataset_copy doc in Elastic Search
-    client.getDatasetCopy(dataset.internalName, 1) should be ('defined)
-    client.getDatasetCopy(dataset.internalName, 1).get should be
+    client.datasetCopy(dataset.internalName, 1) should be ('defined)
+    client.datasetCopy(dataset.internalName, 1).get should be
       (DatasetCopy(dataset.internalName, 1, 1, LifecycleStage.Unpublished))
     // And no column_map docs yet, because we don't put system columns in Spandex
     client.searchColumnMapsByCopyNumber(dataset.internalName, 1).totalHits should be (0)
@@ -143,7 +144,7 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     client.searchColumnMapsByCopyNumber(dataset.internalName, 1).thisPage.head should be
       (ColumnMap(dataset.internalName, 1, 4, "ggha-z6i9"))
     // The current copy should be bumped to the latest data version
-    client.getDatasetCopy(dataset.internalName, 1).get should be
+    client.datasetCopy(dataset.internalName, 1).get should be
       (DatasetCopy(dataset.internalName, 1, 2, LifecycleStage.Unpublished))
 
     // Spandex only indexes text columns.
@@ -166,9 +167,9 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     secondary.version(dataset, 3, None, addNumberColumnEvents)
 
     // We should NOT see a corresponding column_map doc in Elastic Search
-    client.getColumnMap(dataset.internalName, 1, "j9bp-sh9q") should not be 'defined
+    client.columnMap(dataset.internalName, 1, "j9bp-sh9q") should not be 'defined
     // BUT the current copy should still be bumped to the latest data version
-    client.getDatasetCopy(dataset.internalName, 1).get should be
+    client.datasetCopy(dataset.internalName, 1).get should be
       (DatasetCopy(dataset.internalName, 1, 3, LifecycleStage.Unpublished))
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -199,7 +200,7 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     client.searchFieldValuesByCopyNumber(dataset.internalName, 1).thisPage.sortBy(_.rowId) should be
       ((1 to 10).map { i => FieldValue(dataset.internalName, 1, 4, i, "giraffe " + i) })
     // And the current copy should be bumped to the latest data version
-    client.getDatasetCopy(dataset.internalName, 1).get should be
+    client.datasetCopy(dataset.internalName, 1).get should be
       (DatasetCopy(dataset.internalName, 1, 4, LifecycleStage.Unpublished))
 
 
@@ -230,7 +231,7 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     client.searchFieldValuesByCopyNumber(dataset.internalName, 1).thisPage.sortBy(_.rowId) should be
     ((1 to 10).map { i => FieldValue(dataset.internalName, 1, 4, i, "axolotl " + i) })
     // And the current copy should be bumped to the latest data version
-    client.getDatasetCopy(dataset.internalName, 1).get should be
+    client.datasetCopy(dataset.internalName, 1).get should be
     (DatasetCopy(dataset.internalName, 1, 5, LifecycleStage.Unpublished))
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -250,7 +251,7 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     secondary.version(dataset, 6, None, publishedEvents)
 
     // The current copy should be bumped to the latest data version AND marked as Published.
-    client.getDatasetCopy(dataset.internalName, 1).get should be
+    client.datasetCopy(dataset.internalName, 1).get should be
       (DatasetCopy(dataset.internalName, 1, 6, LifecycleStage.Published))
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -346,12 +347,12 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     secondary.version(dataset, 7, None, workingCopyCreatedEvents)
 
     // We should now see a brand new dataset_copy doc in Elastic Search
-    client.getDatasetCopy(dataset.internalName, 1) should be
+    client.datasetCopy(dataset.internalName, 1) should be
       (DatasetCopy(dataset.internalName, 1, 6, LifecycleStage.Published))
-    client.getDatasetCopy(dataset.internalName, 2).get should be
+    client.datasetCopy(dataset.internalName, 2).get should be
       (DatasetCopy(dataset.internalName, 2, 7, LifecycleStage.Unpublished))
     // All column maps that exist on copy 1 should now exist on copy 2
-    client.getColumnMap(dataset.internalName, 2, "ggha-z6i9").get should be
+    client.columnMap(dataset.internalName, 2, "ggha-z6i9").get should be
       (ColumnMap(dataset.internalName, 2, 4, "ggha-z6i9"))
     // All rows that exist on copy 1 should not exist on copy 2
     client.searchFieldValuesByCopyNumber(dataset.internalName, 2).totalHits should be (10)
@@ -384,7 +385,7 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
     secondary.version(dataset, 8, None, columnRemovedEvents)
 
     // The column mapping and any related field values should be removed from the index
-    client.getColumnMap(dataset.internalName, 2, "ggha-z6i9") should not be 'defined
+    client.columnMap(dataset.internalName, 2, "ggha-z6i9") should not be 'defined
     client.searchFieldValuesByColumnId(dataset.internalName, 2, 4).totalHits should be (0)
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -404,9 +405,9 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
 
     // All signs of the working copy should be gone from Elastic Search
     // Data version on previous published copy should be updated
-    client.getDatasetCopy(dataset.internalName, 1).get should be
+    client.datasetCopy(dataset.internalName, 1).get should be
       (DatasetCopy(dataset.internalName, 1, 9, LifecycleStage.Published))
-    client.getDatasetCopy(dataset.internalName, 2) should not be 'defined
+    client.datasetCopy(dataset.internalName, 2) should not be 'defined
     client.searchColumnMapsByCopyNumber(dataset.internalName, 2).totalHits should be (0)
     client.searchFieldValuesByCopyNumber(dataset.internalName, 2).totalHits should be (0)
 

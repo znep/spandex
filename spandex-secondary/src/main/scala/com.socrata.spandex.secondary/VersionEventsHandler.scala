@@ -15,7 +15,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
 
     // Find the latest dataset copy number. This *should* exist since
     // we have already handled creation of any initial working copies.
-    val latest = client.getLatestCopyForDataset(datasetName).getOrElse(
+    val latest = client.datasetCopyLatest(datasetName).getOrElse(
       throw InvalidStateBeforeEvent(s"Couldn't get latest copy number for dataset $datasetName"))
 
     // Now handle everything else
@@ -23,7 +23,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
       logger.debug("Received event: " + event)
       event match {
         case DataCopied =>
-          val latestPublished = client.getLatestCopyForDataset(datasetName, publishedOnly = true).getOrElse(
+          val latestPublished = client.datasetCopyLatest(datasetName, publishedOnly = true).getOrElse(
             throw InvalidStateBeforeEvent(s"Could not find a published copy to copy data from"))
           logDataCopied(datasetName, latestPublished.copyNumber, latest.copyNumber)
           client.copyFieldValues(from = latestPublished, to = latest, refresh = true)
@@ -65,7 +65,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
 
     // Finally, get whatever the new latest copy is and bump its data version.
     logDataVersionBump(datasetName, latest.copyNumber, latest.version, dataVersion)
-    val finalLatest = client.getLatestCopyForDataset(datasetName).getOrElse(
+    val finalLatest = client.datasetCopyLatest(datasetName).getOrElse(
       throw InvalidStateAfterEvent(s"Couldn't get latest copy number for dataset $datasetName"))
     client.updateDatasetCopyVersion(finalLatest.copy(version = dataVersion), refresh = true)
   }
