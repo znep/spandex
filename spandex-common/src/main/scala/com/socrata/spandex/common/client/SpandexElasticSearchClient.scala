@@ -138,8 +138,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
   def fieldValueUpdateRequest(fieldValue: FieldValue): UpdateRequestBuilder = {
     client.prepareUpdate(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
-          .setDocAsUpsert(true)
-          .setDoc(s"""{ value : "${fieldValue.value}" }""")
+          .setDoc(JsonUtil.renderJson(fieldValue))
+          .setUpsert()
   }
 
   def fieldValueDeleteRequest(datasetId: String,
