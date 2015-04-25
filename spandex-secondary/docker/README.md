@@ -22,3 +22,4 @@ In addition, the following optional variables are supported.  For defaults, see 
 * `SPANDEX_SECONDARY_ES_CLUSTER_NAME` - Name of the cluster to connect to.
 * `SPANDEX_SECONDARY_ES_PORT` - The port number of the Elasticsearch server
 * `SPANDEX_SECONDARY_NUM_WORKERS` - Number of workers to run per secondary instance.
+* `SPANDEX_SECONDARY_TYPE` - The secondary type to use, controls what `store_id` we do work for.
