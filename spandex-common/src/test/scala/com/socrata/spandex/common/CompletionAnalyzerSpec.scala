@@ -1,9 +1,8 @@
-package com.socrata.spandex.common.cluster
+package com.socrata.spandex.common
 
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
-import com.socrata.spandex.common.{CompletionAnalyzer, SpandexBootstrap, SpandexConfig}
 import org.elasticsearch.common.unit.Fuzziness
 import org.elasticsearch.search.suggest.Suggest.Suggestion
 import org.elasticsearch.search.suggest.completion.CompletionSuggestion.Entry
@@ -12,7 +11,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-class ElasticsearchAnalysisSpec extends FunSuiteLike with Matchers with BeforeAndAfterAll {
+class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with BeforeAndAfterAll {
   val config = new SpandexConfig()
   val client = new TestESClient(config.es)
 
