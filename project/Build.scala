@@ -1,4 +1,3 @@
-import com.earldouglas.xsbtwebplugin.PluginKeys.port
 import com.mojolly.scalate.ScalatePlugin.ScalateKeys._
 import com.mojolly.scalate.ScalatePlugin._
 import org.scalatra.sbt._
@@ -11,8 +10,6 @@ import scoverage.ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages
 object SpandexBuild extends Build {
   val Name = "com.socrata.spandex"
   val ScalaVersion = "2.10.5"
-  val JettyConf = config("container")
-  val JettyListenPort = 8042 // required for container embedded jetty
 
   lazy val commonSettings = Seq(
     scalaVersion := ScalaVersion,
@@ -49,7 +46,6 @@ object SpandexBuild extends Build {
       buildInfoPackage := "com.socrata.spandex.http",
       buildInfoOptions += BuildInfoOption.ToMap,
       libraryDependencies ++= Deps.socrata ++ Deps.http ++ Deps.test ++ Deps.common,
-      port in JettyConf := JettyListenPort,
       coverageExcludedPackages := "<empty>;templates.*",
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(
@@ -90,8 +86,8 @@ object SpandexBuild extends Build {
 }
 
 object Deps {
-  val ScalatraVersion = "2.4.0.M3"
-  val JettyVersion = "9.2.1.v20140609" // pinned to this version in Scalatra
+  val ScalatraVersion = "2.4.0.RC1"
+  val JettyVersion = "9.2.10.v20150310"
 
   lazy val resolverList = Seq(
     "Scalaz Bintray Repo" at "https://dl.bintray.com/scalaz/releases", // scalaz-stream used in scalatra 2.4.x
@@ -101,13 +97,16 @@ object Deps {
   lazy val socrata = Seq(
     "com.rojoma" %% "rojoma-json-v3" % "3.3.0",
     "com.rojoma" %% "simple-arm" % "1.2.0",
-    "com.socrata" %% "soql-types" % "0.5.0" excludeAll ExclusionRule(organization = "com.rojoma")
+    "com.rojoma" %% "simple-arm-v2" % "2.1.0",
+    "com.socrata" %% "soql-types" % "0.5.2"
+      excludeAll(ExclusionRule(organization = "com.rojoma"),
+                 ExclusionRule(organization = "commons-io"))
   )
   lazy val http = Seq(
     "org.scalatra" %% "scalatra" % ScalatraVersion,
     "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
     "org.scalatra" %% "scalatra-metrics" % ScalatraVersion,
-    "ch.qos.logback" % "logback-classic" % "1.1.2" % "runtime",
+    "ch.qos.logback" % "logback-classic" % "1.1.3" % "runtime",
     "org.eclipse.jetty" % "jetty-webapp" % JettyVersion % "container;compile",
     "org.eclipse.jetty" % "jetty-plus" % JettyVersion % "container"
   )
@@ -119,7 +118,7 @@ object Deps {
     "javax.servlet" % "javax.servlet-api" % "3.1.0",
     "com.typesafe" % "config" % "1.2.1",
     "com.typesafe" %% "scalalogging-slf4j" % "1.1.0",
-    "commons-io" % "commons-io" % "1.4",
+    "commons-io" % "commons-io" % "2.4",
     "org.elasticsearch" % "elasticsearch" % "1.4.4"
   )
   lazy val secondary = Seq(
