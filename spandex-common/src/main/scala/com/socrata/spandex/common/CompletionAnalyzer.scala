@@ -11,13 +11,18 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
 import org.apache.lucene.analysis.{Analyzer, TokenFilter, TokenStream}
 import org.apache.lucene.util.Version
 
+import scala.util.Try
+
 // Elasticsearch mapping type 'completion' is limited to keyword prefix matches.
 // Completions of term matches mid-phrase are not natively supported.
 // Phrase and Term suggesters, relying on full query, are capable.
 // But by specifying an array of matching 'input' values we can trick Lucene
 // into prefixing on any term in the 'output' value, the original phrase.
 object CompletionAnalyzer {
-  val version = Version.LUCENE_4_10_3
+  val config = new SpandexConfig
+  val version = Try { Version.parseLeniently(config.analysisVersion) }.getOrElse(Version.LATEST)
+  val maxInputLength = config.analysisMaxInputLength
+  val maxShingleLength = config.analysisMaxShingleLength
   val analyzer = new PatternAnalyzer(version, Pattern.compile("""\W+"""))
 
   implicit class TokenStreamExtensions(val tokens: TokenStream) extends AnyVal {
@@ -35,7 +40,8 @@ object CompletionAnalyzer {
       } else { acc }
     }
 
-    val stream: TokenStream = analyzer.tokenStream(SpandexFields.Value, value)
+    val shortenedValue = if (value.length > maxInputLength) value.substring(0, maxInputLength) else value
+    val stream: TokenStream = analyzer.tokenStream(SpandexFields.Value, shortenedValue)
       .filter(classOf[LowerCaseFilter])
     stream.reset()
     val tokens = tokenize(stream, Nil).reverse
@@ -45,7 +51,9 @@ object CompletionAnalyzer {
     def foldConcat(tokens: List[String], acc: List[String]): List[String] = {
       tokens match {
         case Nil => acc
-        case h::t => foldConcat(t, (h::t).mkString(" ") :: acc)
+        case h :: t =>
+          val s = (h :: t).mkString(" ")
+          foldConcat(t, (if (s.length > maxShingleLength) s.substring(0, maxShingleLength) else s) :: acc)
       }
     }
 

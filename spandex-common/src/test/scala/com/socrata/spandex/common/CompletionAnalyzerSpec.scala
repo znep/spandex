@@ -149,4 +149,30 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with BeforeAndAf
     suggest("html") should contain(expectedValue)
     suggest("lucene.rocks") should contain(expectedValue)
   }
+
+  test("limit produced analyses to certain length") {
+    // a fictional dish mentioned in Aristophanes' comedy Assemblywomen
+    val value = "Lopadotemachoselachogaleokranioleipsanodrimhypotrimmatosilphioparaomelitokatakechymenokichlepikossyphophattoperisteralektryonoptekephalliokigklopeleiolagoiosiraiobaphetraganopterygon"
+    val expectedInputValue = "lopadotemachoselachogaleokraniol"
+    val tokens = CompletionAnalyzer.analyze(value)
+    tokens.head should equal(expectedInputValue)
+  }
+
+  test("limit analysis input string to a certain length") {
+    val value = "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife. However little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered the rightful property of some one or other of their daughters. My dear Mr. Bennet, said his lady to him one day, have you heard that Netherfield Park is let at last? Mr. Bennet replied that he had not. But it is, returned she; for Mrs. Long has just been here, and she told me all about it. Mr. Bennet made no answer. Do you not want to know who has taken it? cried his wife impatiently. You want to tell me, and I have no objection to hearing it."
+    val expectedInputValues = Seq(
+      "pos",
+      "in pos",
+      "man in pos",
+      "single man in pos",
+      "a single man in pos",
+      "that a single man in pos",
+      "acknowledged that a single man i",
+      "universally acknowledged that a ",
+      "truth universally acknowledged t",
+      "a truth universally acknowledged",
+      "is a truth universally acknowled",
+      "it is a truth universally acknow")
+    CompletionAnalyzer.analyze(value) should equal(expectedInputValues)
+  }
 }

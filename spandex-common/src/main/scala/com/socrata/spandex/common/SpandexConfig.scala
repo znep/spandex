@@ -12,6 +12,10 @@ class SpandexConfig(config: Config = ConfigFactory.load().getConfig("com.socrata
   val suggestFuzzLength  = config.getInt("suggest-fuzziness-length")
   val suggestFuzzPrefix  = config.getInt("suggest-fuzziness-prefix")
   val suggestSize        = config.getInt("suggest-size")
+
+  val analysisVersion    = config.getString("analysis-lucene-version")
+  val analysisMaxInputLength = config.getInt("analysis-max-input-length")
+  val analysisMaxShingleLength = config.getInt("analysis-max-shingle-length")
 }
 
 class ElasticSearchConfig(config: Config) {
