@@ -126,3 +126,6 @@ eg. (References a Kratos synthetic dataset looking at the monster_5 column for t
 curl http://opendata.socrata.com/api/views/m27q-b6tw/columns/monster_5/suggest/fur
 ```
 
+## Performance Benchmark Measurement
+The perf project uses JMH for precise performance profiling as well as stack-based profiling of top methods
+`sbt 'perf/run -i 3 -wi 10 -prof stack -jvmArgsAppend -Djmh.stack.lines=7'`

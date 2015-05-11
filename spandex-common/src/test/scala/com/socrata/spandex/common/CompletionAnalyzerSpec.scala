@@ -153,6 +153,7 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with BeforeAndAf
   test("limit produced analyses to certain length") {
     // a fictional dish mentioned in Aristophanes' comedy Assemblywomen
     val value = "Lopadotemachoselachogaleokranioleipsanodrimhypotrimmatosilphioparaomelitokatakechymenokichlepikossyphophattoperisteralektryonoptekephalliokigklopeleiolagoiosiraiobaphetraganopterygon"
+    // the config value 32 limits to -----------^
     val expectedInputValue = "lopadotemachoselachogaleokraniol"
     val tokens = CompletionAnalyzer.analyze(value)
     tokens.head should equal(expectedInputValue)
@@ -160,6 +161,7 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with BeforeAndAf
 
   test("limit analysis input string to a certain length") {
     val value = "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife. However little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered the rightful property of some one or other of their daughters. My dear Mr. Bennet, said his lady to him one day, have you heard that Netherfield Park is let at last? Mr. Bennet replied that he had not. But it is, returned she; for Mrs. Long has just been here, and she told me all about it. Mr. Bennet made no answer. Do you not want to know who has taken it? cried his wife impatiently. You want to tell me, and I have no objection to hearing it."
+    // the config value 64 limits to -------------------------------------------^
     val expectedInputValues = Seq(
       "pos",
       "in pos",
@@ -173,6 +175,7 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with BeforeAndAf
       "a truth universally acknowledged",
       "is a truth universally acknowled",
       "it is a truth universally acknow")
+    // the config value 32 limits to -^
     CompletionAnalyzer.analyze(value) should equal(expectedInputValues)
   }
 }

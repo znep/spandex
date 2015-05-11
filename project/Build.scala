@@ -1,6 +1,7 @@
 import com.mojolly.scalate.ScalatePlugin.ScalateKeys._
 import com.mojolly.scalate.ScalatePlugin._
 import org.scalatra.sbt._
+import pl.project13.scala.sbt.JmhPlugin
 import sbt.Keys._
 import sbt._
 import sbtbuildinfo.BuildInfoKeys._
@@ -20,8 +21,16 @@ object SpandexBuild extends Build {
     "spandex",
     file("."),
     settings = commonSettings
-  ).aggregate(spandexCommon, spandexHttp, spandexSecondary).
-    dependsOn(spandexCommon, spandexHttp, spandexSecondary)
+  ).aggregate(spandexCommon, spandexHttp, spandexSecondary)
+    .dependsOn(spandexCommon, spandexHttp, spandexSecondary)
+
+  lazy val perf = Project(
+    "perf",
+    file("./spandex-perf/"),
+    settings = commonSettings ++ Seq(
+      libraryDependencies ++= Deps.common ++ Deps.perf
+    )
+  ).enablePlugins(JmhPlugin).dependsOn(build % "compile;test->test")
 
   lazy val spandexCommon = Project (
     "spandex-common",
@@ -72,7 +81,8 @@ object SpandexBuild extends Build {
       },
       fork in Test := true
     )
-  ).enablePlugins(BuildInfoPlugin).dependsOn(spandexCommon % "compile;test->test")
+  ).enablePlugins(BuildInfoPlugin)
+    .dependsOn(spandexCommon % "compile;test->test")
 
   lazy val spandexSecondary = Project (
     "spandex-secondary",
@@ -114,6 +124,7 @@ object Deps {
     "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
     "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test"
   )
+  lazy val perf = Seq()
   lazy val common = Seq(
     "javax.servlet" % "javax.servlet-api" % "3.1.0",
     "com.typesafe" % "config" % "1.2.1",
