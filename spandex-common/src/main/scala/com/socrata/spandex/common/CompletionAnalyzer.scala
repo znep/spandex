@@ -30,6 +30,7 @@ object CompletionAnalyzer {
       filter.getConstructor(classOf[TokenStream])
         .newInstance(tokens)
         .asInstanceOf[TokenStream]
+    def filterLowerCase: TokenStream = new LowerCaseFilter(tokens)
   }
 
   def analyze(value: String): List[String] = {
@@ -42,7 +43,7 @@ object CompletionAnalyzer {
 
     val shortenedValue = if (value.length > maxInputLength) value.substring(0, maxInputLength) else value
     val stream: TokenStream = analyzer.tokenStream(SpandexFields.Value, shortenedValue)
-      .filter(classOf[LowerCaseFilter])
+      .filterLowerCase
     stream.reset()
     val tokens = tokenize(stream, Nil).reverse
     stream.close()
