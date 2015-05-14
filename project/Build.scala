@@ -39,7 +39,7 @@ object SpandexBuild extends Build {
       libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondary,
       fullClasspath in Runtime += Attributed.blank(baseDirectory.value / ".." / "esconfigs")
     )
-  )
+  ).disablePlugins(JmhPlugin)
 
   lazy val spandexHttp = Project (
     "spandex-http",
@@ -82,6 +82,7 @@ object SpandexBuild extends Build {
       fork in Test := true
     )
   ).enablePlugins(BuildInfoPlugin)
+    .disablePlugins(JmhPlugin)
     .dependsOn(spandexCommon % "compile;test->test")
 
   lazy val spandexSecondary = Project (
@@ -91,6 +92,7 @@ object SpandexBuild extends Build {
       libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondary
     )
   ).dependsOn(spandexCommon % "compile;test->test")
+    .disablePlugins(JmhPlugin)
 
   lazy val gitSha = Process(Seq("git", "describe", "--always", "--dirty", "--long", "--abbrev=10")).!!.stripLineEnd
 }
