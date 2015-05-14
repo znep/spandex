@@ -2,7 +2,8 @@ package com.socrata.spandex.common
 
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary.LifecycleStage
-import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
+import com.socrata.spandex.common.client._
+import com.typesafe.config.ConfigFactory
 import org.elasticsearch.common.unit.Fuzziness
 import org.elasticsearch.search.suggest.Suggest.Suggestion
 import org.elasticsearch.search.suggest.completion.CompletionSuggestion.Entry
@@ -12,8 +13,21 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with BeforeAndAfterAll {
-  val config = new SpandexConfig()
+  val baseConfig = ConfigFactory.load().getConfig("com.socrata.spandex")
+  val config = new SpandexConfig(
+    ConfigFactory.parseString(
+      """{
+        |analysis {
+        |  enabled = true
+        |  lucene-version = "4.10.3"
+        |  max-input-length = 64
+        |  max-shingle-length = 32
+        |}
+      |}""".stripMargin)
+      .withFallback(baseConfig)
+  )
   val client = new TestESClient(config.es)
+  CompletionAnalyzer.configure(config.analysis)
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -177,5 +191,22 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with BeforeAndAf
       "it is a truth universally acknow")
     // the config value 32 limits to -^
     CompletionAnalyzer.analyze(value) should equal(expectedInputValues)
+  }
+
+  val configOff = new SpandexConfig(
+    ConfigFactory.parseString(
+      """{
+        |analysis {
+        |  enabled = false
+        |}
+        |}""".stripMargin)
+      .withFallback(baseConfig)
+  )
+  test("completion pre analyzer disabled") {
+    CompletionAnalyzer.configure(configOff.analysis)
+    val value = "A phrase is a group of related words that does not include a subject and verb. (If the group of related words does contain a subject and verb, it is considered a clause.) There are several different kinds of phrases."
+    val expectedTokens = List(value)
+    val tokens = CompletionAnalyzer.analyze(value)
+    tokens should equal(expectedTokens)
   }
 }

@@ -8,7 +8,7 @@ import org.elasticsearch.client.{Client, Requests}
 import org.elasticsearch.common.settings.ImmutableSettings
 import org.elasticsearch.node.NodeBuilder._
 
-class PerfESClient(config: SpandexConfig = new SpandexConfig) extends SpandexElasticSearchClient(config.es) {
+class PerfESClient(config: SpandexConfig = new SpandexConfig) extends SpandexElasticSearchClient(config) {
   val tempDataDir = Files.createTempDirectory("elasticsearch_data_").toFile
   val local: Boolean = true
   val testSettings = ImmutableSettings.settingsBuilder()

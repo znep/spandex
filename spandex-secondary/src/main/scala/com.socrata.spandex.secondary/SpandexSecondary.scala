@@ -5,21 +5,21 @@ import com.socrata.datacoordinator.secondary.Secondary.Cookie
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types._
-import com.socrata.spandex.common.{SpandexBootstrap, ElasticSearchConfig, SpandexConfig}
+import com.socrata.spandex.common.{CompletionAnalyzer, SpandexBootstrap, ElasticSearchConfig, SpandexConfig}
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
 import com.typesafe.config.{ConfigFactory, Config}
 import com.typesafe.scalalogging.slf4j.Logging
 
-class SpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike {
+class SpandexSecondary(config: SpandexConfig) extends SpandexSecondaryLike {
   // Use any config we are given by the secondary watcher, falling back to our locally defined config if not specified
   // The SecondaryWatcher isn't setting the context class loader, so for now we tell ConfigFactory what classloader
   // to use so we can actually find the config in our jar.
   def this(rawConfig: Config) = this(new SpandexConfig(rawConfig.withFallback(
-    ConfigFactory.load(classOf[SpandexSecondary].getClassLoader).getConfig("com.socrata.spandex"))).es)
+    ConfigFactory.load(classOf[SpandexSecondary].getClassLoader).getConfig("com.socrata.spandex"))))
 
-  val client = new SpandexElasticSearchClient(config)
-  val index  = config.index
-  val batchSize = config.dataCopyBatchSize
+  val client = new SpandexElasticSearchClient(config.es)
+  val index  = config.es.index
+  val batchSize = config.es.dataCopyBatchSize
 
   init(config)
 
@@ -31,8 +31,9 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
   def index: String
   def batchSize: Int
 
-  def init(config: ElasticSearchConfig): Unit = {
-    SpandexBootstrap.ensureIndex(config, client)
+  def init(config: SpandexConfig): Unit = {
+    SpandexBootstrap.ensureIndex(config.es, client)
+    CompletionAnalyzer.configure(config.analysis)
   }
 
   def wantsWorkingCopies: Boolean = true
