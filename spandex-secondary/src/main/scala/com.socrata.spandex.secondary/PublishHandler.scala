@@ -1,6 +1,7 @@
 package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
+import com.socrata.soda.server.copy.Published
 import com.socrata.spandex.common.client.{DatasetCopy, SpandexElasticSearchClient}
 
 case class PublishHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
@@ -13,7 +14,7 @@ case class PublishHandler(client: SpandexElasticSearchClient) extends SecondaryE
 
     logWorkingCopyPublished(datasetName, latest.copyNumber)
 
-    val maybeLastPublished = client.datasetCopyLatest(datasetName, publishedOnly = true)
+    val maybeLastPublished = client.datasetCopyLatest(datasetName, Some(Published))
 
     // Set the latest unpublished version to published
     client.updateDatasetCopyVersion(

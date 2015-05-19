@@ -4,6 +4,7 @@ import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.rojoma.json.v3.ast.{JObject, JString}
 import com.rojoma.json.v3.util.JsonUtil
+import com.socrata.soda.server.copy
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
@@ -50,10 +51,10 @@ class SpandexServlet(conf: SpandexConfig,
 
   private[this] val routeSuggest = "suggest"
   private[this] val paramDatasetId = "datasetId"
-  private[this] val paramCopyNum = "copyNum"
+  private[this] val paramStageInfo = "stage"
   private[this] val paramUserColumnId = "userColumnId"
   private[this] val paramText = "text"
-  get(s"/$routeSuggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId/:$paramText") {
+  get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId/:$paramText") {
     timer("suggestText") {
       suggest { (col, text, fuzz, size) =>
         SpandexResult(client.suggest(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
@@ -74,7 +75,7 @@ class SpandexServlet(conf: SpandexConfig,
   private[this] val sampleFuzz = Fuzziness.ONE
   private[this] val sampleFuzzLen = 0
   private[this] val sampleFuzzPre = 0
-  get(s"/$routeSuggest/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
+  get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId") {
     timer("suggestSample") {
       suggest { (col, _, _, size) =>
         SpandexResult(client.suggest(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
@@ -83,15 +84,18 @@ class SpandexServlet(conf: SpandexConfig,
   }
 
   def suggest(f: (ColumnMap, String, Fuzziness, Int) => SpandexResult): String = {
-    val copyNumMustBeNumeric = "Copy number must be numeric"
     val paramFuzz = "fuzz"
     val paramSize = "size"
 
     contentType = ContentTypeJson
     val datasetId = params.get(paramDatasetId).get
-    val copyNumText = params.get(paramCopyNum).get
-    val copyNum = Try(copyNumText.toLong).getOrElse(halt(
-      HttpStatus.SC_BAD_REQUEST, JsonUtil.renderJson(SpandexError(copyNumMustBeNumeric, Some(copyNumText)))))
+    val stageInfoText = params.get(paramStageInfo).get
+    val copyNum = Try(stageInfoText.toLong).getOrElse(
+      client.datasetCopyLatest(datasetId, copy.Stage(params.get(paramStageInfo).get))
+        .map(_.copyNumber).getOrElse(halt(
+          HttpStatus.SC_NOT_FOUND, JsonUtil.renderJson(SpandexError("copy not found", Some(stageInfoText)))
+        ))
+    )
     val userColumnId = params.get(paramUserColumnId).get
     val text = urlDecode(params.get(paramText).getOrElse(""))
     val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
@@ -109,7 +113,7 @@ class SpandexServlet(conf: SpandexConfig,
   /* Not yet used.
    * sample endpoint exposes query by column with aggregation on doc count
    */
-  get(s"/sample/:$paramDatasetId/:$paramCopyNum/:$paramUserColumnId") {
+  get(s"/sample/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId") {
     timer("sample") {
       suggest { (col, _, _, size) => SpandexResult(client.sample(col, size)) }
     }.call()

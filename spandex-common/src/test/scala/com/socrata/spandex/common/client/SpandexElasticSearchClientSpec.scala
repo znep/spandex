@@ -1,6 +1,7 @@
 package com.socrata.spandex.common.client
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
+import com.socrata.soda.server.copy
 import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
 import org.elasticsearch.action.index.IndexRequestBuilder
@@ -202,15 +203,20 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.searchCopiesByDataset(datasets(0)).totalHits should be (0)
   }
 
-  test("Get latest copy of dataset (published or all)") {
+  test("Get latest copy of dataset") {
     client.datasetCopyLatest(datasets(0)) should be ('defined)
     client.datasetCopyLatest(datasets(0)).get.copyNumber should be (3)
-    client.datasetCopyLatest(datasets(0), publishedOnly = false) should be ('defined)
-    client.datasetCopyLatest(datasets(0), publishedOnly = false).get.copyNumber should be (3)
-    client.datasetCopyLatest(datasets(0), publishedOnly = true) should be ('defined)
-    client.datasetCopyLatest(datasets(0), publishedOnly = true).get.copyNumber should be (2)
 
     client.datasetCopyLatest("foo") should not be 'defined
+  }
+
+  test("Get latest copy of dataset by stage") {
+    client.datasetCopyLatest(datasets(0), Some(copy.Unpublished)) should be ('defined)
+    client.datasetCopyLatest(datasets(0), Some(copy.Unpublished)).get.copyNumber should be (3)
+    client.datasetCopyLatest(datasets(0), Some(copy.Published)) should be ('defined)
+    client.datasetCopyLatest(datasets(0), Some(copy.Published)).get.copyNumber should be (2)
+    client.datasetCopyLatest(datasets(0), Some(copy.Snapshotted)) should be ('defined)
+    client.datasetCopyLatest(datasets(0), Some(copy.Snapshotted)).get.copyNumber should be (1)
   }
 
   test("Update dataset copy version") {

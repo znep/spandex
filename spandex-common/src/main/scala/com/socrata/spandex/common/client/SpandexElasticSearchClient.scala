@@ -2,6 +2,7 @@ package com.socrata.spandex.common.client
 
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary._
+import com.socrata.soda.server.copy
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client.ResponseExtensions._
 import com.typesafe.scalalogging.slf4j.Logging
@@ -245,14 +246,15 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
             .execute.actionGet)
   }
 
-  def datasetCopyLatest(datasetId: String, publishedOnly: Boolean = false): Option[DatasetCopy] = {
+  def datasetCopyLatest(datasetId: String, stage: Option[copy.Stage] = None): Option[DatasetCopy] = {
     val latestCopyPlaceholder = "latest_copy"
-    val query =
-      if (publishedOnly) {
-        byDatasetIdAndStageQuery(datasetId, LifecycleStage.Published)
-      } else {
-        byDatasetIdQuery(datasetId)
-      }
+    val query = stage match {
+      case Some(copy.Unpublished) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Unpublished)
+      case Some(copy.Published) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Published)
+      case Some(copy.Snapshotted) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Snapshotted)
+      case Some(copy.Discarded) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Discarded)
+      case _ => byDatasetIdQuery(datasetId)
+    }
 
     val response = client.prepareSearch(config.index)
                          .setTypes(config.datasetCopyMapping.mappingType)

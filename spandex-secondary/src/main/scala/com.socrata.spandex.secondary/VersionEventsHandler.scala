@@ -1,6 +1,7 @@
 package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.secondary._
+import com.socrata.soda.server.copy.Published
 import com.socrata.soql.types.SoQLText
 import com.socrata.spandex.common.client._
 
@@ -23,7 +24,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
       logger.debug("Received event: " + event)
       event match {
         case DataCopied =>
-          val latestPublished = client.datasetCopyLatest(datasetName, publishedOnly = true).getOrElse(
+          val latestPublished = client.datasetCopyLatest(datasetName, Some(Published)).getOrElse(
             throw InvalidStateBeforeEvent(s"Could not find a published copy to copy data from"))
           logDataCopied(datasetName, latestPublished.copyNumber, latest.copyNumber)
           client.copyFieldValues(from = latestPublished, to = latest, refresh = true)
