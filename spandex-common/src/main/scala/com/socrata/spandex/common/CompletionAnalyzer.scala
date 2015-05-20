@@ -49,9 +49,10 @@ class CompletionAnalyzer(val config: AnalysisConfig) {
 
   def analyze(value: String): List[String] = {
     @annotation.tailrec
-    def tokenize(stream: TokenStream, acc: List[String]): List[String] = {
-      if (stream.incrementToken()) {
-        tokenize(stream, stream.getAttribute(classOf[CharTermAttribute]).toString :: acc)
+    def tokenize(stream: TokenStream, maxLength: Int, acc: List[String]): List[String] = {
+      if (stream.incrementToken() && maxLength > 0) {
+        val token = stream.getAttribute(classOf[CharTermAttribute]).toString
+        tokenize(stream, maxLength - token.length , token :: acc)
       } else { acc }
     }
 
@@ -60,18 +61,23 @@ class CompletionAnalyzer(val config: AnalysisConfig) {
       tokens match {
         case Nil => acc
         case h :: t =>
-          val s = (h :: t).mkString(" ")
-          foldConcat(t, (if (s.length > config.maxShingleLength) s.substring(0, config.maxShingleLength) else s) :: acc)
+          foldConcat(t, shingle(h :: t, config.maxShingleLength, Nil).reverse.mkString(" ") :: acc)
       }
     }
 
-    val shortenedValue =
-      if (value.length > config.maxInputLength) value.substring(0, config.maxInputLength) else value
+    @annotation.tailrec
+    def shingle(tokens: List[String], maxLength: Int, acc: List[String]): List[String] = {
+      tokens match {
+        case Nil => acc
+        case h :: t if maxLength > 0 => shingle(t, maxLength - h.length, h :: acc)
+        case _ => acc
+      }
+    }
 
-    val stream: TokenStream = analyzer.tokenStream(SpandexFields.Value, shortenedValue)
+    val stream: TokenStream = analyzer.tokenStream(SpandexFields.Value, value)
       .filterLowerCase
     stream.reset()
-    val tokens = tokenize(stream, Nil).reverse
+    val tokens = tokenize(stream, config.maxInputLength, Nil).reverse
     stream.close()
 
     foldConcat(tokens, Nil)
