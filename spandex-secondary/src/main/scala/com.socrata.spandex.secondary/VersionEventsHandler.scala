@@ -1,7 +1,6 @@
 package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.secondary._
-import com.socrata.soda.server.copy.Published
 import com.socrata.soql.types.SoQLText
 import com.socrata.spandex.common.client._
 

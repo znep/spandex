@@ -177,24 +177,28 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
-  test("suggest - copy stage info defaults to latest") {
+  test("suggest - copy stage invalid should return 400") {
     val donut = "donut"
     get(s"$routeSuggest/$dsid/$donut/$colid/$textPrefix") {
       contentTypeShouldBe(ContentTypeJson)
-      status should equal (HttpStatus.SC_OK)
-      val parsed = JsonUtil.parseJson[SpandexResult](body)
+      status should equal (HttpStatus.SC_BAD_REQUEST)
+      val parsed = JsonUtil.parseJson[SpandexError](body)
       parsed should be ('right)
+      parsed.right.get.message should be ("stage invalid")
+      parsed.right.get.entity should be (Some(donut))
+      parsed.right.get.source should be ("spandex-http")
     }
   }
 
   test("suggest - copy stage info not found should return 404") {
-    get(s"$routeSuggest/$dsid/discarded/$colid/$textPrefix") {
+    val stage = "published"
+    get(s"$routeSuggest/42/$stage/$colid/$textPrefix") {
       contentTypeShouldBe(ContentTypeJson)
       status should equal (HttpStatus.SC_NOT_FOUND)
       val parsed = JsonUtil.parseJson[SpandexError](body)
       parsed should be ('right)
       parsed.right.get.message should be ("copy not found")
-      parsed.right.get.entity should be (Some("discarded"))
+      parsed.right.get.entity should be (Some(stage))
       parsed.right.get.source should be ("spandex-http")
     }
   }

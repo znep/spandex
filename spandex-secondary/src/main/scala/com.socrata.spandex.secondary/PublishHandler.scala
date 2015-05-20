@@ -1,8 +1,7 @@
 package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
-import com.socrata.soda.server.copy.Published
-import com.socrata.spandex.common.client.{DatasetCopy, SpandexElasticSearchClient}
+import com.socrata.spandex.common.client.{DatasetCopy, Published, SpandexElasticSearchClient}
 
 case class PublishHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
   def go(datasetName: String, latest: DatasetCopy): Unit = {

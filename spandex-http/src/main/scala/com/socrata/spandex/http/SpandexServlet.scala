@@ -4,7 +4,6 @@ import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.rojoma.json.v3.ast.{JObject, JString}
 import com.rojoma.json.v3.util.JsonUtil
-import com.socrata.soda.server.copy
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
@@ -83,6 +82,21 @@ class SpandexServlet(conf: SpandexConfig,
     }.call()
   }
 
+  def copyNum(datasetId: String, stageInfoText: String): Long = {
+      Stage(stageInfoText) match {
+      case Some(Number(n)) => n
+      case Some(stage: Stage) =>
+        // prefer requested stage
+        client.datasetCopyLatest(datasetId, Some(stage)).map(_.copyNumber).getOrElse(
+          // default to latest available stage
+          client.datasetCopyLatest(datasetId).map(_.copyNumber).getOrElse(
+            halt(HttpStatus.SC_NOT_FOUND, JsonUtil.renderJson(SpandexError("copy not found", Some(stageInfoText))))
+          )
+        )
+      case _ => halt(HttpStatus.SC_BAD_REQUEST, JsonUtil.renderJson(SpandexError("stage invalid", Some(stageInfoText))))
+    }
+  }
+
   def suggest(f: (ColumnMap, String, Fuzziness, Int) => SpandexResult): String = {
     val paramFuzz = "fuzz"
     val paramSize = "size"
@@ -90,19 +104,16 @@ class SpandexServlet(conf: SpandexConfig,
     contentType = ContentTypeJson
     val datasetId = params.get(paramDatasetId).get
     val stageInfoText = params.get(paramStageInfo).get
-    val copyNum = Try(stageInfoText.toLong).getOrElse(
-      client.datasetCopyLatest(datasetId, copy.Stage(params.get(paramStageInfo).get))
-        .map(_.copyNumber).getOrElse(halt(
-          HttpStatus.SC_NOT_FOUND, JsonUtil.renderJson(SpandexError("copy not found", Some(stageInfoText)))
-        ))
-    )
     val userColumnId = params.get(paramUserColumnId).get
     val text = urlDecode(params.get(paramText).getOrElse(""))
     val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
     val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
-    logger.info(s">>> $datasetId, $copyNum, $userColumnId, $text, ${fuzz.asDistance}, $size")
+    logger.info(s">>> $datasetId, $stageInfoText, $userColumnId, $text, ${fuzz.asDistance}, $size")
 
-    val column = columnMap(datasetId, copyNum, userColumnId)
+    val copy = copyNum(datasetId, stageInfoText)
+    logger.info(s"found copy $copy")
+
+    val column = columnMap(datasetId, copy, userColumnId)
     logger.info(s"found column $column")
 
     val result = f(column, text, fuzz, size)

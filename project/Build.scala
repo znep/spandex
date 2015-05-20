@@ -101,13 +101,6 @@ object Deps {
   lazy val socrata = Seq(
     "com.rojoma" %% "rojoma-json-v3" % "3.2.2",
     "com.rojoma" %% "simple-arm" % "1.2.0",
-    "com.socrata" %% "soda-fountain-lib" % "0.5.0"
-      exclude("commons-io", "commons-io")
-      exclude("com.typesafe", "config")
-      excludeAll(ExclusionRule(organization = "com.rojoma"),
-                 ExclusionRule(organization = "org.velvia"),
-                 ExclusionRule(organization = "org.slf4j"),
-                 ExclusionRule(organization = "commons-logging")),
     "com.socrata" %% "soql-types" % "0.5.0"
   )
   lazy val http = Seq(
