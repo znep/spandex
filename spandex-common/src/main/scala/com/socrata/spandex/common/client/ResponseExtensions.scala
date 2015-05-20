@@ -6,6 +6,7 @@ import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, Json
 import com.socrata.datacoordinator.id.{ColumnId, RowId}
 import com.socrata.datacoordinator.secondary.{ColumnInfo, LifecycleStage}
 import com.socrata.soql.types.SoQLText
+import com.socrata.spandex.common.CompletionAnalyzer
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.SearchHit
@@ -68,6 +69,19 @@ object ColumnMap {
 }
 
 @JsonKeyStrategy(Strategy.Underscore)
+case class CompletionValue(output: String) {
+  lazy val inputTokens = CompletionAnalyzer.analyze(output)
+
+  def this(inputTokens: List[String], output: String) = this(output)
+}
+object CompletionValue {
+  implicit val jCodec = SimpleJsonCodecBuilder[CompletionValue].build(
+    SpandexFields.ValueInput, _.inputTokens,
+    SpandexFields.ValueOutput, _.output
+  )
+}
+
+@JsonKeyStrategy(Strategy.Underscore)
 case class FieldValue(datasetId: String,
                       copyNumber: Long,
                       columnId: Long,
@@ -75,6 +89,7 @@ case class FieldValue(datasetId: String,
                       value: String) {
   lazy val docId = FieldValue.makeDocId(datasetId, copyNumber, columnId, rowId)
   lazy val compositeId = FieldValue.makeCompositeId(datasetId, copyNumber, columnId)
+  lazy val completionValue = CompletionValue(value)
 
   // Needed for codec builder
   def this(datasetId: String,
@@ -82,7 +97,7 @@ case class FieldValue(datasetId: String,
            columnId: Long,
            compositeId: String,
            rowId: Long,
-           value: String) = this(datasetId, copyNumber, columnId, rowId, value)
+           value: CompletionValue) = this(datasetId, copyNumber, columnId, rowId, value.output)
 }
 object FieldValue {
   implicit val jCodec = SimpleJsonCodecBuilder[FieldValue].build(
@@ -91,10 +106,10 @@ object FieldValue {
     SpandexFields.ColumnId, _.columnId,
     SpandexFields.CompositeId, _.compositeId,
     SpandexFields.RowId, _.rowId,
-    SpandexFields.Value, _.value
+    SpandexFields.Value, _.completionValue
   )
 
-  def apply(datasetName: String,copyNumber: Long, columnId: ColumnId, rowId: RowId, data: SoQLText): FieldValue =
+  def apply(datasetName: String, copyNumber: Long, columnId: ColumnId, rowId: RowId, data: SoQLText): FieldValue =
     this(datasetName, copyNumber, columnId.underlying, rowId.underlying, data.value)
 
   def makeDocId(datasetId: String, copyNumber: Long, columnId: Long, rowId: Long): String =
