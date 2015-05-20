@@ -105,6 +105,7 @@ object Deps {
       exclude("commons-io", "commons-io")
       exclude("com.typesafe", "config")
       excludeAll(ExclusionRule(organization = "com.rojoma"),
+                 ExclusionRule(organization = "org.velvia"),
                  ExclusionRule(organization = "org.slf4j"),
                  ExclusionRule(organization = "commons-logging")),
     "com.socrata" %% "soql-types" % "0.5.0"
