@@ -83,15 +83,11 @@ class SpandexServlet(conf: SpandexConfig,
   }
 
   def copyNum(datasetId: String, stageInfoText: String): Long = {
-      Stage(stageInfoText) match {
+    Stage(stageInfoText) match {
       case Some(Number(n)) => n
       case Some(stage: Stage) =>
-        // prefer requested stage
         client.datasetCopyLatest(datasetId, Some(stage)).map(_.copyNumber).getOrElse(
-          // default to latest available stage
-          client.datasetCopyLatest(datasetId).map(_.copyNumber).getOrElse(
-            halt(HttpStatus.SC_NOT_FOUND, JsonUtil.renderJson(SpandexError("copy not found", Some(stageInfoText))))
-          )
+          halt(HttpStatus.SC_NOT_FOUND, JsonUtil.renderJson(SpandexError("copy not found", Some(stageInfoText))))
         )
       case _ => halt(HttpStatus.SC_BAD_REQUEST, JsonUtil.renderJson(SpandexError("stage invalid", Some(stageInfoText))))
     }

@@ -190,9 +190,9 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
-  test("suggest - copy stage info not found should return 404") {
+  test("suggest - copy stage not found should return 404") {
     val stage = "published"
-    get(s"$routeSuggest/42/$stage/$colid/$textPrefix") {
+    get(s"$routeSuggest/optimus.9999/$stage/$colid/$textPrefix") {
       contentTypeShouldBe(ContentTypeJson)
       status should equal (HttpStatus.SC_NOT_FOUND)
       val parsed = JsonUtil.parseJson[SpandexError](body)
