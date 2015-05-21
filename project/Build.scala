@@ -1,3 +1,4 @@
+import com.earldouglas.xwp.XwpPlugin
 import com.mojolly.scalate.ScalatePlugin.ScalateKeys._
 import com.mojolly.scalate.ScalatePlugin._
 import org.scalatra.sbt._
@@ -11,6 +12,7 @@ import scoverage.ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages
 object SpandexBuild extends Build {
   val Name = "com.socrata.spandex"
   val ScalaVersion = "2.10.5"
+  val JettyListenPort = 8042 // required for container embedded jetty
 
   lazy val commonSettings = Seq(
     scalaVersion := ScalaVersion,
@@ -80,10 +82,10 @@ object SpandexBuild extends Build {
           }
       },
       fork in Test := true
-    )
-  ).enablePlugins(BuildInfoPlugin)
+    ) ++ XwpPlugin.jetty(port = JettyListenPort)
+  ).dependsOn(spandexCommon % "compile;test->test")
     .disablePlugins(JmhPlugin)
-    .dependsOn(spandexCommon % "compile;test->test")
+    .enablePlugins(BuildInfoPlugin)
 
   lazy val spandexSecondary = Project (
     "spandex-secondary",

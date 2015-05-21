@@ -9,7 +9,7 @@ import com.socrata.spandex.http.SpandexResult.Fields._
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
 
-// scalastyle:off magic.number
+// scalastyle:off magic.number multiple.string.literals
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData {
   val config = new SpandexConfig
@@ -122,19 +122,6 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
-  test("suggest - non-numeric copy number should return 400") {
-    val donut = "donut"
-    get(s"$routeSuggest/$dsid/$donut/$colid/$textPrefix") {
-      contentTypeShouldBe(ContentTypeJson)
-      status should equal (HttpStatus.SC_BAD_REQUEST)
-      val parsed = JsonUtil.parseJson[SpandexError](body)
-      parsed should be ('right)
-      parsed.right.get.message should be ("Copy number must be numeric")
-      parsed.right.get.entity should be (Some(donut))
-      parsed.right.get.source should be ("spandex-http")
-    }
-  }
-
   test("suggest - non-existent column should return 404") {
     val coconut = "coconut"
     get(s"$routeSuggest/$dsid/$copynum/$coconut/$textPrefix") {
@@ -187,6 +174,32 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
     get(s"$routeSample") {
       status should equal(HttpStatus.SC_NOT_FOUND)
+    }
+  }
+
+  test("suggest - copy stage invalid should return 400") {
+    val donut = "donut"
+    get(s"$routeSuggest/$dsid/$donut/$colid/$textPrefix") {
+      contentTypeShouldBe(ContentTypeJson)
+      status should equal (HttpStatus.SC_BAD_REQUEST)
+      val parsed = JsonUtil.parseJson[SpandexError](body)
+      parsed should be ('right)
+      parsed.right.get.message should be ("stage invalid")
+      parsed.right.get.entity should be (Some(donut))
+      parsed.right.get.source should be ("spandex-http")
+    }
+  }
+
+  test("suggest - copy stage not found should return 404") {
+    val stage = "published"
+    get(s"$routeSuggest/optimus.9999/$stage/$colid/$textPrefix") {
+      contentTypeShouldBe(ContentTypeJson)
+      status should equal (HttpStatus.SC_NOT_FOUND)
+      val parsed = JsonUtil.parseJson[SpandexError](body)
+      parsed should be ('right)
+      parsed.right.get.message should be ("copy not found")
+      parsed.right.get.entity should be (Some(stage))
+      parsed.right.get.source should be ("spandex-http")
     }
   }
 }

@@ -245,14 +245,16 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
             .execute.actionGet)
   }
 
-  def datasetCopyLatest(datasetId: String, publishedOnly: Boolean = false): Option[DatasetCopy] = {
+  def datasetCopyLatest(datasetId: String, stage: Option[Stage] = None): Option[DatasetCopy] = {
     val latestCopyPlaceholder = "latest_copy"
-    val query =
-      if (publishedOnly) {
-        byDatasetIdAndStageQuery(datasetId, LifecycleStage.Published)
-      } else {
-        byDatasetIdQuery(datasetId)
-      }
+    val query = stage match {
+      case Some(Unpublished) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Unpublished)
+      case Some(Published) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Published)
+      case Some(Snapshotted) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Snapshotted)
+      case Some(Discarded) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Discarded)
+      case Some(Number(n)) => throw new IllegalArgumentException(s"cannot request latest copy for stage = Number($n)")
+      case _ => byDatasetIdQuery(datasetId)
+    }
 
     val response = client.prepareSearch(config.index)
                          .setTypes(config.datasetCopyMapping.mappingType)

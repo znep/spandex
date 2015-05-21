@@ -202,15 +202,20 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.searchCopiesByDataset(datasets(0)).totalHits should be (0)
   }
 
-  test("Get latest copy of dataset (published or all)") {
+  test("Get latest copy of dataset") {
     client.datasetCopyLatest(datasets(0)) should be ('defined)
     client.datasetCopyLatest(datasets(0)).get.copyNumber should be (3)
-    client.datasetCopyLatest(datasets(0), publishedOnly = false) should be ('defined)
-    client.datasetCopyLatest(datasets(0), publishedOnly = false).get.copyNumber should be (3)
-    client.datasetCopyLatest(datasets(0), publishedOnly = true) should be ('defined)
-    client.datasetCopyLatest(datasets(0), publishedOnly = true).get.copyNumber should be (2)
 
     client.datasetCopyLatest("foo") should not be 'defined
+  }
+
+  test("Get latest copy of dataset by stage") {
+    client.datasetCopyLatest(datasets(0), Some(Unpublished)) should be ('defined)
+    client.datasetCopyLatest(datasets(0), Some(Unpublished)).get.copyNumber should be (3)
+    client.datasetCopyLatest(datasets(0), Some(Published)) should be ('defined)
+    client.datasetCopyLatest(datasets(0), Some(Published)).get.copyNumber should be (2)
+    client.datasetCopyLatest(datasets(0), Some(Snapshotted)) should be ('defined)
+    client.datasetCopyLatest(datasets(0), Some(Snapshotted)).get.copyNumber should be (1)
   }
 
   test("Update dataset copy version") {
@@ -294,5 +299,11 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
 
     val retrieved = client.sample(col, selected)
     retrieved.aggs should be(expected)
+  }
+
+  test("get latest copy of Stage Number(n) should throw") {
+    a[IllegalArgumentException] shouldBe thrownBy {
+      client.datasetCopyLatest(datasets(0), Some(Number(42))).get.copyNumber
+    }
   }
 }
