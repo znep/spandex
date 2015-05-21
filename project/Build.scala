@@ -2,6 +2,7 @@ import com.earldouglas.xwp.XwpPlugin
 import com.mojolly.scalate.ScalatePlugin.ScalateKeys._
 import com.mojolly.scalate.ScalatePlugin._
 import org.scalatra.sbt._
+import pl.project13.scala.sbt.JmhPlugin
 import sbt.Keys._
 import sbt._
 import sbtbuildinfo.BuildInfoKeys._
@@ -22,8 +23,16 @@ object SpandexBuild extends Build {
     "spandex",
     file("."),
     settings = commonSettings
-  ).aggregate(spandexCommon, spandexHttp, spandexSecondary).
-    dependsOn(spandexCommon, spandexHttp, spandexSecondary)
+  ).aggregate(spandexCommon, spandexHttp, spandexSecondary)
+    .dependsOn(spandexCommon, spandexHttp, spandexSecondary)
+
+  lazy val perf = Project(
+    "perf",
+    file("./spandex-perf/"),
+    settings = commonSettings ++ Seq(
+      libraryDependencies ++= Deps.common ++ Deps.perf
+    )
+  ).enablePlugins(JmhPlugin).dependsOn(build % "compile;test->test")
 
   lazy val spandexCommon = Project (
     "spandex-common",
@@ -32,7 +41,7 @@ object SpandexBuild extends Build {
       libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondary,
       fullClasspath in Runtime += Attributed.blank(baseDirectory.value / ".." / "esconfigs")
     )
-  )
+  ).disablePlugins(JmhPlugin)
 
   lazy val spandexHttp = Project (
     "spandex-http",
@@ -74,7 +83,9 @@ object SpandexBuild extends Build {
       },
       fork in Test := true
     ) ++ XwpPlugin.jetty(port = JettyListenPort)
-  ).enablePlugins(BuildInfoPlugin).dependsOn(spandexCommon % "compile;test->test")
+  ).dependsOn(spandexCommon % "compile;test->test")
+    .disablePlugins(JmhPlugin)
+    .enablePlugins(BuildInfoPlugin)
 
   lazy val spandexSecondary = Project (
     "spandex-secondary",
@@ -83,13 +94,14 @@ object SpandexBuild extends Build {
       libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondary
     )
   ).dependsOn(spandexCommon % "compile;test->test")
+    .disablePlugins(JmhPlugin)
 
   lazy val gitSha = Process(Seq("git", "describe", "--always", "--dirty", "--long", "--abbrev=10")).!!.stripLineEnd
 }
 
 object Deps {
-  val ScalatraVersion = "2.4.0.M3"
-  val JettyVersion = "9.2.1.v20140609" // pinned to this version in Scalatra
+  val ScalatraVersion = "2.4.0.RC1"
+  val JettyVersion = "9.2.10.v20150310"
 
   lazy val resolverList = Seq(
     "Scalaz Bintray Repo" at "https://dl.bintray.com/scalaz/releases", // scalaz-stream used in scalatra 2.4.x
@@ -99,14 +111,16 @@ object Deps {
   lazy val socrata = Seq(
     "com.rojoma" %% "rojoma-json-v3" % "3.3.0",
     "com.rojoma" %% "simple-arm" % "1.2.0",
-    "com.socrata" %% "soql-types" % "0.5.0"
-      excludeAll ExclusionRule(organization = "com.rojoma")
+    "com.rojoma" %% "simple-arm-v2" % "2.1.0",
+    "com.socrata" %% "soql-types" % "0.5.2"
+      excludeAll(ExclusionRule(organization = "com.rojoma"),
+                 ExclusionRule(organization = "commons-io"))
   )
   lazy val http = Seq(
     "org.scalatra" %% "scalatra" % ScalatraVersion,
     "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
     "org.scalatra" %% "scalatra-metrics" % ScalatraVersion,
-    "ch.qos.logback" % "logback-classic" % "1.1.2" % "runtime",
+    "ch.qos.logback" % "logback-classic" % "1.1.3" % "runtime",
     "org.eclipse.jetty" % "jetty-webapp" % JettyVersion % "container;compile",
     "org.eclipse.jetty" % "jetty-plus" % JettyVersion % "container"
   )
@@ -114,11 +128,12 @@ object Deps {
     "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
     "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test"
   )
+  lazy val perf = Seq()
   lazy val common = Seq(
     "javax.servlet" % "javax.servlet-api" % "3.1.0",
     "com.typesafe" % "config" % "1.2.1",
     "com.typesafe" %% "scalalogging-slf4j" % "1.1.0",
-    "commons-io" % "commons-io" % "1.4",
+    "commons-io" % "commons-io" % "2.4",
     "org.elasticsearch" % "elasticsearch" % "1.4.4"
   )
   lazy val secondary = Seq(
