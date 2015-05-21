@@ -300,4 +300,10 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     val retrieved = client.sample(col, selected)
     retrieved.aggs should be(expected)
   }
+
+  test("get latest copy of Stage Number(n) should throw") {
+    a[IllegalArgumentException] shouldBe thrownBy {
+      client.datasetCopyLatest(datasets(0), Some(Number(42))).get.copyNumber
+    }
+  }
 }

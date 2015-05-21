@@ -252,6 +252,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       case Some(Published) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Published)
       case Some(Snapshotted) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Snapshotted)
       case Some(Discarded) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Discarded)
+      case Some(Number(n)) => throw new IllegalArgumentException(s"cannot request latest copy for stage = $stage")
       case _ => byDatasetIdQuery(datasetId)
     }
 
