@@ -44,6 +44,7 @@ case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) ext
           columnIds.map { colId =>
             client.fieldValueDeleteRequest(datasetName, copyNumber, colId, rowId.underlying)
           }
+        case _ => Nil // op must be Insert, Update, or Delete; but Scala likes pattern match completeness
       }
     }
 

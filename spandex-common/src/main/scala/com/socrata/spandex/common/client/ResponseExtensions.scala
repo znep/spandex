@@ -29,7 +29,7 @@ object DatasetCopy {
             case Some(matching) => Right(matching)
             case None           => Left(DecodeError.InvalidValue(x))
           }
-        case other: JValue  => Left(DecodeError.InvalidType(JString, other.jsonType))
+        case _              => Left(DecodeError.InvalidType(JString, x.jsonType))
       }
     }
 

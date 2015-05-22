@@ -6,6 +6,8 @@ import org.eclipse.jetty.servlet.DefaultServlet
 import org.eclipse.jetty.webapp.WebAppContext
 import org.scalatra.servlet.ScalatraListener
 
+import scala.util.Try
+
 object Spandex extends App {
   lazy val conf = new SpandexConfig
   var ready: Boolean = false
@@ -31,11 +33,10 @@ object Spandex extends App {
 
   val server = new Server(port)
   server.setHandler(context)
-  try {
+  Try {
     server.start()
     ready = true
     server.join()
-  } finally {
-    server.stop()
   }
+  server.stop()
 }

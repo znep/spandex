@@ -6,8 +6,8 @@ trait MarvelNames {
   val names: Array[String] = Source.fromFile("../esconfigs/names.txt", "utf-8").getLines().toArray
   val namesKeyword: Array[String] = names.map(_.replaceAll("""\W+""", "_"))
 
-  private var i: Int = 0
-  private var j: Int = 0
+  private[this] var i: Int = 0
+  private[this] var j: Int = 0
 
   def anotherPhrase: String = {
     val name = names(i)
