@@ -11,7 +11,8 @@ case class WorkingCopyCreatedHandler(client: SpandexElasticSearchClient) extends
     }
 
     if (wccEvents.hasNext) {
-      wccEvents.next() match {
+      val event = wccEvents.next()
+      event match {
         case WorkingCopyCreated(copyInfo) =>
           // Make sure the copy we want to create doesn't already exist.
           val existingCopy = client.datasetCopy(datasetName, copyInfo.copyNumber)
@@ -24,8 +25,8 @@ case class WorkingCopyCreatedHandler(client: SpandexElasticSearchClient) extends
             client.putDatasetCopy(
               datasetName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage, refresh = true)
           }
-        case other: Event =>
-          throw new UnsupportedOperationException(s"Unexpected event ${other.getClass}")
+        case _ =>
+          throw new UnsupportedOperationException(s"Unexpected event ${event.getClass}")
       }
     }
 

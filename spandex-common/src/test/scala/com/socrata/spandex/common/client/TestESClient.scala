@@ -10,6 +10,8 @@ import org.elasticsearch.common.settings.ImmutableSettings
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.node.NodeBuilder._
 
+import scala.util.Try
+
 class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends SpandexElasticSearchClient(config) {
   val tempDataDir = Files.createTempDirectory("elasticsearch_data_").toFile
   val testSettings = ImmutableSettings.settingsBuilder()
@@ -27,10 +29,8 @@ class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends S
     deleteIndex()
     node.close()
 
-    try {
+    Try { // don't care if cleanup succeeded or failed
       FileUtils.forceDelete(tempDataDir)
-    } catch {
-      case e: Exception => // cleanup failed
     }
 
     super.close()

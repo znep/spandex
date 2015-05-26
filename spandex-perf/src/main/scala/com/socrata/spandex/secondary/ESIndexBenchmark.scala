@@ -28,7 +28,7 @@ class ESIndexBenchmark extends MarvelNames {
   def teardownIndex(): Unit = {
     client.removeBootstrapData()
   }
-  
+
   val datasetId = "optimus.42"
   var copyNum = 1L
   val columnSysId = 2L
@@ -42,7 +42,7 @@ class ESIndexBenchmark extends MarvelNames {
     copyNum += 1
     gcUltra()
   }
-  
+
   @TearDown(Level.Iteration)
   def teardownDataset(): Unit = {
     client.deleteFieldValuesByDataset(datasetId)
@@ -52,13 +52,13 @@ class ESIndexBenchmark extends MarvelNames {
     Thread.sleep(1000L) // make sure the index is clear before next iteration
   }
 
-  private def gcUltra(): Unit = {
+  private[this] def gcUltra(): Unit = {
     for {i <- 0 to 3} {
       Runtime.getRuntime.gc()
       Thread.sleep(55)
     }
   }
-  
+
   @Benchmark
   def indexPhrase(): Unit = {
     @annotation.tailrec

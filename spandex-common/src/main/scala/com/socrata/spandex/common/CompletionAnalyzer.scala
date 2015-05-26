@@ -20,7 +20,7 @@ import scala.util.Try
 // But by specifying an array of matching 'input' values we can trick Lucene
 // into prefixing on any term in the 'output' value, the original phrase.
 object CompletionAnalyzer {
-  private var analyzer: Option[CompletionAnalyzer] = None
+  private[this] var analyzer: Option[CompletionAnalyzer] = None
 
   def analyze(value: String): List[String] = analyzer.map(_.analyze(value)).getOrElse(value :: Nil)
 

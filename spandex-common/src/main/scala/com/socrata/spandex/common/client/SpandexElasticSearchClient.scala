@@ -74,8 +74,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
         throw new ElasticSearchResponseFailed(s"Bulk response contained failures: " +
           b.buildFailureMessage())
       }
-    case r: ActionResponse =>
-      throw new NotImplementedError(s"Haven't implemented failure check for ${r.getClass.getSimpleName}")
+    case _ =>
+      throw new NotImplementedError(s"Haven't implemented failure check for ${response.getClass.getSimpleName}")
   }
 
   def refresh(): Unit = client.admin().indices().prepareRefresh(config.index).execute.actionGet
@@ -159,9 +159,9 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
           case i: IndexRequestBuilder => bulk.add(i)
           case u: UpdateRequestBuilder => bulk.add(u)
           case d: DeleteRequestBuilder => bulk.add(d)
-          case a: Any =>
+          case _ =>
             throw new UnsupportedOperationException(
-              s"Bulk requests with ${a.getClass.getSimpleName} not supported")
+              s"Bulk requests with ${single.getClass.getSimpleName} not supported")
         }
       }.execute.actionGet)
     }

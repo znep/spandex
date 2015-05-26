@@ -28,8 +28,8 @@ trait AnalyzerTest {
       .withFallback(baseConfig)
   )
 
-  protected def config = if (analyzerEnabled) configAnalyzerOn else configAnalyzerOff
-  protected def client = new TestESClient(config.es)
+  protected lazy val config = if (analyzerEnabled) configAnalyzerOn else configAnalyzerOff
+  protected lazy val client = new TestESClient(config.es)
 
   protected def analyzerBeforeAll(): Unit = {
     SpandexBootstrap.ensureIndex(config.es, client)
