@@ -333,21 +333,4 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
 
     client.indexFieldValue(FieldValue(datasets(0), 1L, 2L, 61L, ""), refresh = true)
   }
-
-  // once upon a time we got this exception:
-  // org.elasticsearch.index.mapper.MapperParsingException: failed to parse
-  // Cause: java.lang.IllegalArgumentException: surface form cannot contain unit separator character U+001F; this character is reserved
-  // which seems to come from data on this profile page https://twitter.com/kashiramojiao
-  // ヲタでネトウヨで女装子でアラフォーのキモいおっさんなのん
-  // (((o(´▽`)o)))
-  // I,m Ｊａｐａｎｅｓｅ　Otaku and Middle-aged man　and Patriot　and 　Conservatism.
-  // My Tweets combines the honesty and odiousness
-  test("strip value containing reserved control character x1F") {
-    val fv = FieldValue(datasets(0), 1L, 2L, 62L, "(((o(\u001F´▽`\u001F)o)))")
-    client.indexFieldValue(fv, refresh = true)
-    client.client
-      .prepareGet(config.es.index, config.es.fieldValueMapping.mappingType, fv.docId)
-      .execute.actionGet
-      .result[FieldValue].get.value should be("(((o(´▽`)o)))")
-  }
 }

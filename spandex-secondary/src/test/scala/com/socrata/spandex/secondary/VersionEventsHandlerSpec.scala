@@ -1,15 +1,17 @@
 package com.socrata.spandex.secondary
 
-import com.socrata.datacoordinator.id.{UserColumnId, ColumnId, CopyId, RowId}
+import java.math.BigDecimal
+
+import com.socrata.datacoordinator.id.{ColumnId, CopyId, RowId, UserColumnId}
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
-import com.socrata.soql.types.{SoQLValue, SoQLNumber, SoQLText}
-import com.socrata.spandex.common.{TestESData, SpandexConfig}
-import com.socrata.spandex.common.client.{FieldValue, ColumnMap, TestESClient, DatasetCopy}
-import java.math.BigDecimal
+import com.socrata.soql.types.{SoQLNumber, SoQLText, SoQLValue}
+import com.socrata.spandex.common.client.ResponseExtensions._
+import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
+import com.socrata.spandex.common.{SpandexConfig, TestESData}
 import org.joda.time.DateTime
-import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll, FunSuiteLike, Matchers}
 import org.scalatest.prop.PropertyChecks
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 // scalastyle:off
 class VersionEventsHandlerSpec extends FunSuiteLike
@@ -352,5 +354,22 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.datasetCopyLatest(datasets(1)) should be (Some(expectedAfter))
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 3).totalHits should be (15)
+  }
+
+  // once upon a time we got this exception:
+  // org.elasticsearch.index.mapper.MapperParsingException: failed to parse
+  // Cause: java.lang.IllegalArgumentException: surface form cannot contain unit separator character U+001F; this character is reserved
+  // which seems to come from data on this profile page https://twitter.com/kashiramojiao
+  // ヲタでネトウヨで女装子でアラフォーのキモいおっさんなのん
+  // (((o(´▽`)o)))
+  // I,m Ｊａｐａｎｅｓｅ　Otaku and Middle-aged man　and Patriot　and 　Conservatism.
+  // My Tweets combines the honesty and odiousness
+  test("strip value containing reserved control character x1F") {
+    val fv = RowOpsHandler.fieldValueFromDatum(datasets(0), 1L, new RowId(62L), (new ColumnId(2L), new SoQLText("(((o(\u001F´▽`\u001F)o)))")))
+    client.indexFieldValue(fv, refresh = true)
+    client.client
+      .prepareGet(config.es.index, config.es.fieldValueMapping.mappingType, fv.docId)
+      .execute.actionGet
+      .result[FieldValue].get.value should be("(((o(´▽`)o)))")
   }
 }

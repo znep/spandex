@@ -64,6 +64,8 @@ object RowOpsHandler {
                           copyNumber: Long,
                           rowId: RowId,
                           datum: (ColumnId, SoQLText)): FieldValue = datum match {
-    case (id, value) => FieldValue(datasetName, copyNumber, id.underlying, rowId.underlying, value.value)
+    case (id, value) => FieldValue(datasetName, copyNumber, id.underlying, rowId.underlying,
+      // *sigh* a cluster side analysis char_filter doesn't catch this one character in time.
+      value.value.replaceAll("\u001f", ""))
   }
 }

@@ -89,8 +89,7 @@ case class FieldValue(datasetId: String,
                       value: String) {
   lazy val docId = FieldValue.makeDocId(datasetId, copyNumber, columnId, rowId)
   lazy val compositeId = FieldValue.makeCompositeId(datasetId, copyNumber, columnId)
-  // *sigh* a cluster side analysis char_filter doesn't catch this one character in time.
-  lazy val completionValue = CompletionValue(value.replaceAll("\u001f", ""))
+  lazy val completionValue = CompletionValue(value)
 
   // Needed for codec builder
   def this(datasetId: String,
