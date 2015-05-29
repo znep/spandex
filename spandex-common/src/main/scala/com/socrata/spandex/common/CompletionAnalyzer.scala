@@ -45,6 +45,16 @@ object CompletionAnalyzer {
 
 class CompletionAnalyzer(val config: AnalysisConfig) {
   val version = Try { Version.parseLeniently(config.luceneVersion) }.getOrElse(Version.LATEST)
+  // In Lucene Pattern Tokenizer: delimiters separate tokens, and then are removed from indexing and analysis.
+  //
+  // The code points in this pattern are delimiters and all others are tokenizable.
+  // Delimiters include p{C} control characters, p{P} punctuation, p{S*} symbols (except currency),
+  // and p{Z} separators, but specifically exclude ampersand.
+  // That leaves tokenizable characters as p{L} letters from any language, p{M} combining marks,
+  // p{Sc} currency symbols, p{N} numbers, and by exclusion ampersand.
+  //
+  // This is better than the W nonword character class which defines tokenizable as a-zA-Z_0-9
+  // and all others, including non latin character set, as delimiters.
   val analyzer = new PatternAnalyzer(version, Pattern.compile(
     """[\p{C}\p{P}\p{Sm}\p{Sk}\p{So}\p{Z}&&[^\&]]+"""))
 
