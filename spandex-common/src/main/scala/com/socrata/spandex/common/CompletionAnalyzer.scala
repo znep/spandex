@@ -45,7 +45,8 @@ object CompletionAnalyzer {
 
 class CompletionAnalyzer(val config: AnalysisConfig) {
   val version = Try { Version.parseLeniently(config.luceneVersion) }.getOrElse(Version.LATEST)
-  val analyzer = new PatternAnalyzer(version, Pattern.compile( """[\p{C}\p{P}\p{Sm}\p{Sk}\p{So}\p{Z}]+"""))
+  val analyzer = new PatternAnalyzer(version, Pattern.compile(
+    """[\p{C}\p{P}\p{Sm}\p{Sk}\p{So}\p{Z}&&[^\&]]+"""))
 
   def analyze(value: String): List[String] = {
     @annotation.tailrec

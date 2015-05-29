@@ -121,4 +121,15 @@ class KeywordAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTest w
     index(expectedValue)
     suggest(search) should contain(expectedValue)
   }
+
+  test("match: ampersand") {
+    val expectedValue = "AT&T Mobility"
+    val search = "AT&T"
+
+    val tokens = CompletionAnalyzer.analyze(expectedValue)
+    tokens should contain(expectedValue)
+
+    index(expectedValue)
+    suggest(search) should contain(expectedValue)
+  }
 }
