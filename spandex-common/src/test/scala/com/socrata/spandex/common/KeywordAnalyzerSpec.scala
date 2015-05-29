@@ -132,4 +132,15 @@ class KeywordAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTest w
     index(expectedValue)
     suggest(search) should contain(expectedValue)
   }
+
+  test("match: forward slash") {
+    val expectedValue = "ANDREA H/ARTHUR D HARRIS"
+    val search = "ANDREA H/ARTHUR"
+
+    val tokens = CompletionAnalyzer.analyze(expectedValue)
+    tokens should contain(expectedValue)
+
+    index(expectedValue)
+    suggest(search) should contain(expectedValue)
+  }
 }
