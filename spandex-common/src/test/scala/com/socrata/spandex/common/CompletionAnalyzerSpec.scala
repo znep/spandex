@@ -147,4 +147,14 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTes
     // the config value 32 limits to -^ plus spaces, and a little more to preserve terms
     CompletionAnalyzer.analyze(value) should equal(expectedInputValues)
   }
+
+  test("match: non-english unicode") {
+    val expectedValue = "愛"
+
+    val tokens = CompletionAnalyzer.analyze(expectedValue)
+    tokens should contain(expectedValue)
+
+    index(expectedValue)
+    suggest(expectedValue) should contain(expectedValue)
+  }
 }

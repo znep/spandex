@@ -100,4 +100,14 @@ class KeywordAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTest w
     val tokens = CompletionAnalyzer.analyze(value)
     tokens should equal(expectedTokens)
   }
+
+  test("match: non-english unicode") {
+    val expectedValue = "愛"
+
+    val tokens = CompletionAnalyzer.analyze(expectedValue)
+    tokens should contain(expectedValue)
+
+    index(expectedValue)
+    suggest(expectedValue) should contain(expectedValue)
+  }
 }
