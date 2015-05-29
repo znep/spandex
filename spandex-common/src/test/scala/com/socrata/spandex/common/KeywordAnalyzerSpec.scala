@@ -143,4 +143,10 @@ class KeywordAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTest w
     index(expectedValue)
     suggest(search) should contain(expectedValue)
   }
+
+  test("not match: dot") {
+    val value = "The quick and the dead"
+    index(value)
+    suggest(".") should be('empty)
+  }
 }

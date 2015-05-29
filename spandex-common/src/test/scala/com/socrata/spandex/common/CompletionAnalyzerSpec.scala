@@ -199,4 +199,10 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTes
     index(value)
     suggest(search) should contain(value)
   }
+
+  test("not match: dot") {
+    val value = "The quick and the dead"
+    index(value)
+    suggest(".") should be('empty)
+  }
 }
