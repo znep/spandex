@@ -110,4 +110,15 @@ class KeywordAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTest w
     index(expectedValue)
     suggest(expectedValue) should contain(expectedValue)
   }
+
+  test("match: money") {
+    val expectedValue = "$500 and under"
+    val search = "$"
+
+    val tokens = CompletionAnalyzer.analyze(expectedValue)
+    tokens should contain(expectedValue)
+
+    index(expectedValue)
+    suggest(search) should contain(expectedValue)
+  }
 }
