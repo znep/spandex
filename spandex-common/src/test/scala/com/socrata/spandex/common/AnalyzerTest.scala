@@ -38,6 +38,7 @@ trait AnalyzerTest {
 
   protected def analyzerAfterAll(): Unit = {
     client.deleteIndex()
+    client.close()
   }
 
   protected val ds = "ds.one"

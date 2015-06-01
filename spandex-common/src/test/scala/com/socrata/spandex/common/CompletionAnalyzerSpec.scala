@@ -94,6 +94,10 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTes
 
   test("match: email") {
     val expectedValue = "we.are+awesome@socrata.com"
+
+    val tokens = CompletionAnalyzer.analyze(expectedValue)
+    tokens should contain("we are awesome socrata com")
+
     index(expectedValue)
     suggest("we") should contain(expectedValue)
     suggest("are") should contain(expectedValue)
@@ -104,12 +108,16 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTes
   }
 
   test("match: url") {
-    val expectedValue = "https://lucene.rocks/completion-suggester.html"
+    val expectedValue = "https://lucene.rocks/auto-suggester.html"
+
+    val tokens = CompletionAnalyzer.analyze(expectedValue)
+    tokens should contain("https lucene rocks auto suggester html")
+
     index(expectedValue)
     suggest("https") should contain(expectedValue)
     suggest("lucene") should contain(expectedValue)
     suggest("rocks") should contain(expectedValue)
-    suggest("completion") should contain(expectedValue)
+    suggest("auto") should contain(expectedValue)
     suggest("suggester") should contain(expectedValue)
     suggest("html") should contain(expectedValue)
     suggest("lucene rocks") should contain(expectedValue)
@@ -146,5 +154,55 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTes
       "it is a truth universally acknowledged")
     // the config value 32 limits to -^ plus spaces, and a little more to preserve terms
     CompletionAnalyzer.analyze(value) should equal(expectedInputValues)
+  }
+
+  test("match: non-english unicode") {
+    val expectedValue = "愛"
+
+    val tokens = CompletionAnalyzer.analyze(expectedValue)
+    tokens should contain(expectedValue)
+
+    index(expectedValue)
+    suggest(expectedValue) should contain(expectedValue)
+  }
+
+  test("match: money") {
+    val expectedValue = "$500 and under"
+    val search = "$"
+
+    val tokens = CompletionAnalyzer.analyze(expectedValue)
+    tokens should contain(expectedValue)
+
+    index(expectedValue)
+    suggest(search) should contain(expectedValue)
+  }
+
+  test("match: ampersand") {
+    val expectedValue = "at&t mobility"
+    val search = "at&t"
+
+    val tokens = CompletionAnalyzer.analyze(expectedValue)
+    tokens should contain(expectedValue)
+
+    index(expectedValue)
+    suggest(search) should contain(expectedValue)
+  }
+
+  test("match: forward slash") {
+    val value = "andrea h/arthur d harris"
+    val expectedValue = "andrea h arthur d harris"
+    val search = "h/arthur"
+
+    val tokens = CompletionAnalyzer.analyze(value)
+    tokens should contain(expectedValue)
+
+    index(value)
+    suggest(search) should contain(value)
+  }
+
+  test("not match: dot") {
+    val value = "The quick and the dead"
+    index(value)
+    suggest(".") should be('empty)
   }
 }
