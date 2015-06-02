@@ -2,7 +2,6 @@ package com.socrata.spandex.http
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
-import com.rojoma.json.v3.ast.{JObject, JString}
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
@@ -15,7 +14,7 @@ class SpandexServlet(conf: SpandexConfig,
                      client: => SpandexElasticSearchClient) extends SpandexStack {
   def index: String = conf.es.index
 
-  val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
+  val version = BuildInfo.toJson
 
   def columnMap(datasetId: String, copyNum: Long, userColumnId: String): ColumnMap =
     client.columnMap(datasetId, copyNum, userColumnId).getOrElse(halt(

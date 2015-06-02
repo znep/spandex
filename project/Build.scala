@@ -5,17 +5,15 @@ import org.scalatra.sbt._
 import pl.project13.scala.sbt.JmhPlugin
 import sbt.Keys._
 import sbt._
-import sbtbuildinfo.BuildInfoKeys._
-import sbtbuildinfo.{BuildInfoKey, BuildInfoOption, BuildInfoPlugin}
+import sbtbuildinfo.BuildInfoKeys.buildInfoPackage
+import sbtbuildinfo.BuildInfoPlugin
 import scoverage.ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages
 
 object SpandexBuild extends Build {
   val Name = "com.socrata.spandex"
-  val ScalaVersion = "2.10.5"
   val JettyListenPort = 8042 // required for container embedded jetty
 
   lazy val commonSettings = Seq(
-    scalaVersion := ScalaVersion,
     resolvers ++= Deps.resolverList
   )
 
@@ -47,17 +45,9 @@ object SpandexBuild extends Build {
     "spandex-http",
     file("./spandex-http/"),
     settings = commonSettings ++ ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ Seq(
-      buildInfoKeys := Seq[BuildInfoKey](
-        name,
-        version,
-        scalaVersion,
-        sbtVersion,
-        BuildInfoKey.action("buildTime") { System.currentTimeMillis },
-        BuildInfoKey.action("revision") { gitSha }),
       buildInfoPackage := "com.socrata.spandex.http",
-      buildInfoOptions += BuildInfoOption.ToMap,
       libraryDependencies ++= Deps.socrata ++ Deps.http ++ Deps.test ++ Deps.common,
-      coverageExcludedPackages := "<empty>;templates.*",
+      coverageExcludedPackages := "<empty>;templates.*;" + coverageExcludedPackages.value,
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile){ base =>
         Seq(
           TemplateConfig(
