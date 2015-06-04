@@ -93,6 +93,8 @@ class SpandexServlet(conf: SpandexConfig,
   }
 
   def suggest(f: (ColumnMap, String, Fuzziness, Int) => SpandexResult): String = {
+    logger.info(s">>> $requestPath params: $params")
+
     val paramFuzz = "fuzz"
     val paramSize = "size"
 
@@ -101,9 +103,10 @@ class SpandexServlet(conf: SpandexConfig,
     val stageInfoText = params.get(paramStageInfo).get
     val userColumnId = params.get(paramUserColumnId).get
     val text = urlDecode(params.get(paramText).getOrElse(""))
+    logger.info(s"urlDecoded param text -> $text")
+
     val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
     val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
-    logger.info(s">>> $datasetId, $stageInfoText, $userColumnId, $text, ${fuzz.asDistance}, $size")
 
     val copy = copyNum(datasetId, stageInfoText)
     logger.info(s"found copy $copy")
