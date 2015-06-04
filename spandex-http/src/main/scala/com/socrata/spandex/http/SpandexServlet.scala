@@ -26,7 +26,9 @@ class SpandexServlet(conf: SpandexConfig,
   healthCheck("esClusterHealth") {Try {esClusterHealth}}
 
   get("/version") {
+    logger.info(">>> /version")
     contentType = ContentTypeJson
+    logger.info(s"<<< $version")
     version
   }
 
