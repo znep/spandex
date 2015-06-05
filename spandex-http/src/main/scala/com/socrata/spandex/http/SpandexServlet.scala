@@ -2,7 +2,6 @@ package com.socrata.spandex.http
 
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
-import com.rojoma.json.v3.ast.{JObject, JString}
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
@@ -15,7 +14,7 @@ class SpandexServlet(conf: SpandexConfig,
                      client: => SpandexElasticSearchClient) extends SpandexStack {
   def index: String = conf.es.index
 
-  val version = JsonUtil.renderJson(JObject(BuildInfo.toMap.mapValues(v => JString(v.toString))))
+  val version = BuildInfo.toJson
 
   def columnMap(datasetId: String, copyNum: Long, userColumnId: String): ColumnMap =
     client.columnMap(datasetId, copyNum, userColumnId).getOrElse(halt(
@@ -94,6 +93,8 @@ class SpandexServlet(conf: SpandexConfig,
   }
 
   def suggest(f: (ColumnMap, String, Fuzziness, Int) => SpandexResult): String = {
+    logger.info(s">>> $requestPath params: $params")
+
     val paramFuzz = "fuzz"
     val paramSize = "size"
 
@@ -102,9 +103,10 @@ class SpandexServlet(conf: SpandexConfig,
     val stageInfoText = params.get(paramStageInfo).get
     val userColumnId = params.get(paramUserColumnId).get
     val text = urlDecode(params.get(paramText).getOrElse(""))
+    logger.info(s"urlDecoded param text -> $text")
+
     val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
     val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
-    logger.info(s">>> $datasetId, $stageInfoText, $userColumnId, $text, ${fuzz.asDistance}, $size")
 
     val copy = copyNum(datasetId, stageInfoText)
     logger.info(s"found copy $copy")
