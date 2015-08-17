@@ -13,9 +13,11 @@ ENV SERVER_ARTIFACT  ${SERVER_NAME}-assembly.jar
 
 # Environment settings.
 ENV JAVA_XMX 512m
+ENV JMX_PORT 8049
 
 # Add other required resources to the container
 EXPOSE 8042
+EXPOSE 8049
 
 ADD ship.d /etc/ship.d
 ADD ${SERVER_CONFIG}.j2 /etc/
