@@ -2,6 +2,7 @@ import javax.servlet.ServletContext
 
 import com.socrata.spandex.common.SpandexConfig
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
+import com.socrata.spandex.http.SpandexResult.Fields._
 import com.socrata.spandex.http.SpandexServlet
 import org.scalatra._
 import org.scalatra.metrics.MetricsSupportExtensions._
@@ -17,8 +18,8 @@ class ScalatraBootstrap extends LifeCycle with MetricsBootstrap {
     context.mountHealthCheckServlet("/health")
     context.mountMetricsServlet("/metrics")
     context.mountThreadDumpServlet("/thread-dump")
-    context.installInstrumentedFilter("/sample/*")
-    context.installInstrumentedFilter("/suggest/*")
+    context.installInstrumentedFilter(s"/$routeSample/*")
+    context.installInstrumentedFilter(s"/$routeSuggest/*")
     context.mount(new SpandexServlet(conf, client), "/*")
   }
 

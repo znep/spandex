@@ -39,8 +39,12 @@ object SpandexResult {
 
   object Fields {
     private[this] def formatQuotedString(s: String) = "\"%s\"" format s
-    val routeSuggest = "/suggest"
-    val routeSample = "/sample"
+    val routeSuggest = "suggest"
+    val routeSample = "sample"
+    val paramDatasetId = "datasetId"
+    val paramStageInfo = "stage"
+    val paramUserColumnId = "userColumnId"
+    val paramText = "text"
     val paramFuzz = "fuzz"
     val paramSize = "size"
     val options = "options"
