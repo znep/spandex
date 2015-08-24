@@ -16,6 +16,7 @@ class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends S
   val tempDataDir = Files.createTempDirectory("elasticsearch_data_").toFile
   val testSettings = ImmutableSettings.settingsBuilder()
     .put(settings)
+    .put("discovery.zen.ping.multicast.enabled", false)
     .put("path.data", tempDataDir.toString)
     .build
 

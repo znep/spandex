@@ -1,15 +1,16 @@
 package com.socrata.spandex.secondary
 
+import java.math.BigDecimal
+
 import com.rojoma.simplearm.util.unmanaged
-import com.socrata.datacoordinator.id.{UserColumnId, ColumnId, CopyId}
+import com.socrata.datacoordinator.id.{ColumnId, CopyId, UserColumnId}
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types._
 import com.socrata.spandex.common._
-import com.socrata.spandex.common.client.{FieldValue, ColumnMap, DatasetCopy, TestESClient}
-import java.math.BigDecimal
+import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
 import org.joda.time.DateTime
-import org.scalatest.{BeforeAndAfterEach, Matchers, FunSuiteLike}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 class TestSpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike {
   val client    = new TestESClient(config)
@@ -20,11 +21,13 @@ class TestSpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondary
 }
 
 // scalastyle:off
-class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESData with BeforeAndAfterEach {
+class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESData with BeforeAndAfterEach with BeforeAndAfterAll {
   lazy val config = new SpandexConfig
   lazy val secondary = new TestSpandexSecondary(config.es)
 
   def client = secondary.client
+
+  override protected def beforeAll(): Unit = SpandexBootstrap.ensureIndex(config.es, client)
 
   override def beforeEach(): Unit = bootstrapData()
 

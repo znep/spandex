@@ -4,7 +4,7 @@ import java.io.File
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.elasticsearch.common.unit.Fuzziness
 import org.elasticsearch.search.suggest.Suggest.Suggestion
 import org.elasticsearch.search.suggest.completion.CompletionSuggestion.Entry
@@ -14,16 +14,17 @@ import scala.collection.mutable
 
 trait AnalyzerTest {
   val analyzerEnabled: Boolean
+  val className = getClass.getSimpleName.toLowerCase
 
   protected val baseConfig = ConfigFactory.load().getConfig("com.socrata.spandex")
-  protected val fieldValueMappingPath = "elastic-search.mappings.field-value.mapping-properties"
+    .withValue("elastic-search.index", ConfigValueFactory.fromAnyRef(s"spandex-$className"))
   protected val configAnalyzerOff = new SpandexConfig(
-    ConfigFactory.parseFile(new File("./spandex-common/src/test/resources/analysisOff.conf"))
+    ConfigFactory.parseFile(new File("./src/test/resources/analysisOff.conf"))
       .getConfig("com.socrata.spandex")
       .withFallback(baseConfig)
   )
   protected val configAnalyzerOn = new SpandexConfig(
-    ConfigFactory.parseFile(new File("./spandex-common/src/test/resources/analysisOn.conf"))
+    ConfigFactory.parseFile(new File("./src/test/resources/analysisOn.conf"))
       .getConfig("com.socrata.spandex")
       .withFallback(baseConfig)
   )
