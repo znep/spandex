@@ -9,7 +9,7 @@ import org.elasticsearch.common.unit.Fuzziness
 import org.elasticsearch.search.suggest.Suggest.Suggestion
 import org.elasticsearch.search.suggest.completion.CompletionSuggestion.Entry
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 trait AnalyzerTest {
@@ -58,6 +58,6 @@ trait AnalyzerTest {
     val suggest = response.getSuggestion[Suggestion[Entry]]("suggest")
     val entries = suggest.getEntries
     val options = entries.get(0).getOptions
-    options.map(_.getText.toString)
+    options.asScala.map(_.getText.toString)
   }
 }

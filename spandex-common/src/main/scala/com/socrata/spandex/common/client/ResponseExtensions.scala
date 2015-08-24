@@ -12,7 +12,7 @@ import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.aggregations.bucket.terms.Terms
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
 @JsonKeyStrategy(Strategy.Underscore)
@@ -150,7 +150,7 @@ case class SearchResponseExtensions(response: SearchResponse) {
      */
     val aggs = aggKey.fold(Seq.empty[BucketCount]) { k =>
       response.getAggregations.get[Terms](k)
-        .getBuckets.map { b => BucketCount(b.getKey, b.getDocCount) }
+        .getBuckets.asScala.map { b => BucketCount(b.getKey, b.getDocCount) }
         .toSeq
     }
 

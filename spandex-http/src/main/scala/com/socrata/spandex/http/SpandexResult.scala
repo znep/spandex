@@ -6,7 +6,7 @@ import org.elasticsearch.search.suggest.Suggest
 import org.elasticsearch.search.suggest.Suggest.Suggestion
 import org.elasticsearch.search.suggest.completion.CompletionSuggestion.Entry
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.util.Try
 
 case class SpandexOption(text: String, score: Option[Float])
@@ -24,7 +24,7 @@ object SpandexResult {
     val suggest = response.getSuggestion[Suggestion[Entry]]("suggest")
     val entries = suggest.getEntries
     val options = entries.get(0).getOptions
-    SpandexResult(options.map { a =>
+    SpandexResult(options.asScala.map { a =>
       SpandexOption(a.getText.string(), Try{Some(a.getScore)}.getOrElse(None))
     })
   }
