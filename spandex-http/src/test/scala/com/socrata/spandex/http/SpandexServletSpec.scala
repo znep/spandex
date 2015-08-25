@@ -9,7 +9,6 @@ import com.socrata.spandex.http.SpandexResult.Fields._
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest._
 
-// scalastyle:off magic.number multiple.string.literals
 // For more on Specs2, see http://etorreborre.github.com/specs2/guide/org.specs2.guide.QuickStart.html
 class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData {
   val config = new SpandexConfig
@@ -60,7 +59,6 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
     }
   }
 
-  private[this] val routeSuggest = "/suggest"
   private[this] val dsid = datasets(0)
   private[this] val copy = copies(dsid)(1)
   private[this] val copynum = copy.copyNumber
@@ -79,6 +77,22 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
       body should include(makeRowData(colsysid, 3))
       body should include(makeRowData(colsysid, 4))
       body should include(makeRowData(colsysid, 5))
+      body shouldNot include(makeRowData(colsysid, 6))
+    }
+  }
+
+  test("suggest - param query text") {
+    val r4 = urlEncode(makeRowData(colsysid, 4))
+    get(s"$routeSuggest/$dsid/$copynum/$colid", (paramText, r4)) {
+      status should equal(HttpStatus.SC_OK)
+      contentTypeShouldBe(ContentTypeJson)
+      body should include(optionsJson)
+      body shouldNot include(makeRowData(colsysid, 0))
+      body shouldNot include(makeRowData(colsysid, 1))
+      body shouldNot include(makeRowData(colsysid, 2))
+      body shouldNot include(makeRowData(colsysid, 3))
+      body should include(makeRowData(colsysid, 4))
+      body shouldNot include(makeRowData(colsysid, 5))
       body shouldNot include(makeRowData(colsysid, 6))
     }
   }

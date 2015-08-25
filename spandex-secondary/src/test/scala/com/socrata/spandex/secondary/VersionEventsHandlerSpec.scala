@@ -8,7 +8,8 @@ import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types.{SoQLNumber, SoQLText, SoQLValue}
 import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
-import com.socrata.spandex.common.{SpandexConfig, TestESData}
+import com.socrata.spandex.common.{SpandexBootstrap, SpandexConfig, TestESData}
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.joda.time.DateTime
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
@@ -20,11 +21,14 @@ class VersionEventsHandlerSpec extends FunSuiteLike
                                   with BeforeAndAfterEach
                                   with PropertyChecks
                                   with TestESData {
-  val config = new SpandexConfig
+  val config = new SpandexConfig(ConfigFactory.load().getConfig("com.socrata.spandex")
+    .withValue("elastic-search.index", ConfigValueFactory.fromAnyRef("spandex-dataset-versioneventshandler")))
   val client = new TestESClient(config.es)
   // Make batches teensy weensy to expose any batching issues
   val handler = new VersionEventsHandler(client, 2)
 
+
+  override protected def beforeAll(): Unit = SpandexBootstrap.ensureIndex(config.es, client)
   override def beforeEach(): Unit = {
     client.deleteAllDatasetCopies()
     bootstrapData()

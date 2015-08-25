@@ -7,6 +7,7 @@ import com.socrata.soql.types._
 import com.socrata.spandex.common.SpandexConfig
 import com.socrata.spandex.common.client.{FieldValue, ColumnMap, DatasetCopy, TestESClient}
 import java.math.BigDecimal
+import com.typesafe.config.{ConfigValueFactory, ConfigFactory}
 import org.joda.time.DateTime
 import org.scalatest.{Matchers, FunSuiteLike}
 
@@ -19,7 +20,8 @@ import org.scalatest.{Matchers, FunSuiteLike}
  */
 // scalastyle:off
 class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
-  val config = new SpandexConfig
+  val config = new SpandexConfig(ConfigFactory.load().getConfig("com.socrata.spandex")
+    .withValue("elastic-search.index", ConfigValueFactory.fromAnyRef("spandex-dataset-lifecycle")))
   val client = new TestESClient(config.es)
 
   lazy val secondary = new TestSpandexSecondary(config.es)

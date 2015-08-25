@@ -14,6 +14,7 @@ object SpandexBuild extends Build {
   val JettyListenPort = 8042 // required for container embedded jetty
 
   lazy val commonSettings = Seq(
+    fork in Test := true,
     resolvers ++= Deps.resolverList
   )
 
@@ -70,8 +71,7 @@ object SpandexBuild extends Build {
             Sync.copy(from,to)
             to
           }
-      },
-      fork in Test := true
+      }
     ) ++ XwpPlugin.jetty(port = JettyListenPort)
   ).dependsOn(spandexCommon % "compile;test->test")
     .disablePlugins(JmhPlugin)

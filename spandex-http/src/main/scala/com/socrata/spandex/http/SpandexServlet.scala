@@ -5,6 +5,7 @@ import javax.servlet.http.{HttpServletResponse => HttpStatus}
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
+import com.socrata.spandex.http.SpandexResult.Fields._
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.common.unit.Fuzziness
 
@@ -47,11 +48,6 @@ class SpandexServlet(conf: SpandexConfig,
     clusterAdminClient.health(req).actionGet().toString
   }
 
-  private[this] val routeSuggest = "suggest"
-  private[this] val paramDatasetId = "datasetId"
-  private[this] val paramStageInfo = "stage"
-  private[this] val paramUserColumnId = "userColumnId"
-  private[this] val paramText = "text"
   get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId/:$paramText") {
     timer("suggestText") {
       suggest { (col, text, fuzz, size) =>
@@ -75,8 +71,13 @@ class SpandexServlet(conf: SpandexConfig,
   private[this] val sampleFuzzPre = 0
   get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId") {
     timer("suggestSample") {
-      suggest { (col, _, _, size) =>
-        SpandexResult(client.suggest(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
+      params.get(paramText) match {
+        case None => suggest { (col, _, _, size) =>
+          SpandexResult(client.suggest(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
+        }
+        case Some(s) => suggest { (col, text, fuzz, size) =>
+          SpandexResult(client.suggest(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
+        }
       }
     }.call()
   }
@@ -94,9 +95,6 @@ class SpandexServlet(conf: SpandexConfig,
 
   def suggest(f: (ColumnMap, String, Fuzziness, Int) => SpandexResult): String = {
     logger.info(s">>> $requestPath params: $params")
-
-    val paramFuzz = "fuzz"
-    val paramSize = "size"
 
     contentType = ContentTypeJson
     val datasetId = params.get(paramDatasetId).get

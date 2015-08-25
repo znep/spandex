@@ -157,7 +157,7 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTes
   }
 
   test("match: non-english unicode") {
-    val expectedValue = "愛"
+    val expectedValue = "愛" // scalastyle:ignore
 
     val tokens = CompletionAnalyzer.analyze(expectedValue)
     tokens should contain(expectedValue)
