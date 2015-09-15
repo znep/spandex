@@ -127,7 +127,7 @@ object Deps {
     "org.elasticsearch" % "elasticsearch" % "1.4.4"
   )
   lazy val secondary = Seq(
-    "com.socrata" %% "secondarylib" % "0.7.14" exclude("org.slf4j", "slf4j-log4j12")
+    "com.socrata" %% "secondarylib" % "0.7.18" exclude("org.slf4j", "slf4j-log4j12")
       excludeAll ExclusionRule(organization = "com.rojoma")
   )
 }
