@@ -119,11 +119,11 @@ The response has the same format, but score is meaningless.
 ##### Querying autocomplete via Core
 Querying autocomplete through the full stack looks like this: 
 ```
-curl {domain}/api/views/{4x4}/columns/{field_name}/suggest/{query_prefix}
+curl {domain}/api/views/{4x4}/columns/{field_name}/suggest?text={query}
 ```
 eg. (References a Kratos synthetic dataset looking at the monster_5 column for text matching "fur")
 ```
-curl http://opendata.socrata.com/api/views/m27q-b6tw/columns/monster_5/suggest/fur
+curl http://opendata.socrata.com/api/views/m27q-b6tw/columns/monster_5/suggest?text=fur
 ```
 
 ## Performance Benchmark Measurement
