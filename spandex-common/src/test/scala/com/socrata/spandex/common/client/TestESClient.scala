@@ -41,11 +41,9 @@ class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends S
     client.admin().indices().delete(Requests.deleteIndexRequest(config.index))
   }
 
-  def deleteAllDatasetCopies(): Unit = {
-    client.prepareDeleteByQuery(config.index)
-          .setQuery(termQuery("_type", config.datasetCopyMapping))
-          .execute().actionGet()
-  }
+  def deleteAllDatasetCopies(): Unit =
+    deleteByQuery(termQuery("_type", config.datasetCopyMapping), Seq(config.datasetCopyMapping.mappingType))
+
 
   def searchColumnMapsByDataset(datasetId: String): SearchResults[ColumnMap] =
     client.prepareSearch(config.index)
