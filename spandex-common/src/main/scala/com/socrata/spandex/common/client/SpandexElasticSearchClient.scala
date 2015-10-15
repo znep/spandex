@@ -9,7 +9,6 @@ import org.elasticsearch.action.ActionResponse
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest
 import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.delete.{DeleteRequestBuilder, DeleteResponse}
-import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse
 import org.elasticsearch.action.index.{IndexRequestBuilder, IndexResponse}
 import org.elasticsearch.action.search.SearchType
 import org.elasticsearch.action.update.{UpdateRequestBuilder, UpdateResponse}
@@ -21,8 +20,6 @@ import org.elasticsearch.search.aggregations.bucket.terms.Terms
 import org.elasticsearch.search.sort.SortOrder
 import org.elasticsearch.search.suggest.Suggest
 import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
-
-import scala.collection.JavaConverters._
 
 // scalastyle:off number.of.methods
 case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
@@ -65,12 +62,6 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     case d: DeleteResponse =>
     // No op - we don't care to throw an exception if d.isFound is false,
     // since that means the document is effectively deleted.
-    case dbq: DeleteByQueryResponse =>
-      val failures = dbq.getIndices.asScala.flatMap(_._2.getFailures)
-      if (failures.nonEmpty) {
-        throw ElasticSearchResponseFailed(s"DeleteByQuery response contained failures: " +
-          failures.map(_.reason).mkString(","))
-      }
     case b: BulkResponse =>
       if (b.hasFailures) {
         throw new ElasticSearchResponseFailed(s"Bulk response contained failures: " +
@@ -108,10 +99,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   def deleteColumnMapsByDataset(datasetId: String): Unit =
-    checkForFailures(client.prepareDeleteByQuery(config.index)
-                           .setTypes(config.columnMapMapping.mappingType)
-                           .setQuery(byDatasetIdQuery(datasetId))
-                           .execute.actionGet)
+    deleteByQuery(byDatasetIdQuery(datasetId), Seq(config.columnMapMapping.mappingType))
 
   // We don't expect the number of column maps to exceed config.dataCopyBatchSize.
   // As of April 2015 the widest dataset is ~1000 cols wide.
@@ -123,10 +111,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
           .execute.actionGet.results[ColumnMap]
 
   def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): Unit =
-    checkForFailures(client.prepareDeleteByQuery(config.index)
-                           .setTypes(config.columnMapMapping.mappingType)
-                           .setQuery(byCopyNumberQuery(datasetId, copyNumber))
-                           .execute.actionGet)
+    deleteByQuery(byCopyNumberQuery(datasetId, copyNumber), Seq(config.columnMapMapping.mappingType))
 
   def indexFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
     checkForFailures(fieldValueIndexRequest(fieldValue).setRefresh(refresh).execute.actionGet)
@@ -169,6 +154,30 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     }
   }
 
+  def deleteByQuery(queryBuilder: QueryBuilder, types: Seq[String] = Nil, refresh: Boolean = true): Unit = {
+    val timeout = new TimeValue(config.dataCopyTimeout)
+    val scrollInit = client.prepareSearch(config.index)
+      .setQuery(queryBuilder)
+      .setTypes(types: _*)
+      .setSearchType(SearchType.SCAN)
+      .setScroll(timeout)
+      .setSize(config.dataCopyBatchSize)
+      .execute.actionGet
+
+    var batch = Seq.empty[Any]
+    do {
+      val response = client.prepareSearchScroll(scrollInit.getScrollId)
+        .setScroll(timeout)
+        .execute.actionGet
+
+      batch = response.getHits.hits.map { h => client.prepareDelete(h.index, h.`type`, h.id) }
+
+      if (batch.nonEmpty) sendBulkRequest(batch, refresh = false)
+    } while (batch.nonEmpty)
+
+    if (refresh) this.refresh()
+  }
+
   def copyFieldValues(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit = {
     val timeout = new TimeValue(config.dataCopyTimeout)
     val scrollInit = client.prepareSearch(config.index)
@@ -201,28 +210,16 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   def deleteFieldValuesByDataset(datasetId: String): Unit =
-    checkForFailures(client.prepareDeleteByQuery(config.index)
-                           .setTypes(config.fieldValueMapping.mappingType)
-                           .setQuery(byDatasetIdQuery(datasetId))
-                           .execute.actionGet)
+    deleteByQuery(byDatasetIdQuery(datasetId), Seq(config.fieldValueMapping.mappingType))
 
   def deleteFieldValuesByCopyNumber(datasetId: String, copyNumber: Long): Unit =
-    checkForFailures(client.prepareDeleteByQuery(config.index)
-                           .setTypes(config.fieldValueMapping.mappingType)
-                           .setQuery(byCopyNumberQuery(datasetId, copyNumber))
-                           .execute.actionGet)
+    deleteByQuery(byCopyNumberQuery(datasetId, copyNumber), Seq(config.fieldValueMapping.mappingType))
 
   def deleteFieldValuesByRowId(datasetId: String, copyNumber: Long, rowId: Long): Unit =
-    checkForFailures(client.prepareDeleteByQuery(config.index)
-                           .setTypes(config.fieldValueMapping.mappingType)
-                           .setQuery(byRowIdQuery(datasetId, copyNumber, rowId))
-                           .execute.actionGet)
+    deleteByQuery(byRowIdQuery(datasetId, copyNumber, rowId), Seq(config.fieldValueMapping.mappingType))
 
   def deleteFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long): Unit =
-    checkForFailures(client.prepareDeleteByQuery(config.index)
-                           .setTypes(config.fieldValueMapping.mappingType)
-                           .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))
-                           .execute.actionGet)
+    deleteByQuery(byColumnIdQuery(datasetId, copyNumber, columnId), Seq(config.fieldValueMapping.mappingType))
 
   def putDatasetCopy(datasetId: String,
                      copyNumber: Long,
@@ -277,16 +274,10 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   def deleteDatasetCopy(datasetId: String, copyNumber: Long): Unit =
-    checkForFailures(client.prepareDeleteByQuery(config.index)
-                           .setTypes(config.datasetCopyMapping.mappingType)
-                           .setQuery(byCopyNumberQuery(datasetId, copyNumber))
-                           .execute.actionGet)
+    deleteByQuery(byCopyNumberQuery(datasetId, copyNumber), Seq(config.datasetCopyMapping.mappingType))
 
-  def deleteDatasetCopiesByDataset(datasetId: String): DeleteByQueryResponse =
-    client.prepareDeleteByQuery(config.index)
-      .setTypes(config.datasetCopyMapping.mappingType)
-      .setQuery(byDatasetIdQuery(datasetId))
-      .execute.actionGet
+  def deleteDatasetCopiesByDataset(datasetId: String): Unit =
+    deleteByQuery(byDatasetIdQuery(datasetId), Seq(config.datasetCopyMapping.mappingType))
 
   def suggest(column: ColumnMap, size: Int, text: String,
               fuzz: Fuzziness, fuzzLength: Int, fuzzPrefix: Int): Suggest = {

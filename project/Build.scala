@@ -15,6 +15,7 @@ object SpandexBuild extends Build {
 
   lazy val commonSettings = Seq(
     fork in Test := true,
+    testOptions in Test += Tests.Argument("-oF"),
     resolvers ++= Deps.resolverList
   )
 
@@ -124,7 +125,7 @@ object Deps {
     "com.typesafe" % "config" % "1.2.1",
     "com.typesafe" %% "scalalogging-slf4j" % "1.1.0",
     "commons-io" % "commons-io" % "2.4",
-    "org.elasticsearch" % "elasticsearch" % "1.4.4"
+    "org.elasticsearch" % "elasticsearch" % "1.7.2"
   )
   lazy val secondary = Seq(
     "com.socrata" %% "secondarylib" % "0.7.18" exclude("org.slf4j", "slf4j-log4j12")
