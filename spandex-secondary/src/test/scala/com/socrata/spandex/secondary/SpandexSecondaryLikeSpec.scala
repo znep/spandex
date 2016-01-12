@@ -6,6 +6,7 @@ import com.rojoma.simplearm.util.unmanaged
 import com.socrata.datacoordinator.id.{ColumnId, CopyId, UserColumnId}
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
+import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
@@ -82,10 +83,10 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
     val datasetInfo = DatasetInfo("zoo-animals", "en-US", Array.empty)
     val copyInfo = CopyInfo(new CopyId(100), 5, LifecycleStage.Published, 15, DateTime.now)
     val schema = ColumnIdMap[ColumnInfo[SoQLType]](
-      new ColumnId(1) -> ColumnInfo[SoQLType](new ColumnId(1), new UserColumnId(":id"), SoQLID, true, false, false),
-      new ColumnId(2) -> ColumnInfo[SoQLType](new ColumnId(2), new UserColumnId("animal"), SoQLText, false, false, false),
-      new ColumnId(3) -> ColumnInfo[SoQLType](new ColumnId(3), new UserColumnId("class"), SoQLText, false, false, false),
-      new ColumnId(4) -> ColumnInfo[SoQLType](new ColumnId(4), new UserColumnId("population"), SoQLNumber, false, false, false)
+      new ColumnId(1) -> ColumnInfo[SoQLType](new ColumnId(1), new UserColumnId(":id"), Some(ColumnName(":id")), SoQLID, true, false, false, None),
+      new ColumnId(2) -> ColumnInfo[SoQLType](new ColumnId(2), new UserColumnId("animal"), Some(ColumnName("animal")), SoQLText, false, false, false, None),
+      new ColumnId(3) -> ColumnInfo[SoQLType](new ColumnId(3), new UserColumnId("class"), Some(ColumnName("class")), SoQLText, false, false, false, None),
+      new ColumnId(4) -> ColumnInfo[SoQLType](new ColumnId(4), new UserColumnId("population"), Some(ColumnName("population")), SoQLNumber, false, false, false, None)
     )
     val rows = Seq(
       ColumnIdMap[SoQLValue](
@@ -105,7 +106,7 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
         new ColumnId(4) -> new SoQLNumber(new BigDecimal(3)))
     )
 
-    secondary.resync(datasetInfo, copyInfo, schema, None, unmanaged(rows.iterator), Seq.empty)
+    secondary.resync(datasetInfo, copyInfo, schema, None, unmanaged(rows.iterator), Seq.empty, isLatestCopy = true)
 
     val copies = client.searchCopiesByDataset("zoo-animals")
     copies.totalHits should be (1)
