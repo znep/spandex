@@ -1,10 +1,13 @@
 package com.socrata.spandex.common
 
+import java.io.File
+
 import com.socrata.spandex.common.client._
+import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
 
 class KeywordAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTest with BeforeAndAfterAll {
-  override val analyzerEnabled: Boolean = false
+  override def testConfig: Config = ConfigFactory.parseFile(new File("./src/test/resources/analysisOff.conf"))
   override protected def beforeAll(): Unit = analyzerBeforeAll()
   override protected def afterAll(): Unit = analyzerAfterAll()
 
