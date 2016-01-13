@@ -32,6 +32,7 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
   def batchSize: Int
 
   def init(config: SpandexConfig): Unit = {
+    logger.info("Configuration:\n" + config.debugString)
     SpandexBootstrap.ensureIndex(config.es, client)
     CompletionAnalyzer.configure(config.analysis)
   }

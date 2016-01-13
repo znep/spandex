@@ -13,6 +13,8 @@ import scala.util.Try
 
 class SpandexServlet(conf: SpandexConfig,
                      client: => SpandexElasticSearchClient) extends SpandexStack {
+  logger.info("Configuration:\n" + conf.debugString)
+
   def index: String = conf.es.index
 
   val version = BuildInfo.toJson

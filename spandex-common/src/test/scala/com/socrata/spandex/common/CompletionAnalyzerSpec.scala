@@ -136,6 +136,9 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTes
     // the config value 64 limits to -------------------------------------------^
     //                plus 14 spaces ---- - - - - - - - - - - - - - - - - - - - - - - - - - ---^
     //                                                              through the end of a term ---^
+    // the config value 32 limits to -----------^
+    //                plus 5 spaces  ---- - - - - ---^
+    //      through the end of a term                -^
     val expectedInputValues = Seq(
       "good",
       "a good",

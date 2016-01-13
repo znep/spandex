@@ -13,6 +13,8 @@ class SpandexConfig(config: Config = ConfigFactory.load().getConfig("com.socrata
   val suggestFuzzLength  = config.getInt("suggest-fuzziness-length")
   val suggestFuzzPrefix  = config.getInt("suggest-fuzziness-prefix")
   val suggestSize        = config.getInt("suggest-size")
+
+  val debugString = config.root.render()
 }
 
 class AnalysisConfig(config: Config) {
