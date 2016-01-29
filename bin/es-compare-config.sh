@@ -1,5 +1,5 @@
 #!/bin/bash
-ES="spandex-3.elasticsearch.aws-us-west-2-prod.socrata.net"
+ES="spandex-5.elasticsearch.aws-us-west-2-prod.socrata.net"
 if [ "" != "$1" ]; then
   KEY="settings.$1"
 else
