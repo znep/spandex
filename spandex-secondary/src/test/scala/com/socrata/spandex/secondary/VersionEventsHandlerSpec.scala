@@ -5,6 +5,7 @@ import java.math.BigDecimal
 import com.socrata.datacoordinator.id.{ColumnId, CopyId, RowId, UserColumnId}
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
+import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLText, SoQLValue}
 import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
@@ -94,8 +95,8 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   }
 
   test("ColumnCreated - don't create column map for non-SoQLText columns") {
-    val numCol = ColumnInfo(new ColumnId(10), new UserColumnId("nums-1234"), SoQLNumber, false, false, false)
-    val textCol = ColumnInfo(new ColumnId(20), new UserColumnId("text-1234"), SoQLText, false, false, false)
+    val numCol = ColumnInfo(new ColumnId(10), new UserColumnId("nums-1234"), Some(ColumnName("numbers")), SoQLNumber, false, false, false, None)
+    val textCol = ColumnInfo(new ColumnId(20), new UserColumnId("text-1234"), Some(ColumnName("text")), SoQLText, false, false, false, None)
 
     // Create column
     handler.handle(datasets(0), 3, Seq(ColumnCreated(numCol), ColumnCreated(textCol)).iterator)
@@ -109,7 +110,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   test("ColumnCreated and ColumnRemoved") {
     val expectedLatestBefore = copies(datasets(0)).last
-    val info = ColumnInfo(new ColumnId(3), new UserColumnId("blah-1234"), SoQLText, false, false, false)
+    val info = ColumnInfo(new ColumnId(3), new UserColumnId("blah-1234"), Some(ColumnName("blah-field")), SoQLText, false, false, false, None)
 
     val latestBeforeAdd = client.datasetCopyLatest(datasets(0))
     latestBeforeAdd should be ('defined)

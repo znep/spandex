@@ -3,6 +3,7 @@ package com.socrata.spandex.secondary
 import com.socrata.datacoordinator.id.{RowId, UserColumnId, ColumnId, CopyId}
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
+import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.spandex.common.SpandexConfig
 import com.socrata.spandex.common.client.{FieldValue, ColumnMap, DatasetCopy, TestESClient}
@@ -53,50 +54,62 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
       val addUpdatedAtColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(0),
         id = new UserColumnId(":updated_at"),
+        fieldName = Some(ColumnName(":updated_at")),
         typ = SoQLFixedTimestamp,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val addVersionColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(1),
         id = new UserColumnId(":version"),
+        fieldName = Some(ColumnName(":version")),
         typ = SoQLVersion,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val addIdColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(2),
         id = new UserColumnId(":id"),
+        fieldName = Some(ColumnName(":id")),
         typ = SoQLID,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val addCreatedAtColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(3),
         id = new UserColumnId(":created_at"),
+        fieldName = Some(ColumnName(":created_at")),
         typ = SoQLFixedTimestamp,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val versionColumnChanged = VersionColumnChanged(ColumnInfo(
         systemId = new ColumnId(1),
         id = new UserColumnId(":version"),
+        fieldName = Some(ColumnName(":version")),
         typ = SoQLVersion,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = true))
+        isVersion = true,
+        computationStrategyInfo = None))
 
       val systemRowIdChanged = SystemRowIdentifierChanged(ColumnInfo(
         systemId = new ColumnId(2),
         id = new UserColumnId(":id"),
+        fieldName = Some(ColumnName(":id")),
         typ = SoQLID,
         isSystemPrimaryKey = true,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val lastModifiedChanged = LastModifiedChanged(DateTime.now)
 
@@ -128,10 +141,12 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
       val addTextColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(4),
         id = new UserColumnId("ggha-z6i9"),
+        fieldName = Some(ColumnName("text-field")),
         typ = SoQLText,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val lastModifiedChanged = LastModifiedChanged(DateTime.now)
 
@@ -155,10 +170,12 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
       val addNumberColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(5),
         id = new UserColumnId("j9bp-sh9q"),
+        fieldName = Some(ColumnName("number-field")),
         typ = SoQLNumber,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val lastModifiedChanged = LastModifiedChanged(DateTime.now)
 
@@ -278,66 +295,82 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
       val addUpdatedAtColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(0),
         id = new UserColumnId(":updated_at"),
+        fieldName = Some(ColumnName(":updated_at")),
         typ = SoQLFixedTimestamp,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val addVersionColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(1),
         id = new UserColumnId(":version"),
+        fieldName = Some(ColumnName(":version")),
         typ = SoQLVersion,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val addIdColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(2),
         id = new UserColumnId(":id"),
+        fieldName = Some(ColumnName(":id")),
         typ = SoQLID,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val addCreatedAtColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(3),
         id = new UserColumnId(":created_at"),
+        fieldName = Some(ColumnName(":created_at")),
         typ = SoQLFixedTimestamp,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val addTextColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(4),
         id = new UserColumnId("ggha-z6i9"),
+        fieldName = Some(ColumnName("test-field")),
         typ = SoQLText,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val addNumberColumn = ColumnCreated(ColumnInfo(
         systemId = new ColumnId(5),
         id = new UserColumnId("j9bp-sh9q"),
+        fieldName = Some(ColumnName("numbers")),
         typ = SoQLNumber,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val versionColumnChanged = VersionColumnChanged(ColumnInfo(
         systemId = new ColumnId(1),
         id = new UserColumnId(":version"),
+        fieldName = Some(ColumnName(":version")),
         typ = SoQLVersion,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = true))
+        isVersion = true,
+        computationStrategyInfo = None))
 
       val systemRowIdChanged = SystemRowIdentifierChanged(ColumnInfo(
         systemId = new ColumnId(2),
         id = new UserColumnId(":id"),
+        fieldName = Some(ColumnName(":id")),
         typ = SoQLID,
         isSystemPrimaryKey = true,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val lastModifiedChanged = LastModifiedChanged(DateTime.now)
 
@@ -373,10 +406,12 @@ class DatasetLifecycleSimulation extends FunSuiteLike with Matchers {
       val columnRemoved = ColumnRemoved(ColumnInfo(
         systemId = new ColumnId(4),
         id = new UserColumnId("ggha-z6i9"),
+        fieldName = Some(ColumnName("text-field")),
         typ = SoQLText,
         isSystemPrimaryKey = false,
         isUserPrimaryKey = false,
-        isVersion = false))
+        isVersion = false,
+        computationStrategyInfo = None))
 
       val lastModifiedChanged = LastModifiedChanged(DateTime.now)
 
