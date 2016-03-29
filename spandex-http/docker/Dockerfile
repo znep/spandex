@@ -14,6 +14,7 @@ ENV SERVER_ARTIFACT  ${SERVER_NAME}-assembly.jar
 # Environment settings.
 ENV JAVA_XMX 512m
 ENV JMX_PORT 8049
+ENV LOG_LEVEL INFO
 
 # Add other required resources to the container
 EXPOSE 8042

@@ -7,4 +7,6 @@ com.socrata.spandex {
     cluster-name = "{{ SPANDEX_SECONDARY_ES_CLUSTER_NAME }}"
     index = "{{ SPANDEX_SECONDARY_ES_INDEX_ALIAS }}"
   }
+
+  log4j.rootLogger = [ {{ LOG_LEVEL }}, console ]
 }
