@@ -1,3 +1,7 @@
+com.socrata.spandex {
+  log4j.rootLogger = [ {{ LOG_LEVEL }}, console ]
+}
+
 instances.{{ SPANDEX_SECONDARY_TYPE }} {
   secondaryType = spandex
   numWorkers = {{ SPANDEX_SECONDARY_NUM_WORKERS }}
@@ -13,5 +17,4 @@ instances.{{ SPANDEX_SECONDARY_TYPE }} {
     data-copy-batch-size = {{ SPANDEX_SECONDARY_DATA_COPY_BATCH_SIZE }}
     data-copy-timeout = {{ SPANDEX_SECONDARY_DATA_COPY_TIMEOUT }}
   }
-  log4j.rootLogger = [ {{ LOG_LEVEL }}, console ]
 }
