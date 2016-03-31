@@ -3,12 +3,13 @@ package com.socrata.spandex.common.client
 import java.io.Closeable
 
 import com.socrata.spandex.common.ElasticSearchConfig
+import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.client.Client
 import org.elasticsearch.client.transport.TransportClient
-import org.elasticsearch.common.settings.{Settings, ImmutableSettings}
+import org.elasticsearch.common.settings.{ImmutableSettings, Settings}
 import org.elasticsearch.common.transport.InetSocketTransportAddress
 
-class ElasticSearchClient(config: ElasticSearchConfig) extends Closeable {
+class ElasticSearchClient(config: ElasticSearchConfig) extends Closeable with Logging {
   Thread.currentThread().setContextClassLoader(this.getClass.getClassLoader)
   val settings: Settings = ImmutableSettings.settingsBuilder()
                                             .put("cluster.name", config.clusterName)
@@ -17,6 +18,11 @@ class ElasticSearchClient(config: ElasticSearchConfig) extends Closeable {
                                             .build()
   val transportAddress = new InetSocketTransportAddress(config.host, config.port)
   val client: Client = new TransportClient(settings).addTransportAddress(transportAddress)
+
+  logger.debug(s"connected elasticsearch client at $transportAddress with ${settings.toDelimitedString(',')}")
+
+  val status = client.admin().cluster().prepareHealth().get().toString
+  logger.debug(s"elasticsearch cluster status $status")
 
   def close(): Unit = client.close()
 }

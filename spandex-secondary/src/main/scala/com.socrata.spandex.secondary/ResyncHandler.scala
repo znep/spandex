@@ -17,6 +17,7 @@ case class ResyncHandler(client: SpandexElasticSearchClient) extends SecondaryEv
 
     // Add dataset copy
     // Don't refresh ES during resync
+    logger.debug(s"adding dataset_copy $datasetInfo $copyInfo")
     client.putDatasetCopy(datasetInfo.internalName,
       copyInfo.copyNumber,
       copyInfo.dataVersion,
@@ -29,12 +30,15 @@ case class ResyncHandler(client: SpandexElasticSearchClient) extends SecondaryEv
         ColumnMap(datasetInfo.internalName, copyInfo.copyNumber, info)
       }
     // Don't refresh ES during resync
+    logger.debug(s"adding text columns $textColumns")
     textColumns.foreach(client.putColumnMap(_, refresh = false))
 
     // Add field values for text columns
+    logger.debug(s"adding field_values by row")
     insertRows(datasetInfo, copyInfo, schema, rows, batchSize)
 
     // TODO : Guarantee refresh before read instead of after write
+    logger.debug(s"refresh")
     client.refresh()
   }
 
