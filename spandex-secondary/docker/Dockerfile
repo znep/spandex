@@ -1,4 +1,4 @@
-FROM registry.docker.aws-us-west-2-infrastructure.socrata.net:5000/internal/secondary-watcher:2.1.5_4680_cb200747
+FROM registry.docker.aws-us-west-2-infrastructure.socrata.net:5000/internal/secondary-watcher:2.1.11_5560_e90b78ba
 
 ENV SECONDARY_ARTIFACT spandex-secondary-assembly.jar
 ENV SECONDARY_CONFIG secondary.conf
