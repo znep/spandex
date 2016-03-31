@@ -1,0 +1,5 @@
+#!/bin/sh
+
+set -evx
+
+exec su socrata -c "exec  /etc/ship.d/snapshot.sh"
