@@ -9,6 +9,8 @@ import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.settings.{ImmutableSettings, Settings}
 import org.elasticsearch.common.transport.InetSocketTransportAddress
 
+import scala.util.control.NonFatal
+
 class ElasticSearchClient(config: ElasticSearchConfig) extends Closeable with Logging {
   Thread.currentThread().setContextClassLoader(this.getClass.getClassLoader)
   val settings: Settings = ImmutableSettings.settingsBuilder()
@@ -21,8 +23,12 @@ class ElasticSearchClient(config: ElasticSearchConfig) extends Closeable with Lo
 
   logger.debug(s"connected elasticsearch client at $transportAddress with ${settings.toDelimitedString(',')}")
 
-  val status = client.admin().cluster().prepareHealth().get().toString
-  logger.debug(s"elasticsearch cluster status $status")
+  val status = try {
+    client.admin().cluster().prepareHealth().get().toString
+  } catch {
+    case NonFatal(e) => e.getMessage
+  }
+  logger.debug(s"elasticsearch cluster healthcheck $status")
 
   def close(): Unit = client.close()
 }
