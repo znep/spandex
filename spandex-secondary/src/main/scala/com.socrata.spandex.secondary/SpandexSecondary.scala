@@ -37,15 +37,10 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
     CompletionAnalyzer.configure(config.analysis)
   }
 
-  def wantsWorkingCopies: Boolean = true
-
   def currentVersion(datasetInternalName: String, cookie: Cookie): Long =
     throw new NotImplementedError("Not used anywhere yet") // scalastyle:ignore multiple.string.literals
 
   def currentCopyNumber(datasetInternalName: String, cookie: Cookie): Long =
-    throw new NotImplementedError("Not used anywhere yet") // scalastyle:ignore multiple.string.literals
-
-  def snapshots(datasetInternalName: String, cookie: Cookie): Set[Long] =
     throw new NotImplementedError("Not used anywhere yet") // scalastyle:ignore multiple.string.literals
 
   def dropDataset(datasetInternalName: String, cookie: Cookie): Unit = {

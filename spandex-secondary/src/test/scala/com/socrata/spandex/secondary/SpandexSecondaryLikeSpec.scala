@@ -70,6 +70,11 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
     client.searchColumnMapsByCopyNumber(datasets(0), 2).totalHits should be (0)
   }
 
+  test("drop future copy") {
+    client.datasetCopy(datasets(0), 7) should not be 'defined
+    secondary.dropCopy(datasets(0), 7, None)
+  }
+
   test("resync") {
     // Add some stale data related to this dataset, which should be cleaned up in the resync
     client.indexFieldValue(FieldValue("zoo-animals", 5, 3, 6, "marmot"), refresh = true)
