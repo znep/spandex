@@ -69,5 +69,8 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
     val finalLatest = client.datasetCopyLatest(datasetName).getOrElse(
       throw InvalidStateAfterEvent(s"Couldn't get latest copy number for dataset $datasetName"))
     client.updateDatasetCopyVersion(finalLatest.copy(version = dataVersion), refresh = true)
+
+    // Super double check that we have the correct dataset copy info
+    client.datasetCopy(datasetName, latest.copyNumber)
   }
 }

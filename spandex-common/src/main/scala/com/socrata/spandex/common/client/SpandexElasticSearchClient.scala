@@ -244,7 +244,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig)
     val request = client.prepareIndex(config.index, config.datasetCopyMapping.mappingType, id)
       .setSource(source)
       .setRefresh(refresh)
-    logDatasetCopyIndexRequest(request)
+    logDatasetCopyIndexRequest(id, source)
     request.execute.actionGet
   }
 
