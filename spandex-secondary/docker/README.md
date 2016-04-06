@@ -24,3 +24,4 @@ In addition, the following optional variables are supported.  For defaults, see 
 * `SPANDEX_SECONDARY_ES_INDEX_ALIAS` - The index/alias in Elasticsearch in which to maintain documents.
 * `SPANDEX_SECONDARY_NUM_WORKERS` - Number of workers to run per secondary instance.
 * `SPANDEX_SECONDARY_TYPE` - The secondary type to use, controls what `store_id` we do work for.
+* `LOG_LEVEL` - The log4j log level to emit messages from all classes in `com.socrata.spandex` package, only applicable when using docker command run-with-log-level.
