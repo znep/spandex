@@ -167,6 +167,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     val timeout = new TimeValue(config.dataCopyTimeout)
     val scrollInit = client.prepareSearch(config.index)
       .setQuery(queryBuilder)
+      .setNoFields() // for delete request: only interested in type and id
       .setTypes(types: _*)
       .setSearchType(SearchType.SCAN)
       .setScroll(timeout)
@@ -179,6 +180,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       val response = client.prepareSearchScroll(scrollId)
         .setScroll(timeout)
         .execute.actionGet
+      logSearchResponse(response)
 
       scrollId = response.getScrollId
       batch = response.getHits.hits.map { h => client.prepareDelete(h.index, h.`type`, h.id) }
@@ -206,6 +208,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       val response = client.prepareSearchScroll(scrollId)
                            .setScroll(timeout)
                            .execute.actionGet
+      logSearchResponse(response)
 
       scrollId = response.getScrollId
       batch = response.results[FieldValue].thisPage.map { src =>
@@ -312,7 +315,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
     val response = client.prepareSuggest(config.index)
       .addSuggestion(suggestion)
-      .execute().actionGet()
+      .execute.actionGet
 
     response.getSuggest
   }

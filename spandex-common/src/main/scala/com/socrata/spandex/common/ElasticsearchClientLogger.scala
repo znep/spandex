@@ -3,7 +3,7 @@ package com.socrata.spandex.common
 import com.socrata.spandex.common.client.{DatasetCopy, SearchResults}
 import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.bulk.BulkRequestBuilder
-import org.elasticsearch.action.search.SearchRequestBuilder
+import org.elasticsearch.action.search.{SearchRequestBuilder, SearchResponse}
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.index.query.QueryBuilder
@@ -57,4 +57,8 @@ trait ElasticsearchClientLogger extends Logging {
 
   def logColumnMapIndexRequest(id: String, source: String): Unit =
     logger.debug(s"executing index column map on id=$id with $source")
+
+  def logSearchResponse(response: SearchResponse): Unit =
+    logger.debug(s"received {} hits out of {} total",
+      response.getHits.hits.length.toString, response.getHits.totalHits.toString)
 }
