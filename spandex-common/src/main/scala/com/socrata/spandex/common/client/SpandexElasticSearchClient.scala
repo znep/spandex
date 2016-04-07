@@ -194,7 +194,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     do {
       val request = client.prepareSearchScroll(scrollId)
         .setScroll(timeout)
-      logSearchScrollRequest(request, types)
+      logSearchScrollRequest(scrollId, timeout.toString)
       val response = request.execute.actionGet
       logSearchResponse(response)
 
@@ -224,7 +224,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     do {
       val request = client.prepareSearchScroll(scrollId)
         .setScroll(timeout)
-      logSearchScrollRequest(request, Seq(config.fieldValueMapping.mappingType))
+      logSearchScrollRequest(scrollId, timeout.toString)
       val response = request.execute.actionGet
       logSearchResponse(response)
 

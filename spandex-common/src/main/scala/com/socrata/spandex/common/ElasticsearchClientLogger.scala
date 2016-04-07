@@ -38,9 +38,8 @@ trait ElasticsearchClientLogger extends Logging {
     logger.debug("search request {} on types={}",
       search.toString.replaceAll("\\s+", " "), types.toString)
 
-  def logSearchScrollRequest(search: SearchScrollRequestBuilder, types: Seq[String]): Unit =
-    logger.debug("search scroll request {} on types={}",
-      search.toString.replaceAll("\\s+", " "), types.toString)
+  def logSearchScrollRequest(scrollId: String, timeout: String): Unit =
+    logger.trace("search scroll request id={} timeout={}", scrollId, timeout)
 
   def logCopyFieldValuesRequest(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit =
     logger.debug(s"copy field_values from=$from to=$to refresh=$refresh")
