@@ -32,7 +32,7 @@ trait ElasticsearchClientLogger extends Logging {
 
   def logDeleteByQueryRequest(queryBuilder: QueryBuilder, types: Seq[String], refresh: Boolean): Unit =
     logger.debug("delete by query {} on types={} with refresh={}",
-      Seq(queryBuilder.toString.replaceAll("\\s+", " "), types, refresh))
+      queryBuilder.toString.replaceAll("\\s+", " "), types.toString, refresh.toString)
 
   def logCopyFieldValuesRequest(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit =
     logger.debug(s"copy field_values from=$from to=$to refresh=$refresh")
