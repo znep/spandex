@@ -162,6 +162,18 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     }
   }
 
+  /**
+    * Scan + scroll response size is per shard, so we calculate the desired total size after counting primary shards.
+    * See https://www.elastic.co/guide/en/elasticsearch/guide/1.x/scan-scroll.html#id-1.4.11.10.11.3
+    */
+  private def calculateScrollSize(desiredSize: Int): Int = {
+    val indexSettingsRequest = client.admin.indices.prepareGetSettings(config.index)
+    val indexSettingsResponse = indexSettingsRequest.execute.actionGet
+    val indexSettings = indexSettingsResponse.getIndexToSettings.get(config.index)
+    val primaryShardCount = indexSettings.get("index.number_of_shards")
+    desiredSize / primaryShardCount.toInt
+  }
+
   def deleteByQuery(queryBuilder: QueryBuilder, types: Seq[String] = Nil, refresh: Boolean = true): Unit = {
     logDeleteByQueryRequest(queryBuilder, types, refresh)
     val timeout = new TimeValue(config.dataCopyTimeout)
@@ -171,7 +183,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .setTypes(types: _*)
       .setSearchType(SearchType.SCAN)
       .setScroll(timeout)
-      .setSize(config.dataCopyBatchSize)
+      .setSize(calculateScrollSize(config.dataCopyBatchSize))
     logSearchRequest(scrollInitRequest, types)
     val scrollInit = scrollInitRequest.execute.actionGet
 
@@ -201,7 +213,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .setQuery(byCopyNumberQuery(from.datasetId, from.copyNumber))
       .setSearchType(SearchType.SCAN)
       .setScroll(timeout)
-      .setSize(config.dataCopyBatchSize)
+      .setSize(calculateScrollSize(config.dataCopyBatchSize))
     logSearchRequest(scrollInitRequest, Seq(config.fieldValueMapping.mappingType))
     val scrollInit = scrollInitRequest.execute.actionGet
 
