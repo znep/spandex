@@ -165,13 +165,15 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   /**
     * Scan + scroll response size is per shard, so we calculate the desired total size after counting primary shards.
     * See https://www.elastic.co/guide/en/elasticsearch/guide/1.x/scan-scroll.html#id-1.4.11.10.11.3
+    *
+    * Note: the value `config.index` could be an alias, and it's possible to iterate over returned settings and find
+    * a concrete index with corresponding alias. But *index* vs *total* primary shards is almost the same number.
     */
   private def calculateScrollSize(desiredSize: Int): Int = {
-    val indexSettingsRequest = client.admin.indices.prepareGetSettings(config.index)
-    val indexSettingsResponse = indexSettingsRequest.execute.actionGet
-    val indexSettings = indexSettingsResponse.getIndexToSettings.get(config.index)
-    val primaryShardCount = indexSettings.get("index.number_of_shards")
-    desiredSize / primaryShardCount.toInt
+    val clusterHealthRequest = client.admin.cluster.prepareHealth()
+    val clusterHealthResponse = clusterHealthRequest.execute.actionGet
+    val primaryShardCount = clusterHealthResponse.getActivePrimaryShards
+    desiredSize / primaryShardCount
   }
 
   def deleteByQuery(queryBuilder: QueryBuilder, types: Seq[String] = Nil, refresh: Boolean = true): Unit = {
