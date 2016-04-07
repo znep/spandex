@@ -165,21 +165,23 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def deleteByQuery(queryBuilder: QueryBuilder, types: Seq[String] = Nil, refresh: Boolean = true): Unit = {
     logDeleteByQueryRequest(queryBuilder, types, refresh)
     val timeout = new TimeValue(config.dataCopyTimeout)
-    val scrollInit = client.prepareSearch(config.index)
+    val scrollInitRequest = client.prepareSearch(config.index)
       .setQuery(queryBuilder)
       .setNoFields() // for delete request: only interested in type and id
       .setTypes(types: _*)
       .setSearchType(SearchType.SCAN)
       .setScroll(timeout)
       .setSize(config.dataCopyBatchSize)
-      .execute.actionGet
+    logSearchRequest(scrollInitRequest, types)
+    val scrollInit = scrollInitRequest.execute.actionGet
 
     var scrollId = scrollInit.getScrollId
     var batch = Seq.empty[Any]
     do {
-      val response = client.prepareSearchScroll(scrollId)
+      val request = client.prepareSearchScroll(scrollId)
         .setScroll(timeout)
-        .execute.actionGet
+      logSearchScrollRequest(request, types)
+      val response = request.execute.actionGet
       logSearchResponse(response)
 
       scrollId = response.getScrollId
@@ -194,20 +196,22 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def copyFieldValues(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit = {
     logCopyFieldValuesRequest(from, to, refresh)
     val timeout = new TimeValue(config.dataCopyTimeout)
-    val scrollInit = client.prepareSearch(config.index)
-                           .setTypes(config.fieldValueMapping.mappingType)
-                           .setQuery(byCopyNumberQuery(from.datasetId, from.copyNumber))
-                           .setSearchType(SearchType.SCAN)
-                           .setScroll(timeout)
-                           .setSize(config.dataCopyBatchSize)
-                           .execute.actionGet
+    val scrollInitRequest = client.prepareSearch(config.index)
+      .setTypes(config.fieldValueMapping.mappingType)
+      .setQuery(byCopyNumberQuery(from.datasetId, from.copyNumber))
+      .setSearchType(SearchType.SCAN)
+      .setScroll(timeout)
+      .setSize(config.dataCopyBatchSize)
+    logSearchRequest(scrollInitRequest, Seq(config.fieldValueMapping.mappingType))
+    val scrollInit = scrollInitRequest.execute.actionGet
 
     var scrollId = scrollInit.getScrollId
     var batch = Seq.empty[Any]
     do {
-      val response = client.prepareSearchScroll(scrollId)
-                           .setScroll(timeout)
-                           .execute.actionGet
+      val request = client.prepareSearchScroll(scrollId)
+        .setScroll(timeout)
+      logSearchScrollRequest(request, Seq(config.fieldValueMapping.mappingType))
+      val response = request.execute.actionGet
       logSearchResponse(response)
 
       scrollId = response.getScrollId

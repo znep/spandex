@@ -3,7 +3,7 @@ package com.socrata.spandex.common
 import com.socrata.spandex.common.client.{DatasetCopy, SearchResults}
 import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.action.bulk.BulkRequestBuilder
-import org.elasticsearch.action.search.{SearchRequestBuilder, SearchResponse}
+import org.elasticsearch.action.search.{SearchRequestBuilder, SearchResponse, SearchScrollRequestBuilder}
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.index.query.QueryBuilder
@@ -33,6 +33,14 @@ trait ElasticsearchClientLogger extends Logging {
   def logDeleteByQueryRequest(queryBuilder: QueryBuilder, types: Seq[String], refresh: Boolean): Unit =
     logger.debug("delete by query {} on types={} with refresh={}",
       queryBuilder.toString.replaceAll("\\s+", " "), types.toString, refresh.toString)
+
+  def logSearchRequest(search: SearchRequestBuilder, types: Seq[String]): Unit =
+    logger.debug("search request {} on types={}",
+      search.toString.replaceAll("\\s+", " "), types.toString)
+
+  def logSearchScrollRequest(search: SearchScrollRequestBuilder, types: Seq[String]): Unit =
+    logger.debug("search scroll request {} on types={}",
+      search.toString.replaceAll("\\s+", " "), types.toString)
 
   def logCopyFieldValuesRequest(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit =
     logger.debug(s"copy field_values from=$from to=$to refresh=$refresh")
