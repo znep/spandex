@@ -1,14 +1,13 @@
 package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.id.{ColumnId, RowId}
-import com.socrata.soql.types.{SoQLValue, SoQLText}
-import com.socrata.spandex.common.client.{SpandexElasticSearchClient, FieldValue}
 import com.socrata.datacoordinator.secondary._
-import com.typesafe.scalalogging.slf4j.Logging
+import com.socrata.soql.types.{SoQLText, SoQLValue}
+import com.socrata.spandex.common.client.{FieldValue, SpandexElasticSearchClient}
+import com.socrata.spandex.secondary.RowOpsHandler._
 import org.elasticsearch.action.ActionRequestBuilder
-import RowOpsHandler._
 
-case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) extends Logging {
+case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) extends SecondaryEventLogger {
   type RequestBuilder = ActionRequestBuilder[_,_,_,_]
 
   private[this] def requestsForRow(datasetName: String,
@@ -34,7 +33,7 @@ case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) ext
       }
 
     val requests: Seq[RequestBuilder] = ops.flatMap { op =>
-      logger.debug("Received row operation: " + op)
+      logRowOperation(op)
       op match {
         case Insert(rowId, data) =>
           requestsForRow(datasetName, copyNumber, rowId, data, client.fieldValueIndexRequest)

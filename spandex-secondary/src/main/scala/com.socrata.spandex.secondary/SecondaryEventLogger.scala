@@ -1,12 +1,21 @@
 package com.socrata.spandex.secondary
 
-import com.typesafe.scalalogging.slf4j.Logging
 import com.socrata.datacoordinator.secondary.ColumnInfo
+import com.typesafe.scalalogging.slf4j.Logging
 
 // scalastyle:off multiple.string.literals
 trait SecondaryEventLogger extends Logging {
   private[this] def logEvent(eventName: String, description: String): Unit =
     logger.info(s"$eventName event: $description")
+
+  def logEventReceived(event: Event): Unit =
+    logger.debug("Received event: " + event)
+
+  def logRefreshRequest(): Unit =
+    logger.debug(s"refresh")
+
+  def logRowOperation(op: Operation): Unit =
+    logger.trace("Received row operation: " + op)
 
   def logDataVersionBump(dataset:String, copyNumber: Long, oldVersion: Long, newVersion: Long): Unit =
     logger.info(s"Bumping data version to $newVersion for dataset $dataset copy $copyNumber")

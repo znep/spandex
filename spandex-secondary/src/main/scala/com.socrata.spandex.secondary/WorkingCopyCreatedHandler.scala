@@ -1,7 +1,7 @@
 package com.socrata.spandex.secondary
 
-import com.socrata.spandex.common.client.SpandexElasticSearchClient
 import com.socrata.datacoordinator.secondary.{ResyncSecondaryException, WorkingCopyCreated}
+import com.socrata.spandex.common.client.SpandexElasticSearchClient
 
 case class WorkingCopyCreatedHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
   def go(datasetName: String, dataVersion: Long, events: Iterator[Event]): Iterator[Event] = {
@@ -17,7 +17,7 @@ case class WorkingCopyCreatedHandler(client: SpandexElasticSearchClient) extends
           // Make sure the copy we want to create doesn't already exist.
           val existingCopy = client.datasetCopy(datasetName, copyInfo.copyNumber)
           if (existingCopy.isDefined) {
-            logger.info(s"dataset $datasetName copy ${copyInfo.copyNumber} already exists - resync!")
+            logResync(datasetName, copyInfo.copyNumber)
             throw new ResyncSecondaryException("Dataset copy already exists")
           } else {
             // Tell ES that this new copy exists

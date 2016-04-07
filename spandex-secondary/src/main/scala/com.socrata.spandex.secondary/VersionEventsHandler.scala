@@ -20,7 +20,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
 
     // Now handle everything else
     remainingEvents.foreach { event =>
-      logger.debug("Received event: " + event)
+      logEventReceived(event)
       event match {
         case DataCopied =>
           val latestPublished = client.datasetCopyLatest(datasetName, Some(Published)).getOrElse(

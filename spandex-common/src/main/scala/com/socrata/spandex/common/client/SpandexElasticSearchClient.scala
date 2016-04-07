@@ -33,9 +33,7 @@ case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
 // - refresh=true only guarantees consistency on a single shard.
 // - We aren't actually sure what the perf implications of running like this at production scale are.
 // http://www.elastic.co/guide/en/elasticsearch/reference/1.x/docs-index_.html#index-refresh
-class SpandexElasticSearchClient(config: ElasticSearchConfig)
-  extends ElasticSearchClient(config) with ElasticsearchClientLogger {
-
+class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSearchClient(config) {
   protected def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.DatasetId, datasetId)
   protected def byDatasetIdAndStageQuery(datasetId: String, stage: LifecycleStage): QueryBuilder =
     boolQuery().must(termQuery(SpandexFields.DatasetId, datasetId))
@@ -82,12 +80,15 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig)
     result
   }
 
-  def putColumnMap(columnMap: ColumnMap, refresh: Boolean): Unit =
-    checkForFailures(
-      client.prepareIndex(config.index, config.columnMapMapping.mappingType, columnMap.docId)
-            .setSource(JsonUtil.renderJson(columnMap))
-            .setRefresh(refresh)
-            .execute.actionGet)
+  def putColumnMap(columnMap: ColumnMap, refresh: Boolean): Unit = {
+    val source = JsonUtil.renderJson(columnMap)
+    val request = client.prepareIndex(config.index, config.columnMapMapping.mappingType, columnMap.docId)
+      .setSource(source)
+      .setRefresh(refresh)
+    logColumnMapIndexRequest(columnMap.docId, source)
+    val response = request.execute.actionGet
+    checkForFailures(response)
+  }
 
   def columnMap(datasetId: String, copyNumber: Long, userColumnId: String): Option[ColumnMap] = {
     val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
