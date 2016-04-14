@@ -49,11 +49,15 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
     client.deleteDatasetCopiesByDataset(datasetInternalName)
   }
 
-  def dropCopy(datasetInternalName: String, copyNumber: Long, cookie: Cookie): Cookie = {
+  def dropCopy(datasetInfo: DatasetInfo, copyInfo: CopyInfo, cookie: Cookie, isLatestCopy: Boolean): Cookie = {
+    doDropCopy(datasetInfo.internalName, copyInfo.copyNumber)
+    cookie
+  }
+
+  private[this] def doDropCopy(datasetInternalName: String, copyNumber: Long): Unit = {
     client.deleteFieldValuesByCopyNumber(datasetInternalName, copyNumber)
     client.deleteColumnMapsByCopyNumber(datasetInternalName, copyNumber)
     client.deleteDatasetCopy(datasetInternalName, copyNumber)
-    cookie
   }
 
   def version(datasetInfo: DatasetInfo, dataVersion: Long, cookie: Cookie, events: Iterator[Event]): Cookie = {
@@ -68,9 +72,9 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
              cookie: Cookie,
              rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],
              rollups: Seq[RollupInfo],
-             isLatestCopy: Boolean): Cookie = {
+             isLatestLivingCopy: Boolean): Cookie = {
     // Delete any existing documents related to this copy
-    dropCopy(datasetInfo.internalName, copyInfo.copyNumber, cookie)
+    doDropCopy(datasetInfo.internalName, copyInfo.copyNumber)
     ResyncHandler(client).go(datasetInfo, copyInfo, schema, rows, batchSize)
     cookie
   }
