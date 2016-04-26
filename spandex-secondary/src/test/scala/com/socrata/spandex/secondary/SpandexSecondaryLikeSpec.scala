@@ -60,7 +60,9 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
     client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (3)
     client.searchColumnMapsByCopyNumber(datasets(0), 2).totalHits should be (3)
 
-    secondary.dropCopy(datasets(0), 2, None)
+    val datasetInfo = DatasetInfo(datasets(0), "en-US", Array.empty)
+    val copyInfo = CopyInfo(new CopyId(100), 2, LifecycleStage.Published, 10, DateTime.now)
+    secondary.dropCopy(datasetInfo, copyInfo, None, isLatestCopy = true)
 
     client.searchFieldValuesByCopyNumber(datasets(0), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (0)
@@ -72,7 +74,9 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
 
   test("drop future copy") {
     client.datasetCopy(datasets(0), 7) should not be 'defined
-    secondary.dropCopy(datasets(0), 7, None)
+    val datasetInfo = DatasetInfo(datasets(0), "en-US", Array.empty)
+    val copyInfo = CopyInfo(new CopyId(200), 7, LifecycleStage.Published, 77, DateTime.now)
+    secondary.dropCopy(datasetInfo, copyInfo, None, isLatestCopy = true)
   }
 
   test("resync") {
@@ -111,7 +115,7 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
         new ColumnId(4) -> new SoQLNumber(new BigDecimal(3)))
     )
 
-    secondary.resync(datasetInfo, copyInfo, schema, None, unmanaged(rows.iterator), Seq.empty, isLatestCopy = true)
+    secondary.resync(datasetInfo, copyInfo, schema, None, unmanaged(rows.iterator), Seq.empty, isLatestLivingCopy = true)
 
     val copies = client.searchCopiesByDataset("zoo-animals")
     copies.totalHits should be (1)
