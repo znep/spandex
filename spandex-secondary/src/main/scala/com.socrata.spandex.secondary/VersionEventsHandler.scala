@@ -56,6 +56,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
         case RollupCreatedOrUpdated(info) =>
         case RollupDropped(info) =>
         case FieldNameUpdated(info) =>
+        case RowsChangedPreview(truncated, inserted, updated, deleted) =>
         // These events don't result in changed data or publication status, so no-op.
         // The data version is updated below.
         case WorkingCopyCreated(info) =>
