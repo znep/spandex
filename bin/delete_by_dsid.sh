@@ -17,7 +17,7 @@ case $STACK in
   "eu-prod" )
     CLUSTER="http://spandex.elasticsearch.aws-eu-west-1-prod.socrata.net" ;;
   "fedramp-prod" )
-    CLUSTER="http://spandex.elasticsearch.aws-us-east-1-fedramp-prod.socrata.net" ;;
+    CLUSTER="http://spandex-6.elasticsearch.aws-us-east-1-fedramp-prod.socrata.net" ;;
   *)
     echo "Did not recognize stack name $STACK"
 esac
