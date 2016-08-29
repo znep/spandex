@@ -1,6 +1,21 @@
-FROM registry.docker.aws-us-west-2-infrastructure.socrata.net:5000/internal/secondary-watcher:3.0.5_6506_8bc696db
+FROM socrata/java8
 
-ENV SECONDARY_ARTIFACT spandex-secondary-assembly.jar
+ENV SERVER_ROOT /srv/secondary-watcher
+ENV SERVER_ARTIFACT spandex-secondary-assembly.jar
+ENV SERVER_CONFIG secondary-watcher.conf
+
+# general secondary-watcher defaults
+ENV TRUTH_CLUSTER alpha
+ENV ENABLE_GRAPHITE false
+ENV GRAPHITE_HOST 0.0.0.0
+ENV GRAPHITE_PORT 0
+ENV JAVA_XMX 512m
+ENV LOG_METRICS false
+ENV DATA_COORDINATOR_DB_NAME truth
+ENV DATA_COORDINATOR_DB_PORT 5432
+ENV DATA_COORDINATOR_DB_USER soda_dc
+ENV JAVA_MAX_METASPACE 64m
+
 ENV SECONDARY_CONFIG secondary.conf
 
 ENV SPANDEX_SECONDARY_ANALYSIS_MAX_INPUT_LENGTH 64
@@ -19,4 +34,4 @@ WORKDIR $SERVER_ROOT
 
 COPY ship.d /etc/ship.d
 COPY ${SECONDARY_CONFIG}.j2 $SERVER_ROOT/
-COPY $SECONDARY_ARTIFACT $SERVER_ROOT/plugins/
+COPY $SECONDARY_ARTIFACT $SERVER_ROOT/

@@ -1,16 +1,11 @@
-#!/usr/bin/env bash
+#!/bin/sh
 set -ev
 
 export UUID=$(cat /proc/sys/kernel/random/uuid)
 
 /bin/env_parse ${SERVER_CONFIG}.j2
 
-if [ ! -f secondary.conf.j2 ]; then
-  echo "ERROR: Create an image based on this for your secondary that includes a secondary.conf.j2 and run that."
-  exit 1
-fi
-
-/bin/env_parse secondary.conf.j2
+/bin/env_parse ${SECONDARY_CONFIG}.j2
 
 exec su socrata -c '/usr/bin/java \
     -Xmx${JAVA_XMX} \
@@ -24,6 +19,6 @@ exec su socrata -c '/usr/bin/java \
     -Dcom.sun.management.jmxremote.authenticate=false \
     -Djava.rmi.server.hostname=${ARK_HOST:-localhost} \
     -XX:+ExitOnOutOfMemoryError \
-    -jar $SERVER_ARTIFACT \
-    com.socrata.datacoordinator.secondary.SecondaryWatcher \
+    -XX:MaxMetaspaceSize=${JAVA_MAX_METASPACE} \
+    -jar $SERVER_ARTIFACT
     '

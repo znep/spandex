@@ -38,7 +38,7 @@ object SpandexBuild extends Build {
     "spandex-common",
     file("./spandex-common/"),
     settings = commonSettings ++ Seq(
-      libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondary,
+      libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondaryFiltered,
       fullClasspath in Runtime += Attributed.blank(baseDirectory.value / ".." / "esconfigs")
     )
   ).disablePlugins(JmhPlugin)
@@ -82,7 +82,9 @@ object SpandexBuild extends Build {
     "spandex-secondary",
     file("./spandex-secondary/"),
     settings = commonSettings ++ Seq(
-      libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondary
+      libraryDependencies ++= Deps.socrata ++ Deps.test ++ Deps.common ++ Deps.secondary,
+      fullClasspath in Test <+= baseDirectory map { d => Attributed.blank(d / "config") },
+      fullClasspath in Runtime <+= baseDirectory map { d => Attributed.blank(d / "config") }
     )
   ).dependsOn(spandexCommon % "compile;test->test")
     .disablePlugins(JmhPlugin)
@@ -128,7 +130,9 @@ object Deps {
     "org.elasticsearch" % "elasticsearch" % "1.7.2"
   )
   lazy val secondary = Seq(
-    "com.socrata" %% "secondarylib" % "3.0.5" exclude("org.slf4j", "slf4j-log4j12")
-      excludeAll ExclusionRule(organization = "com.rojoma")
+    "com.socrata" %% "secondarylib" % "3.0.14"
   )
+  lazy val secondaryFiltered =
+    secondary.map(_.exclude("org.slf4j", "slf4j-log4j12")
+                   .excludeAll(ExclusionRule(organization = "com.rojoma")))
 }
