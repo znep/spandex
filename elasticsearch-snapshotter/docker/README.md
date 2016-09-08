@@ -13,3 +13,5 @@ See the [DockerFile](Dockerfile) for defaults.
 * `SNAPSHOT_ID` - What to name this moment in time snapshot, defaults to now yyyyMMddHHmm
 * `IGNORE_UNAVAILABLE` - If indices are unavailable, ignore them and continue snapshot with existing indices
 * `INCLUDE_GLOBAL_STATE` - Include cluster state in the snapshot, can be excluded at restore time also
+
+Runs via tasks-chronos (see https://github.com/socrata/tasks-chronos/)
