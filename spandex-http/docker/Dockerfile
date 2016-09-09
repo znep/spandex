@@ -1,4 +1,4 @@
-FROM socrata/java
+FROM socrata/java8
 
 # Service specific settings.
 ENV SPANDEX_SECONDARY_ES_PORT 9300
@@ -15,6 +15,7 @@ ENV SERVER_ARTIFACT  ${SERVER_NAME}-assembly.jar
 ENV JAVA_XMX 512m
 ENV JMX_PORT 8049
 ENV LOG_LEVEL INFO
+ENV JAVA_MAX_METASPACE 64m
 
 # Add other required resources to the container
 EXPOSE 8042
