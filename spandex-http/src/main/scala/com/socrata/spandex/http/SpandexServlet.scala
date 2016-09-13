@@ -50,6 +50,7 @@ class SpandexServlet(conf: SpandexConfig,
     clusterAdminClient.health(req).actionGet().toString
   }
 
+  // looks like: /suggest/alpha.1234/latest/abcd-1234/<sometext> where abcd-1234 is the column 4x4
   get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId/:$paramText") {
     timer("suggestText") {
       suggest { (col, text, fuzz, size) =>
@@ -71,6 +72,7 @@ class SpandexServlet(conf: SpandexConfig,
   private[this] val sampleFuzz = Fuzziness.ONE
   private[this] val sampleFuzzLen = 0
   private[this] val sampleFuzzPre = 0
+  // looks like: /suggest/alpha.1234/latest/abcd-1234 where abcd-1234 is the column 4x4
   get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId") {
     timer("suggestSample") {
       params.get(paramText) match {

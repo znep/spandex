@@ -58,15 +58,44 @@ class CompletionAnalyzer(val config: AnalysisConfig) {
   val analyzer = new PatternAnalyzer(version, Pattern.compile(
     """[\p{C}\p{P}\p{Sm}\p{Sk}\p{So}\p{Z}&&[^\&]]+"""))
 
-  def analyze(value: String): List[String] = {
+  // this takes in the original string (as in a dataset cell), and returns a list of strings
+  // that we want to feed to the analyzer as input matches; individual stages described below
+  // with each function, but here's the summary of in-out:
+  // cares about two config values: config.analysis.{maxInputLength, maxShingleLength}
+  // in: "The puppies ran around the room. The kittens chased after them. Everyone laughed!"
+  // (luceneized): "the puppies ran around the room the kittens chased after them everyone laughed"
+  //               |------------ maxInputLength ignoring whitespace -----------|
+  // and then for reference below:
+  //           |---------- maxShingleLength ---------|  (also ignoring whitespace!)
+  // out: List("the puppies ran around the room the kittens",
+  //           "puppies ran around the room the kittens",
+  //           "ran around the room the kittens chased",
+  //           ...
+  //           "kittens chased after them",
+  //           "chased after them",
+  //           "after them",
+  //           "them")
+  // this list is then fed to elasticsearch as matchable options
+  def analyze(value: String): List[String] = { // scalastyle:ignore method.length
+    // goes through the luceneized original string (accessible via TokenStream)
+    // and adds the tokens to a list (prepending, so eventually in reverse order)
+    // up until the combined length of the tokens (without whitespace!) is maxLength (or less)
+    // or we run out of tokens. will only add whole tokens to the list, not partial
+    // so input TokenStream = [A B C D ...] where len(A B C) <= maxLength and len(A B C D) > maxLength
+    // and output will be [C B A]
     @annotation.tailrec
     def tokenize(stream: TokenStream, maxLength: Int, acc: List[String]): List[String] = {
+      // if the next token will take us over maxLength, stop and return the accumulated list
       if (stream.incrementToken() && maxLength > 0) {
         val token = stream.getAttribute(classOf[CharTermAttribute]).toString
         tokenize(stream, maxLength - token.length , token :: acc)
       } else { acc }
     }
 
+    // this starts with the (possibly shortened) token list of the original string
+    // and then shingles over that list + all the lists formed by popping off the first token recursively
+    // so token input: [A B C D E]
+    // winds up shingling over [A B C D E], [B C D E], [C D E], [D E], [E], []
     @annotation.tailrec
     def foldConcat(tokens: List[String], acc: List[String]): List[String] = {
       tokens match {
@@ -76,6 +105,12 @@ class CompletionAnalyzer(val config: AnalysisConfig) {
       }
     }
 
+    // a shingle is effectively a substring composed of n tokens of the original string
+    // this starts with a list of tokens and will prepend each token to a list
+    // up until we have run out of tokens or have already gone past maxLength
+    // (so if maxLength falls in the middle of the current token, it is still included)
+    // so token input: [A B C D] where len(A + B) < maxLength and len(A + B + C) >= maxLength
+    // yields: [C B A] (because prepending to the list)
     @annotation.tailrec
     def shingle(tokens: List[String], maxLength: Int, acc: List[String]): List[String] = {
       tokens match {
@@ -85,12 +120,17 @@ class CompletionAnalyzer(val config: AnalysisConfig) {
       }
     }
 
+    // takes the original string and gets luceneish tokens out of it
+    // which largely means things like punctuation will be dropped (see longer comment above)
     val stream: TokenStream = analyzer.tokenStream(SpandexFields.Value, value)
       .filterLowerCase
     stream.reset()
+    // get the portion of the TokenStream that we'll actually get substrings of and allow searching against
+    // this works out to the portion of the luceneized tokens that goes out to maxInputLength, rounding down
     val tokens = tokenize(stream, config.maxInputLength, Nil).reverse
     stream.close()
 
+    // get the actual token n-grams we'll allow completion matching against
     foldConcat(tokens, Nil)
   }
 }

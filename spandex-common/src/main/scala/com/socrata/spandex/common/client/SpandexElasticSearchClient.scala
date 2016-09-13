@@ -330,6 +330,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .field(SpandexFields.Value)
       .text(text)
       .size(size)
+    // if you ever need to examine the above, you want to do something like:
+    // suggestion.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS).prettyPrint().string()
 
     val response = client.prepareSuggest(config.index)
       .addSuggestion(suggestion)
