@@ -2,7 +2,7 @@
 
 STACK=$1
 NBE_FXF=_$2
-STORE_ID=_${3}_
+STORE_ID=$3
 
 case $STACK in
   "local" )
@@ -26,4 +26,4 @@ if [ "$SODA" == "" -o "$NBE_FXF" == "" ]; then
   exit 1
 fi
 
-curl -s -XPOST $SODA/dataset-copy/$NBE_FXF/$STORE_ID
+curl -XPOST $SODA/dataset-copy/$NBE_FXF/$STORE_ID
