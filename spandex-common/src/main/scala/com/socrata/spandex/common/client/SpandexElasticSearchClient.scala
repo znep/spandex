@@ -281,16 +281,19 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     checkForFailures(response)
   }
 
-  def datasetCopyLatest(datasetId: String, stage: Option[Stage] = None): Option[DatasetCopy] = {
-    val latestCopyPlaceholder = "latest_copy"
-    val query = stage match {
+  private def datasetIdAndOptionalStageQuery(datasetId: String, stage: Option[Stage]): QueryBuilder =
+    stage match {
+      case Some(n @ Number(_)) => throw new IllegalArgumentException(s"cannot request latest copy for stage = $n")
       case Some(Unpublished) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Unpublished)
       case Some(Published) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Published)
       case Some(Snapshotted) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Snapshotted)
       case Some(Discarded) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Discarded)
-      case Some(Number(n)) => throw new IllegalArgumentException(s"cannot request latest copy for stage = Number($n)")
       case _ => byDatasetIdQuery(datasetId)
     }
+
+  def datasetCopyLatest(datasetId: String, stage: Option[Stage] = None): Option[DatasetCopy] = {
+    val latestCopyPlaceholder = "latest_copy"
+    val query = datasetIdAndOptionalStageQuery(datasetId, stage)
 
     val request = client.prepareSearch(config.index)
       .setTypes(config.datasetCopyMapping.mappingType)
@@ -304,6 +307,26 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     val results = response.results[DatasetCopy]
     logDatasetCopySearchResults(results)
     results.thisPage.headOption
+  }
+
+  def datasetCopiesByStage(datasetId: String, stage: Stage): List[DatasetCopy] = {
+    val query = datasetIdAndOptionalStageQuery(datasetId, Some(stage))
+
+    val countRequest = client.prepareCount(config.index)
+      .setTypes(config.datasetCopyMapping.mappingType)
+      .setQuery(query)
+
+    val count = countRequest.execute.actionGet.result
+
+    val request = client.prepareSearch(config.index)
+      .setTypes(config.datasetCopyMapping.mappingType)
+      .setQuery(query)
+      .setSize(count.toInt)
+
+    val response = request.execute.actionGet
+    val datasetCopies = response.results[DatasetCopy]
+
+    datasetCopies.thisPage.toList
   }
 
   def datasetCopy(datasetId: String, copyNumber: Long): Option[DatasetCopy] = {
@@ -330,33 +353,15 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       .field(SpandexFields.Value)
       .text(text)
       .size(size)
+
     // if you ever need to examine the above, you want to do something like:
     // suggestion.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS).prettyPrint().string()
 
-    val response = client.prepareSuggest(config.index)
+    val request = client.prepareSuggest(config.index)
       .addSuggestion(suggestion)
-      .execute.actionGet
+
+    val response = request.execute.actionGet
 
     response.getSuggest
-  }
-
-  /* Not yet used.
-   * This grabs the TOP N documents by frequency.
-   */
-  def sample(column: ColumnMap, size: Int): SearchResults[FieldValue] = {
-    val aggName = "values"
-    val response = client.prepareSearch(config.index)
-      .setTypes(config.fieldValueMapping.mappingType)
-      .setQuery(byColumnCompositeId(column))
-      .setSearchType(SearchType.COUNT)
-      .addAggregation(
-        terms(aggName)
-          .field(SpandexFields.RawValue)
-          .size(size).shardSize(size * 2)
-          .order(Terms.Order.count(false)) // descending <- ascending=false
-      )
-      .setSize(size)
-      .execute.actionGet
-    response.results[FieldValue](aggName)
   }
 }

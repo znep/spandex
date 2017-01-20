@@ -97,37 +97,71 @@ class SpandexServlet(conf: SpandexConfig,
     }
   }
 
+  // scalastyle:ignore method.length
   def suggest(f: (ColumnMap, String, Fuzziness, Int) => SpandexResult): String = {
     logger.info(s">>> $requestPath params: $params")
 
     contentType = ContentTypeJson
-    val datasetId = params.get(paramDatasetId).get
-    val stageInfoText = params.get(paramStageInfo).get
-    val userColumnId = params.get(paramUserColumnId).get
-    val text = urlDecode(params.get(paramText).getOrElse(""))
+    val datasetId = params.getOrElse(paramDatasetId, halt(HttpStatus.SC_BAD_REQUEST))
+    val stageInfoText = params.getOrElse(paramStageInfo, halt(HttpStatus.SC_BAD_REQUEST))
+    val userColumnId = params.getOrElse(paramUserColumnId, halt(HttpStatus.SC_BAD_REQUEST))
+    val text = urlDecode(params.getOrElse(paramText, ""))
     logger.info(s"urlDecoded param text -> $text")
 
     val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
     val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
 
+    // this results in an max aggregation with a sort
+    //
+    // {
+    //   "query": {
+    //     "bool": {
+    //       "must": [
+    //         {
+    //           "term": {
+    //             "stage": "<STAGE>"
+    //           }
+    //         }
+    //       ]
+    //     }
+    //   },
+    //   "size": 1,
+    //   "sort": {
+    //     "copy_number": "desc"
+    //   },
+    //   "aggregations": {
+    //     "latest_copy": {
+    //       "max": {
+    //         "field": "copy_number"
+    //       }
+    //     }
+    //   }
+    // }
     val copy = copyNum(datasetId, stageInfoText)
     logger.info(s"found copy $copy")
 
+    // this results in a fetch by composite ID
     val column = columnMap(datasetId, copy, userColumnId)
     logger.info(s"found column $column")
 
+    // this results in a suggest query
+    //
+    // {
+    //   "suggest": {
+    //     "completion": {
+    //       "context": {
+    //         "composite_id": <COMPOSITE_ID>
+    //       }
+    //       "field": "value",
+    //       "text": <TEXT>,
+    //       "size": 10
+    //     }
+    //   }
+    // }
+    // https://www.elastic.co/guide/en/elasticsearch/reference/1.7/search-suggesters-completion.html
+    // http://blog.mikemccandless.com/2010/12/using-finite-state-transducers-in.html
     val result = f(column, text, fuzz, size)
     logger.info(s"<<< $result")
     JsonUtil.renderJson(result)
   }
-
-  /* Not yet used.
-   * sample endpoint exposes query by column with aggregation on doc count
-   */
-  get(s"/sample/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId") {
-    timer("sample") {
-      suggest { (col, _, _, size) => SpandexResult(client.sample(col, size)) }
-    }.call()
-  }
-
 }

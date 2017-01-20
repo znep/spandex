@@ -7,6 +7,7 @@ import com.socrata.datacoordinator.id.{ColumnId, RowId}
 import com.socrata.datacoordinator.secondary.{ColumnInfo, LifecycleStage}
 import com.socrata.soql.types.SoQLText
 import com.socrata.spandex.common.CompletionAnalyzer
+import org.elasticsearch.action.count.CountResponse
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.SearchHit
@@ -133,11 +134,16 @@ object ResponseExtensions {
 
   implicit def toExtendedResponse(response: GetResponse): GetResponseExtensions =
     GetResponseExtensions(response)
+
+  implicit def toExtendedResponse(response: CountResponse): CountResponseExtensions =
+    CountResponseExtensions(response)
 }
 
 case class SearchResponseExtensions(response: SearchResponse) {
   def results[T : JsonDecode]: SearchResults[T] = results(None)
+
   def results[T : JsonDecode](aggKey: String): SearchResults[T] = results(Some(aggKey))
+
   protected def results[T : JsonDecode](aggKey: Option[String]): SearchResults[T] = {
     val hits = Option(response.getHits).fold(Seq.empty[SearchHit])(_.getHits.toSeq)
     val sources = hits.map { hit => Option(hit.getSourceAsString) }.flatten
@@ -163,4 +169,8 @@ case class GetResponseExtensions(response: GetResponse) {
     val source = Option(response.getSourceAsString)
     source.map { s => JsonUtil.parseJson[T](s).right.get }
   }
+}
+
+case class CountResponseExtensions(response: CountResponse) {
+  def result: Long = response.getCount
 }

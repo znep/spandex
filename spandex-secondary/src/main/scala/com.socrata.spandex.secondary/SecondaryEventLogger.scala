@@ -1,6 +1,6 @@
 package com.socrata.spandex.secondary
 
-import com.socrata.datacoordinator.secondary.ColumnInfo
+import com.socrata.datacoordinator.secondary.{ColumnInfo, LifecycleStage}
 import com.typesafe.scalalogging.slf4j.Logging
 
 // scalastyle:off multiple.string.literals
@@ -55,4 +55,15 @@ trait SecondaryEventLogger extends Logging {
   def logSnapshotDropped(dataset: String, copyNumber: Long): Unit =
     logEvent("SnapshotDropped",
       s"dropped snapshot copy $copyNumber of dataset $dataset")
+
+  def logCopyDropped(dataset: String, stage: LifecycleStage, copyNumber: Long): Unit = {
+    val stageStr = stage match {
+      case LifecycleStage.Discarded => "discarded"
+      case LifecycleStage.Published => "published"
+      case LifecycleStage.Snapshotted => "snapshotted"
+      case LifecycleStage.Unpublished => "unpublished"
+    }
+
+    logger.info(s"dropped $stageStr copy $copyNumber")
+  }
 }

@@ -8,7 +8,11 @@ import org.elasticsearch.index.engine.IndexFailedEngineException
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 // scalastyle:off
-class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with BeforeAndAfterAll with BeforeAndAfterEach with TestESData {
+class SpandexElasticSearchClientSpec extends FunSuiteLike
+  with Matchers
+  with BeforeAndAfterAll
+  with BeforeAndAfterEach
+  with TestESData {
   val config = new SpandexConfig
   val client = new TestESClient(config.es)
 
@@ -248,59 +252,6 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     client.datasetCopy(datasets(0), 2) should not be ('defined)
   }
 
-  ignore("samples") {
-    val column = ColumnMap(datasets(0), 1, 1, "col1-1111")
-
-    val samples = client.sample(column, 10)
-
-    samples.totalHits should be(5)
-    samples.aggs should contain(BucketCount(makeRowData(1, 1), 1))
-    samples.aggs should contain(BucketCount(makeRowData(1, 2), 1))
-    samples.aggs should contain(BucketCount(makeRowData(1, 3), 1))
-    samples.aggs should contain(BucketCount(makeRowData(1, 4), 1))
-    samples.aggs should contain(BucketCount(makeRowData(1, 5), 1))
-  }
-
-  ignore("lots of samples") {
-    val ds = datasets(0)
-    val cp = copies(ds)(1)
-    val col = ColumnMap(ds, cp.copyNumber, 42L, "col42")
-    val lots = 1000
-
-    val docs = for {row <- 1 to lots} yield {
-      FieldValue(col.datasetId, col.copyNumber, col.systemColumnId, row, makeRowData(col.systemColumnId, row))
-    }
-    val expected = docs
-      .groupBy(q => q.value).map(r => BucketCount(r._1, r._2.length))
-      .toSeq.sortBy(_.key)
-    docs.foreach(client.indexFieldValue(_, refresh = false))
-    client.refresh()
-
-    val retrieved = client.sample(col, lots)
-    retrieved.aggs.sortBy(_.key) should be(expected)
-  }
-
-  ignore("sort by frequency") {
-    val ds = datasets(0)
-    val cp = copies(ds)(1)
-    val col = ColumnMap(ds, cp.copyNumber, 47L, "col47")
-    val generated = 32
-    val selected = 10
-
-    val docs = for {row <- 1 to generated} yield {
-      FieldValue(col.datasetId, col.copyNumber, col.systemColumnId, row, Math.log(row).floor.toString)
-    }
-    val expected = docs
-      .groupBy(q => q.value).map(r => BucketCount(r._1, r._2.length))
-      .toSeq.sortBy(-_.docCount)
-      .take(selected)
-    docs.foreach(client.indexFieldValue(_, refresh = false))
-    client.refresh()
-
-    val retrieved = client.sample(col, selected)
-    retrieved.aggs should be(expected)
-  }
-
   test("get latest copy of Stage Number(n) should throw") {
     a[IllegalArgumentException] shouldBe thrownBy {
       client.datasetCopyLatest(datasets(0), Some(Number(42))).get.copyNumber
@@ -332,5 +283,12 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike with Matchers with Bef
     }
 
     client.indexFieldValue(FieldValue(datasets(0), 1L, 2L, 61L, ""), refresh = true)
+  }
+
+  test("get a dataset's copies by stage") {
+    client.datasetCopiesByStage(datasets(0), Snapshotted) should be (
+      List(DatasetCopy(datasets(0), 1, 5, LifecycleStage.Snapshotted)))
+    client.datasetCopiesByStage(datasets(0), Unpublished) should be (
+      List(DatasetCopy(datasets(0), 3, 15, LifecycleStage.Unpublished)))
   }
 }

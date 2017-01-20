@@ -35,6 +35,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
           CopyDropHandler(client).dropWorkingCopy(datasetName, latest)
         case WorkingCopyPublished =>
           PublishHandler(client).go(datasetName, latest)
+          CopyDropHandler(client).dropUnpublishedCopies(datasetName)
         case ColumnCreated(info) =>
           if (info.typ == SoQLText) {
             logColumnCreated(datasetName, latest.copyNumber, info)

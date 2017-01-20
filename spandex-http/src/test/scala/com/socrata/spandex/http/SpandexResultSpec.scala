@@ -62,14 +62,4 @@ class SpandexResultSpec extends FunSuiteLike with ShouldMatchers with TestESData
     js should include(optionsJson)
     js should include(rows(col)(0).value)
   }
-
-  ignore("transform from search response") {
-    val ds = datasets(0)
-    val copy = copies(ds)(1)
-    val col = columns(ds, copy)(2)
-    val sample = client.sample(col, 10)
-    val js = JsonUtil.renderJson(SpandexResult(sample))
-    js should include(optionsJson)
-    js should include(rows(col)(0).value)
-  }
 }
