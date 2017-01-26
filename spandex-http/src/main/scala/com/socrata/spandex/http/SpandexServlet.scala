@@ -120,6 +120,9 @@ class SpandexServlet(conf: SpandexConfig,
     //         {
     //           "term": {
     //             "stage": "<STAGE>"
+    //           },
+    //           "term": {
+    //             "dataset_id": "<DATASET_ID>"
     //           }
     //         }
     //       ]
