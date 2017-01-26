@@ -14,6 +14,7 @@ tmp/*
 
 # java specific
 *.class
+*.java-version
 
 # python specific
 *.pyc
