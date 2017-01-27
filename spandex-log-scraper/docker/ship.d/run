@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -e
+
+source /dev/shm/spandex-log-scraper.env
+
+set -vx
+
+python scrape_logs.py --s3_bucket=${S3_BUCKET} 
