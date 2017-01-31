@@ -13,8 +13,6 @@ case $STACK in
     CLUSTER="http://spandex.elasticsearch.aws-us-west-2-staging.socrata.net" ;;
   "rc" )
     CLUSTER="http://spandex.elasticsearch.aws-us-west-2-rc.socrata.net" ;;
-  "prod" )
-    CLUSTER="http://spandex-5.elasticsearch.aws-us-west-2-prod.socrata.net" ;;
   "eu-prod" )
     CLUSTER="http://spandex.elasticsearch.aws-eu-west-1-prod.socrata.net" ;;
   "fedramp-prod" )
@@ -24,7 +22,7 @@ case $STACK in
 esac
 
 if [ "$CLUSTER" == "" ] || [ "$DSID" == "" ] || [ "$COPY_NUMBER" == "" ]; then
-  echo "Usage $0 <local|staging|rc|prod|eu-prod|fedramp-prod> <dataset_id> <copy_number>"
+  echo "Usage $0 <local|staging|rc|eu-prod|fedramp-prod> <dataset_id> <copy_number>"
   exit 1
 fi
 

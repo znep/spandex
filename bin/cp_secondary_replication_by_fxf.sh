@@ -11,8 +11,6 @@ case $STACK in
     SODA="http://soda-fountain.app.marathon.aws-us-west-2-staging.socrata.net" ;;
   "rc" )
     SODA="http://soda-fountain.app.marathon.aws-us-west-2-rc.socrata.net" ;;
-  "prod" )
-    SODA="http://soda-fountain.app.marathon.aws-us-west-2-prod.socrata.net" ;;
   "eu-prod" )
     SODA="http://soda-fountain.app.marathon.aws-eu-west-1-prod.socrata.net" ;;
   "fedramp-prod" )
@@ -22,7 +20,7 @@ case $STACK in
 esac
 
 if [ "$SODA" == "" -o "$NBE_FXF" == "" ]; then
-  echo "Usage $0 <local|staging|rc|prod|eu-prod|fedramp-prod> <nbe_fxf> <store_id>"
+  echo "Usage $0 <local|staging|rc|eu-prod|fedramp-prod> <nbe_fxf> <store_id>"
   exit 1
 fi
 

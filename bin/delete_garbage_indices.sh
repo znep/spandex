@@ -4,14 +4,11 @@ STACK=$1
 
 case $STACK in
   "local" )
-    DCU=primus
     CLUSTER="http://localhost:9200" ;;
   "staging" )
     CLUSTER="http://spandex.elasticsearch.aws-us-west-2-staging.socrata.net" ;;
   "rc" )
     CLUSTER="http://spandex.elasticsearch.aws-us-west-2-rc.socrata.net" ;;
-  "prod" )
-    CLUSTER="http://spandex-5.elasticsearch.aws-us-west-2-prod.socrata.net" ;;
   "eu-prod" )
     CLUSTER="http://spandex.elasticsearch.aws-eu-west-1-prod.socrata.net" ;;
   "fedramp-prod" )
