@@ -122,6 +122,7 @@ def dataset_metadata(dataset_id, dataset_id_fxf_map, fxf_domain_map):
     is_customer_domain_ = is_customer_domain(domain)
 
     return {
+        "dataset_id": dataset_id,
         "fxf": fxf,
         "version": version,
         "domain": cname,
@@ -192,10 +193,7 @@ def fetch_spandex_datasets(es_client):
         The Spandex index is extremely sensitive to expensive queries. If you change this, be
         mindful of query performance and monitor cluster health when you run it.
     """
-    return {
-        copy for copy in (
-            copy.get("dataset_id") for copy in es_client.fetch_all(doc_type="dataset_copy"))
-    }
+    return {copy.get("dataset_id") for copy in es_client.fetch_all(doc_type="dataset_copy")}
 
 
 def count_field_values(es_client):
