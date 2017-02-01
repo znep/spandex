@@ -21,6 +21,9 @@ def parse_args():
     parser.add_argument("--dataset_id_fxf_map_file", required=True,
                         help="A tab delimited file mapping dataset IDs to FXFs")
     parser.add_argument("--logfile", action="append")
+    parser.add_argument("--log_dataframe",
+                        help="Instead of reading in raw logs, read previously extracted logs from "
+                        "a pickled DataFrame")
     parser.add_argument("--output_file", help="Where to write the resulting DataFrame",
                         default="spandex_logs_df.pickle")
     parser.add_argument("--es_host", help="The Elasticsearch host")
@@ -243,15 +246,18 @@ def main():
     spandex_datasets = fetch_spandex_datasets(es_client)
     print("Found {} datasets in the Spandex index".format(len(spandex_datasets)))
 
-    # read request logs from JSON
-    log_files = args.logfile
-    logging.info("Reading logfiles: {}".format(log_files))
-    extract_ = partial(
-        extract, dataset_id_fxf_map=dataset_id_fxf_map, fxf_domain_map=fxf_domain_map)
-    logs = (extract_(msg) for msg in chain.from_iterable(
-        read_log_file(logfile) for logfile in log_files))
+    # read request logs either from previously pickled DataFrame or JSON lines
+    if args.log_dataframe:
+        logs_df = pd.from_pickle(args.log_dataframe)
+    else:
+        log_files = args.logfile
+        logging.info("Reading logfiles: {}".format(log_files))
+        extract_ = partial(
+            extract, dataset_id_fxf_map=dataset_id_fxf_map, fxf_domain_map=fxf_domain_map)
+        logs = (extract_(msg) for msg in chain.from_iterable(
+            read_log_file(logfile) for logfile in log_files))
 
-    logs_df = pd.DataFrame(list(logs))
+        logs_df = pd.DataFrame(list(logs))
 
     pd.options.display.max_rows = 1000
 
