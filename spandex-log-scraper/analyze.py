@@ -91,7 +91,7 @@ def fxf_domain_map_from_file(input_file):
 REQUEST_PATH_RE = re.compile(
     r"GET /suggest/"
     r"(?P<dataset_id>alpha\.[0-9]+)/"
-    r"(?P<pub_stage>[A-Za-z]+)/"
+    r"(?P<pub_stage>[A-Za-z0-9]+)/"
     r"(?P<column_id>[0-9a-z]{4}-[0-9a-z]{4})"
     r"(\?(?P<query_params>[^ ]+))?")
 
@@ -147,6 +147,9 @@ def extract(message, dataset_id_fxf_map, fxf_domain_map):
     Returns:
         A dictionary with some additional info
     """
+    if not (message.get("_raw") and message.get("_messagetime")):
+        return None
+
     # NOTE: sumo logic is padding that timestamp with zeroes, but slicing to 10 seems wrong
     messagetime = datetime.fromtimestamp(int(message["_messagetime"][:10]))
     request_parts = REQUEST_PATH_RE.search(message["_raw"]).groupdict()
@@ -248,7 +251,7 @@ def main():
 
     # read request logs either from previously pickled DataFrame or JSON lines
     if args.log_dataframe:
-        logs_df = pd.from_pickle(args.log_dataframe)
+        logs_df = pd.read_pickle(args.log_dataframe)
     else:
         log_files = args.logfile
         logging.info("Reading logfiles: {}".format(log_files))
@@ -259,6 +262,7 @@ def main():
 
         logs_df = pd.DataFrame(list(logs))
 
+    print("Found {} suggest requests".format(len(logs_df)))
     pd.options.display.max_rows = 1000
 
     dataset_counts = logs_df["dataset_id"].value_counts()
@@ -278,14 +282,30 @@ def main():
     domain_counts = zero_request_datasets_df["domain"].value_counts()
     print(domain_counts.head(100))
 
+    requested_datasets_missing_from_spandex = nonzero_request_datasets - spandex_datasets
+    print("{} datasets that are missing from Spandex received one or more suggest requests".format(
+        len(requested_datasets_missing_from_spandex)))
+    missing_from_spandex_df = logs_df[logs_df["dataset_id"].apply(
+        lambda dataset_id: dataset_id in requested_datasets_missing_from_spandex)]
+    missing_df = missing_from_spandex_df.groupby("dataset_id")\
+                                        .apply(len)\
+                                        .reset_index()\
+                                        .rename(columns={0: "request_count"})\
+                                        .sort_values("request_count", ascending=False)\
+
+    print("Top 20 datasets that are missing from Spandex by request count")
+    print(missing_df.head(20))
+
     spandex_datasets_df = pd.DataFrame(
         enrich_data_from_spandex(spandex_datasets, dataset_id_fxf_map, fxf_domain_map))
     non_customer_domain_datasets_df = spandex_datasets_df[spandex_datasets_df["is_customer_domain"].apply(
         lambda b: b is not None and b == False)]
     print("{} / {} datasets in Spandex are from non-customer domains".format(
         len(non_customer_domain_datasets_df), len(spandex_datasets)))
-
-    logs_df.to_pickle(args.output_file)
+    
+    if not args.log_dataframe:
+        logging.info("Pickling logs dataframe at path {}".format(args.output_file))
+        logs_df.to_pickle(args.output_file)
 
 
 if __name__ == "__main__":
