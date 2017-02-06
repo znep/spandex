@@ -252,7 +252,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.datasetCopy(datasets(0), 2) should not be ('defined)
   }
 
-  test("get latest copy of Stage Number(n) should throw") {
+  test("Get latest copy of Stage Number(n) should throw") {
     a[IllegalArgumentException] shouldBe thrownBy {
       client.datasetCopyLatest(datasets(0), Some(Number(42))).get.copyNumber
     }
@@ -262,7 +262,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
   // this is allegedly fixed in elasticsearch 1.5.3
   // we could have fixed it by filtering out empty strings explicitly
   // completion pre-analysis handles empty string by happy accident
-  test("handle value string is empty or null") {
+  test("Handle value string is empty or null") {
     try {
       // org.elasticsearch.index.engine.IndexFailedEngineException: [spandex][2] Index failed for [field_value#primus.1234|2|3|60]
       // Cause: java.lang.IllegalStateException: from state (0) already had transitions added
@@ -285,10 +285,19 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.indexFieldValue(FieldValue(datasets(0), 1L, 2L, 61L, ""), refresh = true)
   }
 
-  test("get a dataset's copies by stage") {
+  test("Get a dataset's copies by stage") {
     client.datasetCopiesByStage(datasets(0), Snapshotted) should be (
       List(DatasetCopy(datasets(0), 1, 5, LifecycleStage.Snapshotted)))
     client.datasetCopiesByStage(datasets(0), Unpublished) should be (
       List(DatasetCopy(datasets(0), 3, 15, LifecycleStage.Unpublished)))
+  }
+
+  test("Delete all documents associated with a dataset and return counts of types deleted") {
+    client.putDatasetCopy(datasets(0), 1, 1L, LifecycleStage.Published, refresh = true)
+    client.datasetCopy(datasets(0), 1) shouldBe defined
+    client.refresh()
+    client.deleteDatasetById(datasets(0)) should be(
+      Map("column_map" -> 9, "dataset_copy" -> 3, "field_value" -> 45))
+    client.datasetCopy(datasets(0), 1) shouldBe None
   }
 }

@@ -1,5 +1,6 @@
 package com.socrata.spandex.common.client
 
+import scala.collection.mutable
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary._
 import com.socrata.spandex.common._
@@ -143,7 +144,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   }
 
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
-  def sendBulkRequest(requests: Seq[Any], refresh: Boolean): Unit = {
+  def sendBulkRequest(requests: Seq[Any], refresh: Boolean): Option[BulkResponse] = {
     if (requests.nonEmpty) {
       val baseRequest = client.prepareBulk().setRefresh(refresh)
       val bulkRequest = requests.foldLeft(baseRequest) { case (bulk, single) =>
@@ -159,7 +160,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       logBulkRequest(bulkRequest, refresh)
       val bulkResponse = bulkRequest.execute.actionGet
       checkForFailures(bulkResponse)
-    }
+      Some(bulkResponse)
+    } else { None }
   }
 
   /**
@@ -176,7 +178,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
     desiredSize / primaryShardCount
   }
 
-  def deleteByQuery(queryBuilder: QueryBuilder, types: Seq[String] = Nil, refresh: Boolean = true): Unit = {
+  def deleteByQuery(queryBuilder: QueryBuilder, types: Seq[String] = Nil, refresh: Boolean = true): Map[String, Int] = {
     logDeleteByQueryRequest(queryBuilder, types, refresh)
     val timeout = new TimeValue(config.dataCopyTimeout)
     val scrollInitRequest = client.prepareSearch(config.index)
@@ -191,6 +193,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
     var scrollId = scrollInit.getScrollId
     var batch = Seq.empty[Any]
+    val resultCounts = mutable.Map[String, Int]()
+
     do {
       val request = client.prepareSearchScroll(scrollId)
         .setScroll(timeout)
@@ -199,12 +203,18 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       logSearchResponse(response)
 
       scrollId = response.getScrollId
-      batch = response.getHits.hits.map { h => client.prepareDelete(h.index, h.`type`, h.id) }
+      batch = response.getHits.hits.map { h =>
+        client.prepareDelete(h.index, h.`type`, h.id)
+      }
 
-      if (batch.nonEmpty) sendBulkRequest(batch, refresh = false)
+      sendBulkRequest(batch, refresh = false).foreach { response =>
+        resultCounts ++= response.deletions.map { case (k, v) => (k, resultCounts.getOrElse(k, 0) + v) }
+      }
     } while (batch.nonEmpty)
 
     if (refresh) this.refresh()
+
+    resultCounts.toMap
   }
 
   def copyFieldValues(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit = {
@@ -344,6 +354,14 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
   def deleteDatasetCopiesByDataset(datasetId: String): Unit =
     deleteByQuery(byDatasetIdQuery(datasetId), Seq(config.datasetCopyMapping.mappingType))
+
+  private val allTypes = Seq(
+    config.datasetCopyMapping.mappingType,
+    config.columnMapMapping.mappingType,
+    config.fieldValueMapping.mappingType)
+
+  def deleteDatasetById(datasetId: String): Map[String, Int] =
+    deleteByQuery(byDatasetIdQuery(datasetId), allTypes)
 
   def suggest(column: ColumnMap, size: Int, text: String,
               fuzz: Fuzziness, fuzzLength: Int, fuzzPrefix: Int): Suggest = {

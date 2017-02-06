@@ -163,30 +163,9 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
     get(s"$routeSuggest/$dsid") {
-      status should equal(HttpStatus.SC_NOT_FOUND)
+      status should equal(HttpStatus.SC_METHOD_NOT_ALLOWED)
     }
     get(s"$routeSuggest") {
-      status should equal(HttpStatus.SC_NOT_FOUND)
-    }
-  }
-
-  ignore("sample") {
-    get(s"$routeSample/$dsid/$copynum/$colid") {
-      contentTypeShouldBe(ContentTypeJson)
-      status should equal(HttpStatus.SC_OK)
-      body should include(optionsJson)
-      body should include(makeRowData(colsysid, 2))
-    }
-  }
-
-  ignore("sample without required params should return 404") {
-    get(s"$routeSample/$dsid/$copynum") {
-      status should equal(HttpStatus.SC_NOT_FOUND)
-    }
-    get(s"$routeSample/$dsid") {
-      status should equal(HttpStatus.SC_NOT_FOUND)
-    }
-    get(s"$routeSample") {
       status should equal(HttpStatus.SC_NOT_FOUND)
     }
   }

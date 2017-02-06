@@ -7,12 +7,14 @@ import com.socrata.datacoordinator.id.{ColumnId, RowId}
 import com.socrata.datacoordinator.secondary.{ColumnInfo, LifecycleStage}
 import com.socrata.soql.types.SoQLText
 import com.socrata.spandex.common.CompletionAnalyzer
+import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.count.CountResponse
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.aggregations.bucket.terms.Terms
 
+import scala.collection.mutable
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
@@ -137,6 +139,9 @@ object ResponseExtensions {
 
   implicit def toExtendedResponse(response: CountResponse): CountResponseExtensions =
     CountResponseExtensions(response)
+
+  implicit def toExtendedResponse(response: BulkResponse): BulkResponseExtensions =
+    BulkResponseExtensions(response)
 }
 
 case class SearchResponseExtensions(response: SearchResponse) {
@@ -173,4 +178,35 @@ case class GetResponseExtensions(response: GetResponse) {
 
 case class CountResponseExtensions(response: CountResponse) {
   def result: Long = response.getCount
+}
+
+case class BulkResponseAcknowledgement(
+    deletions: Map[String, Int],
+    updates: Map[String, Int],
+    creations: Map[String, Int])
+
+object BulkResponseAcknowledgement {
+  def empty: BulkResponseAcknowledgement = BulkResponseAcknowledgement(Map.empty, Map.empty, Map.empty)
+
+  def apply(bulkResponse: BulkResponse): BulkResponseAcknowledgement = {
+    val deletions = mutable.Map[String, Int]()
+    val updates = mutable.Map[String, Int]()
+    val creations = mutable.Map[String, Int]()
+
+    bulkResponse.getItems.toList.foreach { itemResponse =>
+      val countsToUpdate = itemResponse.getOpType match {
+        case "delete" => deletions
+        case "update" => updates
+        case "create" => creations
+      }
+
+      countsToUpdate += (itemResponse.getType -> (countsToUpdate.getOrElse(itemResponse.getType, 0) + 1))
+    }
+
+    BulkResponseAcknowledgement(deletions.toMap, updates.toMap, creations.toMap)
+  }
+}
+
+case class BulkResponseExtensions(response: BulkResponse) {
+  def deletions: Map[String, Int] = BulkResponseAcknowledgement(response).deletions
 }

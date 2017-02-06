@@ -86,6 +86,23 @@ class SpandexServlet(conf: SpandexConfig,
     }.call()
   }
 
+  /* Deletes all artifacts associated with a particular dataset from Spandex.
+   *
+   * @param paramDatasetId the dataset system ID for the dataset to delete
+   * @return `Map[String, Int]` if successful, indicating how many of each type was deleted from the index
+   *
+   * @note: When deleting datasets from Spandex, be sure to delete the corresponding entry from data
+   * coordinator. If you don't, if the dataset in question gets any updates, Spandex will fail to
+   * index it and we'll get a broken dataset alert.
+   */
+  delete(s"/$routeSuggest/:$paramDatasetId") {
+    timer("deleteDataset") {
+      contentType = ContentTypeJson
+      val datasetId = params.getOrElse(paramDatasetId, halt(HttpStatus.SC_BAD_REQUEST))
+      JsonUtil.renderJson(client.deleteDatasetById(datasetId))
+    }.call()
+  }
+
   def copyNum(datasetId: String, stageInfoText: String): Long = {
     Stage(stageInfoText) match {
       case Some(Number(n)) => n
