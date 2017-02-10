@@ -50,13 +50,21 @@ class SpandexServlet(conf: SpandexConfig,
     clusterAdminClient.health(req).actionGet().toString
   }
 
+  def time[A](requestName: String)(f: => A): A = {
+    val now = Timings.now
+    val res = f
+    val elapsed = Timings.elapsedInMillis(now)
+    logger.info(s"Spandex $requestName request took $elapsed ms")
+    res
+  }
+
   // looks like: /suggest/alpha.1234/latest/abcd-1234/<sometext> where abcd-1234 is the column 4x4
   get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId/:$paramText") {
-    timer("suggestText") {
+    time("suggestText") {
       suggest { (col, text, fuzz, size) =>
         SpandexResult(client.suggest(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
       }
-    }.call()
+    }
   }
 
   /* How to get all the results out of Lucene.
@@ -74,7 +82,7 @@ class SpandexServlet(conf: SpandexConfig,
   private[this] val sampleFuzzPre = 0
   // looks like: /suggest/alpha.1234/latest/abcd-1234 where abcd-1234 is the column 4x4
   get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId") {
-    timer("suggestSample") {
+    time("suggestSample") {
       params.get(paramText) match {
         case None => suggest { (col, _, _, size) =>
           SpandexResult(client.suggest(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
@@ -83,7 +91,7 @@ class SpandexServlet(conf: SpandexConfig,
           SpandexResult(client.suggest(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
         }
       }
-    }.call()
+    }
   }
 
   /* Deletes all artifacts associated with a particular dataset from Spandex.
@@ -96,11 +104,11 @@ class SpandexServlet(conf: SpandexConfig,
    * index it and we'll get a broken dataset alert.
    */
   delete(s"/$routeSuggest/:$paramDatasetId") {
-    timer("deleteDataset") {
+    time("deleteDataset") {
       contentType = ContentTypeJson
       val datasetId = params.getOrElse(paramDatasetId, halt(HttpStatus.SC_BAD_REQUEST))
       JsonUtil.renderJson(client.deleteDatasetById(datasetId))
-    }.call()
+    }
   }
 
   def copyNum(datasetId: String, stageInfoText: String): Long = {

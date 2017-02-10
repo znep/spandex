@@ -14,9 +14,7 @@ class ScalatraBootstrap extends LifeCycle with MetricsBootstrap {
   lazy val client = new SpandexElasticSearchClient(conf.es)
 
   override def init(context: ServletContext): Unit = {
-    context.mountMetricsAdminServlet("/metrics-admin")
     context.mountHealthCheckServlet("/health")
-    context.mountMetricsServlet("/metrics")
     context.mountThreadDumpServlet("/thread-dump")
     context.installInstrumentedFilter(s"/$routeSample/*")
     context.installInstrumentedFilter(s"/$routeSuggest/*")

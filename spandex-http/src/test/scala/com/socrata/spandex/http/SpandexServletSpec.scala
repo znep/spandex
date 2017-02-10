@@ -195,4 +195,24 @@ class SpandexServletSpec extends ScalatraSuite with FunSuiteLike with TestESData
       parsed.right.get.source should be ("spandex-http")
     }
   }
+
+  test("attempting to a delete a dataset that doesn't exist returns an empty Map") {
+    delete(s"$routeSuggest/abcd-1234") {
+      contentTypeShouldBe(ContentTypeJson)
+      status should equal (HttpStatus.SC_OK)
+      val parsed = JsonUtil.parseJson[Map[String, Int]](body)
+      parsed should be ('right)
+      parsed.right.get shouldBe empty
+    }
+  }
+
+  test("deleting a dataset returns the counts of types deleted") {
+    delete(s"$routeSuggest/primus.1234") {
+      contentTypeShouldBe(ContentTypeJson)
+      status should equal (HttpStatus.SC_OK)
+      val parsed = JsonUtil.parseJson[Map[String, Int]](body)
+      parsed should be ('right)
+      parsed.right.get should equal (Map("column_map" -> 9, "dataset_copy" -> 3, "field_value" -> 45))
+    }
+  }
 }
