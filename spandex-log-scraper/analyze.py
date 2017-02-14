@@ -148,11 +148,20 @@ def extract(message, dataset_id_fxf_map, fxf_domain_map):
         A dictionary with some additional info
     """
     if not (message.get("_raw") and message.get("_messagetime")):
+        logging.warn(
+            "Skipping record with no _raw field and no _messagetime field: {}".format(message))
         return None
 
     # NOTE: sumo logic is padding that timestamp with zeroes, but slicing to 10 seems wrong
     messagetime = datetime.fromtimestamp(int(message["_messagetime"][:10]))
-    request_parts = REQUEST_PATH_RE.search(message["_raw"]).groupdict()
+    m = REQUEST_PATH_RE.search(message["_raw"])
+
+    if not m:
+        logging.warn(
+            "Skipping record that doesn't match request pattern: {}".format(message["_raw"]))
+        return None
+
+    request_parts = m.groupdict()
     query_params = parse_qs(request_parts.get("query_params"))
     dataset_id = request_parts.get("dataset_id")
     pub_stage = request_parts.get("pub_stage")
@@ -260,7 +269,7 @@ def main():
         logs = (extract_(msg) for msg in chain.from_iterable(
             read_log_file(logfile) for logfile in log_files))
 
-        logs_df = pd.DataFrame(list(logs))
+        logs_df = pd.DataFrame.from_records(record for record in logs)
 
     print("Found {} suggest requests".format(len(logs_df)))
     pd.options.display.max_rows = 1000
@@ -302,7 +311,7 @@ def main():
         lambda b: b is not None and b == False)]
     print("{} / {} datasets in Spandex are from non-customer domains".format(
         len(non_customer_domain_datasets_df), len(spandex_datasets)))
-    
+
     if not args.log_dataframe:
         logging.info("Pickling logs dataframe at path {}".format(args.output_file))
         logs_df.to_pickle(args.output_file)

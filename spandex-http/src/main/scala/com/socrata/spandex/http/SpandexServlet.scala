@@ -58,7 +58,16 @@ class SpandexServlet(conf: SpandexConfig,
     res
   }
 
-  // looks like: /suggest/alpha.1234/latest/abcd-1234/<sometext> where abcd-1234 is the column 4x4
+  /* Search for suggestions given a search string.
+   *
+   * @param paramDatasetId the dataset system ID for the dataset to search
+   * @param paramStageInfo the publication stage or "latest"
+   * @param paramUserColumnId the column identifier for the column to search
+   * @param paramText the text to search for
+   * @return `SpandexResult`
+   *
+   * @deprecated use endpoint below instead (w/ optional `paramText` query parameter)
+   */
   get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId/:$paramText") {
     time("suggestText") {
       suggest { (col, text, fuzz, size) =>
@@ -67,14 +76,20 @@ class SpandexServlet(conf: SpandexConfig,
     }
   }
 
-  /* How to get all the results out of Lucene.
+  /* Search for suggestions given a search string or just a column identifier.
+   *
    * Ignore the provided text and fuzziness parameters and replace as follows.
    * Text "1 character" => blank string is not allowed, but through the fuzziness below
    *                       this 1 character will be factored out.
    * Fuzziness ONE => approximately allows 1 edit distance from the given to result texts.
    * Fuzz Length 0 => start giving fuzzy results from any length of input text.
    * Fuzz Prefix 0 => allow all results no matter how badly matched.
-   * TA-DA!
+   *
+   * @param paramDatasetId the dataset system ID for the dataset to search
+   * @param paramStageInfo the publication stage or "latest"
+   * @param paramUserColumnId the column identifier for the column to search
+   * @param paramText the text to search for
+   * @return `SpandexResult`
    */
   private[this] val sampleText = "a"
   private[this] val sampleFuzz = Fuzziness.ONE
@@ -82,19 +97,23 @@ class SpandexServlet(conf: SpandexConfig,
   private[this] val sampleFuzzPre = 0
   // looks like: /suggest/alpha.1234/latest/abcd-1234 where abcd-1234 is the column 4x4
   get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId") {
-    time("suggestSample") {
-      params.get(paramText) match {
-        case None => suggest { (col, _, _, size) =>
-          SpandexResult(client.suggest(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
+    params.get(paramText) match {
+      case None =>
+        time("suggestSample") {
+          suggest { (col, _, _, size) =>
+            SpandexResult(client.suggest(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
+          }
         }
-        case Some(s) => suggest { (col, text, fuzz, size) =>
-          SpandexResult(client.suggest(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
+      case Some(s) =>
+        time("suggestText") {
+          suggest { (col, text, fuzz, size) =>
+            SpandexResult(client.suggest(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
+          }
         }
-      }
     }
   }
 
-  /* Deletes all artifacts associated with a particular dataset from Spandex.
+  /* Delete all artifacts associated with a particular dataset from Spandex.
    *
    * @param paramDatasetId the dataset system ID for the dataset to delete
    * @return `Map[String, Int]` if successful, indicating how many of each type was deleted from the index
