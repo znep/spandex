@@ -7,12 +7,13 @@ usage() {
 
 set -vx
 
-AGE_CLOSE=30
-AGE_DROP=180
 AGE_UNIT=days
 INDEX_REGEX=.marvel*
 INDEX_TIMESTRING=%Y.%m.%d
 
+if [ -z "$MARVEL_AGE_DROP" ]; then
+    MARVEL_AGE_DROP=30
+fi
 if [ -z "$ES_HOST" ]; then usage; fi
 if [ -z "$ES_PORT" ]; then
     ES_PORT=80
@@ -41,12 +42,7 @@ curator --host $ES_HOST --port $ES_PORT \
 #    exit 1
 #fi
 
-# close indices that are kind of old
-curator --host $ES_HOST --port $ES_PORT \
-    close \
-    indices --regex $INDEX_REGEX --timestring $INDEX_TIMESTRING --older-than $AGE_CLOSE --time-unit $AGE_UNIT
-
 # delete indices that are really old
 curator --host $ES_HOST --port $ES_PORT \
     delete \
-    indices --regex $INDEX_REGEX --timestring $INDEX_TIMESTRING --older-than $AGE_DROP --time-unit $AGE_UNIT
+    indices --regex $INDEX_REGEX --timestring $INDEX_TIMESTRING --older-than $MARVEL_AGE_DROP --time-unit $AGE_UNIT
