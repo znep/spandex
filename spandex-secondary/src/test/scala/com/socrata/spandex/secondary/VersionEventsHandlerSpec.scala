@@ -142,7 +142,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   test("WorkingCopyPublished - throw exception if the current copy is not Unpublished.") {
     client.putDatasetCopy("wcp-invalid-test", 1, 2, LifecycleStage.Published, refresh = true)
 
-    an [InvalidStateBeforeEvent] should be thrownBy
+    a [ResyncSecondaryException] should be thrownBy
       handler.handle("wcp-invalid-test", 3, Seq(WorkingCopyPublished).iterator)
   }
 
