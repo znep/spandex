@@ -7,7 +7,7 @@ if [ -z "$SNAPSHOT_ID" ]; then
 fi
 
 curl -v -XPUT http://$ES_HOST:$ES_PORT/_snapshot/$SNAPSHOT_NAME \
-     -d "{ \"type\": \"s3\", \"settings\": { \"region\": \"$AWS_REGION\", \"bucket\": \"$SNAPSHOT_NAME\" } }"
+     -d "{ \"type\": \"s3\", \"settings\": { \"region\": \"$AWS_REGION\", \"bucket\": \"$SNAPSHOT_NAME\", \"server_side_encryption\": \"true\" } }"
 echo
 
 curl -v -XPUT http://$ES_HOST:$ES_PORT/_snapshot/$SNAPSHOT_NAME/$SNAPSHOT_ID \
