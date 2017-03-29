@@ -25,6 +25,21 @@ In your install directory, edit "config/elasticsearch.yml" to un-comment the clu
 cluster.name: spandex
 ```
 
+## Optionally Install Marvel
+Marvel is an elasticsearch plugin that simplifies monitoring of your Elasticsearch cluster. Among its many features, it includes Sense, which is a handy JSON-aware tool for interacting with your Elasticsearch cluster. It’s useful for testing queries for well-formedness (which is particularly helpful given the complexity of the ES query DSL).
+
+To install Marvel, do the following in the `bin` directory of your install directory:
+
+```
+plugin -i elasticsearch/marvel/latest
+```
+
+See the documentation here:
+
+https://www.elastic.co/guide/en/marvel/current/index.html
+https://www.elastic.co/blog/found-sense-a-cool-json-aware-interface-to-elasticsearch
+
+
 ## Start Elastic Search
 ```sh
 es-start
