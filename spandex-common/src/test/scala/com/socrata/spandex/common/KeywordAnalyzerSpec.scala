@@ -2,9 +2,10 @@ package com.socrata.spandex.common
 
 import java.io.File
 
-import com.socrata.spandex.common.client._
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
+
+import com.socrata.spandex.common.client._
 
 class KeywordAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTest with BeforeAndAfterAll {
   override def testConfig: Config = ConfigFactory.parseFile(new File("./src/test/resources/analysisOff.conf"))
@@ -24,24 +25,22 @@ class KeywordAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTest w
     index(sym)
 
     val suggestions = suggest("foo")
-    // Urmila is scratching her head about what size() represents,
-    // if there are 2 items returned but size() == 1
     suggestions.length should be(2)
-    suggestions should contain(food.value)
-    suggestions should contain(fool.value)
+    suggestions should contain(food.rawValue)
+    suggestions should contain(fool.rawValue)
 
     val suggestionsUpper = suggest("FOO")
     suggestionsUpper.length should be(2)
-    suggestionsUpper should contain(food.value)
-    suggestionsUpper should contain(fool.value)
+    suggestionsUpper should contain(food.rawValue)
+    suggestionsUpper should contain(fool.rawValue)
 
     val suggestionsNum = suggest("0")
     suggestionsNum.length should be(1)
-    suggestionsNum should contain(date.value)
+    suggestionsNum should contain(date.rawValue)
 
     val suggestionsSym = suggest("@gir")
     suggestionsSym.length should be(1)
-    suggestionsSym should contain(sym.value)
+    suggestionsSym should contain(sym.rawValue)
   }
 
   test("settings include custom analyzer") {
@@ -49,7 +48,7 @@ class KeywordAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTest w
       .execute().actionGet().getState
     val indexMetadata = clusterState.getMetaData.index(config.es.index)
     val fieldValueTypeMapping = indexMetadata.mapping("field_value").source.toString
-    fieldValueTypeMapping should include("case_insensitive_keyword")
+    fieldValueTypeMapping should include("case_insensitive_word")
   }
 
   test("match: simple") {

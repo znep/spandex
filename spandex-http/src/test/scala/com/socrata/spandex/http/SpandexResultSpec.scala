@@ -1,11 +1,12 @@
 package com.socrata.spandex.http
 
 import com.rojoma.json.v3.util.JsonUtil
+import org.elasticsearch.common.unit.Fuzziness
+import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, ShouldMatchers}
+
 import com.socrata.spandex.common.client.TestESClient
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
 import com.socrata.spandex.http.SpandexResult.Fields._
-import org.elasticsearch.common.unit.Fuzziness
-import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, ShouldMatchers}
 
 // scalastyle:off magic.number
 class SpandexResultSpec extends FunSuiteLike with ShouldMatchers with TestESData with BeforeAndAfterAll {
@@ -60,6 +61,6 @@ class SpandexResultSpec extends FunSuiteLike with ShouldMatchers with TestESData
     val suggest = client.suggest(col, 10, "dat", Fuzziness.TWO, 3, 1)
     val js = JsonUtil.renderJson(SpandexResult(suggest))
     js should include(optionsJson)
-    js should include(rows(col)(0).value)
+    js should include(rows(col)(0).rawValue)
   }
 }

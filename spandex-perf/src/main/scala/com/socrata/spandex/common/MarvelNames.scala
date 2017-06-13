@@ -3,7 +3,8 @@ package com.socrata.spandex.common
 import scala.io.Source
 
 trait MarvelNames {
-  val names: Array[String] = Source.fromFile("../esconfigs/names.txt", "utf-8").getLines().toArray
+  val source = Source.fromFile("src/main/resources/names.txt", "utf-8")
+  val names: Array[String] = source.getLines().toArray
   val namesKeyword: Array[String] = names.map(_.replaceAll("""\W+""", "_"))
 
   private[this] var i: Int = 0

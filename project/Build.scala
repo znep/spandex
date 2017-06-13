@@ -119,7 +119,9 @@ object Deps {
   )
   lazy val test = Seq(
     "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
-    "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test"
+    "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
+    "org.apache.logging.log4j" % "log4j-api" % "2.7",
+    "org.apache.logging.log4j" % "log4j-core" % "2.7"
   )
   lazy val perf = Seq()
   lazy val common = Seq(
@@ -127,7 +129,8 @@ object Deps {
     "com.typesafe" % "config" % "1.2.1",
     "com.typesafe" %% "scalalogging-slf4j" % "1.1.0",
     "commons-io" % "commons-io" % "2.4",
-    "org.elasticsearch" % "elasticsearch" % "1.7.2"
+    "org.elasticsearch" % "elasticsearch" % "5.4.1",
+    "org.elasticsearch.client" % "transport" % "5.4.1"
   )
   lazy val secondary = Seq(
     "com.socrata" %% "secondarylib" % "3.3.5"

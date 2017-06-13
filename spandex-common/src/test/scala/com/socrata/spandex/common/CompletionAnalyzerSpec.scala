@@ -2,10 +2,10 @@ package com.socrata.spandex.common
 
 import java.io.File
 
-import com.rojoma.json.v3.util.JsonUtil
-import com.socrata.spandex.common.client._
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
+
+import com.socrata.spandex.common.client._
 
 class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTest with BeforeAndAfterAll {
   override def testConfig: Config = ConfigFactory.parseFile(new File("./src/test/resources/analysisOn.conf"))
@@ -25,24 +25,22 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTes
     index(sym)
 
     val suggestions = suggest("foo")
-    // Urmila is scratching her head about what size() represents,
-    // if there are 2 items returned but size() == 1
     suggestions.length should be(2)
-    suggestions should contain(food.value)
-    suggestions should contain(fool.value)
+    suggestions should contain(food.rawValue)
+    suggestions should contain(fool.rawValue)
 
     val suggestionsUpper = suggest("FOO")
     suggestionsUpper.length should be(2)
-    suggestionsUpper should contain(food.value)
-    suggestionsUpper should contain(fool.value)
+    suggestionsUpper should contain(food.rawValue)
+    suggestionsUpper should contain(fool.rawValue)
 
     val suggestionsNum = suggest("0")
     suggestionsNum.length should be(1)
-    suggestionsNum should contain(date.value)
+    suggestionsNum should contain(date.rawValue)
 
     val suggestionsSym = suggest("@gir")
     suggestionsSym.length should be(1)
-    suggestionsSym should contain(sym.value)
+    suggestionsSym should contain(sym.rawValue)
   }
 
   test("settings include custom analyzer") {
@@ -74,15 +72,6 @@ class CompletionAnalyzerSpec extends FunSuiteLike with Matchers with AnalyzerTes
       "lincoln").reverse
     val tokens = CompletionAnalyzer.analyze(value)
     tokens should equal(expectedTokens)
-  }
-
-  test("field value json includes value input/output elements") {
-    val value = "Donuts and Coconuts"
-    val expectedInputTokens = List("donuts", "and", "coconuts")
-    val fv = FieldValue(col.datasetId, col.copyNumber, col.systemColumnId, 11, value)
-    val json = JsonUtil.renderJson(fv)
-    json should include("\"input\":[")
-    json should include("\"output\":")
   }
 
   test("match: term") {

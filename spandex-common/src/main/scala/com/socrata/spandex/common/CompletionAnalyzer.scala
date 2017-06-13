@@ -1,10 +1,8 @@
 package com.socrata.spandex.common
 
-import java.io.Reader
 import java.util.regex.Pattern
+import scala.util.Try
 
-import com.socrata.spandex.common.CompletionAnalyzer.TokenStreamExtensions
-import com.socrata.spandex.common.client.SpandexFields
 import org.apache.lucene.analysis.Analyzer.TokenStreamComponents
 import org.apache.lucene.analysis.core.LowerCaseFilter
 import org.apache.lucene.analysis.pattern.PatternTokenizer
@@ -12,7 +10,8 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
 import org.apache.lucene.analysis.{Analyzer, TokenFilter, TokenStream}
 import org.apache.lucene.util.Version
 
-import scala.util.Try
+import com.socrata.spandex.common.CompletionAnalyzer.TokenStreamExtensions
+import com.socrata.spandex.common.client.SpandexFields
 
 // Elasticsearch mapping type 'completion' is limited to keyword prefix matches.
 // Completions of term matches mid-phrase are not natively supported.
@@ -122,7 +121,7 @@ class CompletionAnalyzer(val config: AnalysisConfig) {
 
     // takes the original string and gets luceneish tokens out of it
     // which largely means things like punctuation will be dropped (see longer comment above)
-    val stream: TokenStream = analyzer.tokenStream(SpandexFields.Value, value)
+    val stream: TokenStream = analyzer.tokenStream(SpandexFields.Suggest, value)
       .filterLowerCase
     stream.reset()
     // get the portion of the TokenStream that we'll actually get substrings of and allow searching against
@@ -137,8 +136,8 @@ class CompletionAnalyzer(val config: AnalysisConfig) {
 
 // Lucene's miscellaneous PatternAnalyzer is deprecated in 4.2.0
 protected class PatternAnalyzer(version: Version, pattern: Pattern) extends Analyzer {
-  override def createComponents(fieldName: String, reader: Reader): TokenStreamComponents = {
-    val source = new TokenStreamComponents(new PatternTokenizer(reader, pattern, -1))
+  override def createComponents(fieldName: String): TokenStreamComponents = {
+    val source = new TokenStreamComponents(new PatternTokenizer(pattern, -1))
     val result = new LowerCaseFilter(source.getTokenStream)
     new TokenStreamComponents(source.getTokenizer, result)
   }

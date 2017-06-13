@@ -1,13 +1,15 @@
 package com.socrata.spandex.http
 
-import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
-import com.socrata.spandex.common.client.{FieldValue, SearchResults}
+import scala.collection.JavaConverters._
+import scala.util.Try
+
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonUtil}
+import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.search.suggest.Suggest
 import org.elasticsearch.search.suggest.Suggest.Suggestion
 import org.elasticsearch.search.suggest.completion.CompletionSuggestion.Entry
 
-import scala.collection.JavaConverters._
-import scala.util.Try
+import com.socrata.spandex.common.client.{FieldValue, SearchResults, SpandexFields}
 
 case class SpandexOption(text: String, score: Option[Float])
 
@@ -17,16 +19,23 @@ object SpandexOption {
 
 case class SpandexResult(options: Seq[SpandexOption])
 
-object SpandexResult {
+object SpandexResult extends Logging {
   implicit val jCodec = AutomaticJsonCodecBuilder[SpandexResult]
 
   def apply(response: Suggest): SpandexResult = {
-    val suggest = response.getSuggestion[Suggestion[Entry]]("suggest")
+    val suggest = response.getSuggestion[Suggestion[Entry]](SpandexFields.Suggest)
     val entries = suggest.getEntries
     val options = entries.get(0).getOptions
-    SpandexResult(options.asScala.map { a =>
-      SpandexOption(a.getText.string(), Try{Some(a.getScore)}.getOrElse(None))
-    })
+    val spandexOptions = options.asScala.map { opt =>
+      val source = opt.getHit.getSourceAsString
+      JsonUtil.parseJson[FieldValue](source) match {
+        case Right(fieldValue) => Some(SpandexOption(fieldValue.rawValue, Try{Some(opt.getScore)}.getOrElse(None)))
+        case Left(err) =>
+          logger.error(s"Unable to parse returned suggestion '$source' as FieldValue: $err")
+          None
+      }
+    }.flatten
+    SpandexResult(spandexOptions)
   }
 
   /* Not yet used.

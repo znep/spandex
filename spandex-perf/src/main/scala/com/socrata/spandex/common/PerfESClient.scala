@@ -1,23 +1,28 @@
 package com.socrata.spandex.common
 
 import java.nio.file.Files
-
-import com.socrata.spandex.common.client.SpandexElasticSearchClient
-import org.apache.commons.io.FileUtils
-import org.elasticsearch.client.{Client, Requests}
-import org.elasticsearch.common.settings.ImmutableSettings
-import org.elasticsearch.node.NodeBuilder._
-
 import scala.util.Try
 
+import org.apache.commons.io.FileUtils
+import org.elasticsearch.client.{Client, Requests}
+import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.node.Node
+
+import com.socrata.spandex.common.client.SpandexElasticSearchClient
+
 class PerfESClient(config: SpandexConfig = new SpandexConfig) extends SpandexElasticSearchClient(config.es) {
-  val tempDataDir = Files.createTempDirectory("elasticsearch_data_").toFile
   val local: Boolean = true
-  val testSettings = ImmutableSettings.settingsBuilder()
+  val tempDataDir = Files.createTempDirectory("elasticsearch_data_").toFile
+  val testSettings = Settings.builder()
     .put(settings)
     .put("path.data", tempDataDir.toString)
+    .put("path.home", "target/elasticsearch")
+    .put("transport.type", "local")
+    .put("http.enabled", "false")
     .build
-  val node = nodeBuilder().settings(testSettings).local(local).node()
+
+  val node = new Node(testSettings).start()
+
   override val client: Client = node.client()
 
   def bootstrapData(): Unit = {

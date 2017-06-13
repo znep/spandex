@@ -7,21 +7,22 @@ import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLText, SoQLValue}
-import com.socrata.spandex.common.client.ResponseExtensions._
-import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
-import com.socrata.spandex.common.{SpandexBootstrap, SpandexConfig, TestESData}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.joda.time.DateTime
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
+import com.socrata.spandex.common.client.ResponseExtensions._
+import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
+import com.socrata.spandex.common.{SpandexBootstrap, SpandexConfig, TestESData}
+
 // scalastyle:off
 class VersionEventsHandlerSpec extends FunSuiteLike
-                                  with Matchers
-                                  with BeforeAndAfterAll
-                                  with BeforeAndAfterEach
-                                  with PropertyChecks
-                                  with TestESData {
+  with Matchers
+  with BeforeAndAfterAll
+  with BeforeAndAfterEach
+  with PropertyChecks
+  with TestESData {
   val config = new SpandexConfig(ConfigFactory.load().getConfig("com.socrata.spandex")
     .withValue("elastic-search.index", ConfigValueFactory.fromAnyRef("spandex-dataset-versioneventshandler")))
   val client = new TestESClient(config.es)
@@ -267,7 +268,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
       datasets(1), expectedBeforeInsert.copyNumber, insert.systemId.underlying)
     newEntries.totalHits should be (1)
     newEntries.thisPage(0).columnId should be (5)
-    newEntries.thisPage(0).value should be ("index me!")
+    newEntries.thisPage(0).rawValue should be ("index me!")
 
     val update = Update(new RowId(2), ColumnIdMap[SoQLValue](
       new ColumnId(2) -> SoQLText("updated data2"), new ColumnId(3) -> SoQLText("updated data3")))(None)
@@ -284,11 +285,11 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     updatedRow.totalHits should be (3)
     val updatedFieldValues = updatedRow.thisPage.sortBy(_.columnId).toSeq
     updatedFieldValues(0).columnId should be (1)
-    updatedFieldValues(0).value should be ("data column 1 row 2")
+    updatedFieldValues(0).rawValue should be ("data column 1 row 2")
     updatedFieldValues(1).columnId should be (2)
-    updatedFieldValues(1).value should be ("updated data2")
+    updatedFieldValues(1).rawValue should be ("updated data2")
     updatedFieldValues(2).columnId should be (3)
-    updatedFieldValues(2).value should be ("updated data3")
+    updatedFieldValues(2).rawValue should be ("updated data3")
   }
 
   test("RowDataUpdated - Delete") {
@@ -375,6 +376,6 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.client
       .prepareGet(config.es.index, config.es.fieldValueMapping.mappingType, fv.docId)
       .execute.actionGet
-      .result[FieldValue].get.value should be("(((o(´▽`)o)))")
+      .result[FieldValue].get.rawValue should be("(((o(´▽`)o)))")
   }
 }

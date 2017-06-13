@@ -1,11 +1,11 @@
 package com.socrata.spandex.common.client
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
+import org.elasticsearch.action.index.IndexRequestBuilder
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
+
 import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
-import org.elasticsearch.action.index.IndexRequestBuilder
-import org.elasticsearch.index.engine.IndexFailedEngineException
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 // scalastyle:off
 class SpandexElasticSearchClientSpec extends FunSuiteLike
@@ -30,7 +30,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
       .execute.actionGet
       .result[FieldValue]
 
-  test("Insert, update, get field values") {
+  test("Insert, update, get field values, then delete and get again") {
     val toInsert = Seq(
       FieldValue("alpha.1337", 1, 20, 32, "axolotl"),
       FieldValue("alpha.1337", 1, 21, 32, "amphibious"),
@@ -57,6 +57,13 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     verifyFieldValue(toInsert(0)).get should be (toUpdate(0))
     verifyFieldValue(toInsert(1)).get should be (toInsert(1))
     verifyFieldValue(toInsert(2)).get should be (toUpdate(1))
+
+    val deletes = toUpdate.map(fv => client.fieldValueDeleteRequest(fv.datasetId, fv.copyNumber, fv.columnId, fv.rowId))
+    client.sendBulkRequest(deletes, refresh = true)
+
+    verifyFieldValue(toInsert(0)) should not be 'defined
+    verifyFieldValue(toInsert(1)).get should be (toInsert(1))
+    verifyFieldValue(toInsert(2)) should not be 'defined
   }
 
   test("Don't send empty bulk requests to Elastic Search") {
@@ -258,31 +265,10 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     }
   }
 
-  // previously, a blank value rendered the following json and caused an exception in lucene
-  // this is allegedly fixed in elasticsearch 1.5.3
-  // we could have fixed it by filtering out empty strings explicitly
-  // completion pre-analysis handles empty string by happy accident
-  test("Handle value string is empty or null") {
-    try {
-      // org.elasticsearch.index.engine.IndexFailedEngineException: [spandex][2] Index failed for [field_value#primus.1234|2|3|60]
-      // Cause: java.lang.IllegalStateException: from state (0) already had transitions added
-      client.client.prepareIndex(config.es.index, config.es.fieldValueMapping.mappingType, "primus.1234|2|3|60")
-        .setSource(
-          """{
-            | "composite_id":"primus.1234|2|3",
-            | "copy_number":2,
-            | "dataset_id":"primus.1234",
-            | "row_id":60,
-            | "value":"",
-            | "column_id":3
-            |}""".
-            stripMargin)
-        .setRefresh(true).execute.actionGet
-    } catch {
-      case e: IndexFailedEngineException => // expected on previous versions
-    }
-
-    client.indexFieldValue(FieldValue(datasets(0), 1L, 2L, 61L, ""), refresh = true)
+  test("Do not index empty or null field values") {
+    client.indexFieldValue(FieldValue(datasets(0), 1L, 2L, 61L, ""), refresh = true) should be(false)
+    client.indexFieldValue(FieldValue(datasets(0), 1L, 2L, 61L, " "), refresh = true) should be(false)
+    client.indexFieldValue(FieldValue(datasets(0), 1L, 2L, 61L, null), refresh = true) should be(false)
   }
 
   test("Get a dataset's copies by stage") {

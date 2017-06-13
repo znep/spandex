@@ -1,22 +1,21 @@
 package com.socrata.spandex.common.client
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.language.implicitConversions
+
 import com.rojoma.json.v3.ast.{JString, JValue}
 import com.rojoma.json.v3.codec.{DecodeError, JsonDecode, JsonEncode}
-import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, JsonUtil, SimpleJsonCodecBuilder, Strategy}
-import com.socrata.datacoordinator.id.{ColumnId, RowId}
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, JsonUtil, Strategy}
 import com.socrata.datacoordinator.secondary.{ColumnInfo, LifecycleStage}
-import com.socrata.soql.types.SoQLText
-import com.socrata.spandex.common.CompletionAnalyzer
+import org.elasticsearch.action.DocWriteRequest.OpType
 import org.elasticsearch.action.bulk.BulkResponse
-import org.elasticsearch.action.count.CountResponse
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.aggregations.bucket.terms.Terms
 
-import scala.collection.mutable
-import scala.collection.JavaConverters._
-import scala.language.implicitConversions
+import com.socrata.spandex.common.CompletionAnalyzer
 
 @JsonKeyStrategy(Strategy.Underscore)
 case class DatasetCopy(datasetId: String, copyNumber: Long, version: Long, stage: LifecycleStage) {
@@ -44,10 +43,11 @@ object DatasetCopy {
 }
 
 @JsonKeyStrategy(Strategy.Underscore)
-case class ColumnMap(datasetId: String,
-                     copyNumber: Long,
-                     systemColumnId: Long,
-                     userColumnId: String) {
+case class ColumnMap(
+    datasetId: String,
+    copyNumber: Long,
+    systemColumnId: Long,
+    userColumnId: String) {
   lazy val docId = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
   lazy val compositeId = ColumnMap.makeCompositeId(datasetId, copyNumber, systemColumnId)
 }
@@ -72,48 +72,39 @@ object ColumnMap {
 }
 
 @JsonKeyStrategy(Strategy.Underscore)
-case class CompletionValue(output: String) {
-  lazy val inputTokens = CompletionAnalyzer.analyze(output)
-
-  def this(inputTokens: List[String], output: String) = this(output)
-}
-object CompletionValue {
-  implicit val jCodec = SimpleJsonCodecBuilder[CompletionValue].build(
-    SpandexFields.ValueInput, _.inputTokens,
-    SpandexFields.ValueOutput, _.output
-  )
+case class CompositeId(compositeId: String)
+object CompositeId {
+  implicit val codec = AutomaticJsonCodecBuilder[CompositeId]
 }
 
 @JsonKeyStrategy(Strategy.Underscore)
-case class FieldValue(datasetId: String,
-                      copyNumber: Long,
-                      columnId: Long,
-                      rowId: Long,
-                      value: String) {
+case class SuggestWithContext(input: Seq[String], contexts: CompositeId)
+object SuggestWithContext {
+  implicit val codec = AutomaticJsonCodecBuilder[SuggestWithContext]
+}
+
+@JsonKeyStrategy(Strategy.Underscore)
+case class FieldValue(
+    datasetId: String,
+    copyNumber: Long,
+    columnId: Long,
+    rowId: Long,
+    rawValue: String,
+    suggest: SuggestWithContext) {
   lazy val docId = FieldValue.makeDocId(datasetId, copyNumber, columnId, rowId)
   lazy val compositeId = FieldValue.makeCompositeId(datasetId, copyNumber, columnId)
-  lazy val completionValue = CompletionValue(value)
 
-  // Needed for codec builder
-  def this(datasetId: String,
-           copyNumber: Long,
-           columnId: Long,
-           compositeId: String,
-           rowId: Long,
-           value: CompletionValue) = this(datasetId, copyNumber, columnId, rowId, value.output)
+  def worthIndexing: Boolean = rawValue != null && rawValue.trim.nonEmpty  // scalastyle:ignore null
 }
 object FieldValue {
-  implicit val jCodec = SimpleJsonCodecBuilder[FieldValue].build(
-    SpandexFields.DatasetId, _.datasetId,
-    SpandexFields.CopyNumber, _.copyNumber,
-    SpandexFields.ColumnId, _.columnId,
-    SpandexFields.CompositeId, _.compositeId,
-    SpandexFields.RowId, _.rowId,
-    SpandexFields.Value, _.completionValue
-  )
+  implicit val jCodec = AutomaticJsonCodecBuilder[FieldValue]
+  def suggestTokens(rawValue: String): Seq[String] = CompletionAnalyzer.analyze(rawValue)
 
-  def apply(datasetName: String, copyNumber: Long, columnId: ColumnId, rowId: RowId, data: SoQLText): FieldValue =
-    this(datasetName, copyNumber, columnId.underlying, rowId.underlying, data.value)
+  def apply(datasetId: String, copyNumber: Long, columnId: Long, rowId: Long, data: String): FieldValue = {
+    val compositeId = FieldValue.makeCompositeId(datasetId, copyNumber, columnId)
+    val suggest = SuggestWithContext(suggestTokens(data), CompositeId(compositeId))
+    FieldValue(datasetId, copyNumber, columnId, rowId, data, suggest)
+  }
 
   def makeDocId(datasetId: String, copyNumber: Long, columnId: Long, rowId: Long): String =
     s"$datasetId|$copyNumber|$columnId|$rowId"
@@ -137,9 +128,6 @@ object ResponseExtensions {
   implicit def toExtendedResponse(response: GetResponse): GetResponseExtensions =
     GetResponseExtensions(response)
 
-  implicit def toExtendedResponse(response: CountResponse): CountResponseExtensions =
-    CountResponseExtensions(response)
-
   implicit def toExtendedResponse(response: BulkResponse): BulkResponseExtensions =
     BulkResponseExtensions(response)
 }
@@ -160,8 +148,9 @@ case class SearchResponseExtensions(response: SearchResponse) {
      * TODO: multiple aggs at once
      */
     val aggs = aggKey.fold(Seq.empty[BucketCount]) { k =>
+      // added toString. but that's not right.
       response.getAggregations.get[Terms](k)
-        .getBuckets.asScala.map { b => BucketCount(b.getKey, b.getDocCount) }
+        .getBuckets.asScala.map { b => BucketCount(b.getKey.toString, b.getDocCount) }
         .toSeq
     }
 
@@ -174,10 +163,6 @@ case class GetResponseExtensions(response: GetResponse) {
     val source = Option(response.getSourceAsString)
     source.map { s => JsonUtil.parseJson[T](s).right.get }
   }
-}
-
-case class CountResponseExtensions(response: CountResponse) {
-  def result: Long = response.getCount
 }
 
 case class BulkResponseAcknowledgement(
@@ -195,9 +180,10 @@ object BulkResponseAcknowledgement {
 
     bulkResponse.getItems.toList.foreach { itemResponse =>
       val countsToUpdate = itemResponse.getOpType match {
-        case "delete" => deletions
-        case "update" => updates
-        case "create" => creations
+        case OpType.DELETE => deletions
+        case OpType.UPDATE => updates
+        case OpType.CREATE => creations
+        case _ => mutable.Map.empty[String, Int]
       }
 
       countsToUpdate += (itemResponse.getType -> (countsToUpdate.getOrElse(itemResponse.getType, 0) + 1))

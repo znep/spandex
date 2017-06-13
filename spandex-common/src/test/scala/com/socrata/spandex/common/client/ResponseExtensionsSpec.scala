@@ -1,25 +1,30 @@
 package com.socrata.spandex.common.client
 
-import org.elasticsearch.action.ActionResponse
+import org.elasticsearch.action.DocWriteRequest.OpType
+import org.elasticsearch.action.DocWriteResponse.Result
 import org.elasticsearch.action.bulk.{BulkItemResponse, BulkResponse}
 import org.elasticsearch.action.delete.DeleteResponse
 import org.elasticsearch.action.index.IndexResponse
 import org.elasticsearch.action.update.UpdateResponse
+import org.elasticsearch.index.shard.ShardId
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
-import ResponseExtensions._
+
+import com.socrata.spandex.common.client.ResponseExtensions._
 
 class ResponseExtensionsSpec extends FunSuiteLike
   with Matchers
   with BeforeAndAfterAll
   with BeforeAndAfterEach {
 
+  val shardId = ShardId.fromString(s"[spandex][0]")
+
   test("Create BulkResponseAcknowledgement from BulkResponse") {
     val itemResponses = Array(
-      new BulkItemResponse(1, "create", new IndexResponse("spandex", "dataset_copy", "alpha.1234", 0L, true)),
-      new BulkItemResponse(2, "create", new IndexResponse("spandex", "field_value", "alpha.1234", 0L, true)),
-      new BulkItemResponse(3, "create", new IndexResponse("spandex", "column_map", "alpha.1234", 0L, true)),
-      new BulkItemResponse(4, "delete", new DeleteResponse("spandex", "dataset_copy", "alpha.1234", 0L, true)),
-      new BulkItemResponse(5, "update", new UpdateResponse("spandex", "field_value", "alpha.1234", 1L, false)))
+      new BulkItemResponse(1, OpType.CREATE, new IndexResponse(shardId, "dataset_copy", "alpha.1234", 0L, true)),
+      new BulkItemResponse(2, OpType.CREATE, new IndexResponse(shardId, "field_value", "alpha.1234", 0L, true)),
+      new BulkItemResponse(3, OpType.CREATE, new IndexResponse(shardId, "column_map", "alpha.1234", 0L, true)),
+      new BulkItemResponse(4, OpType.DELETE, new DeleteResponse(shardId, "dataset_copy", "alpha.1234", 0L, true)),
+      new BulkItemResponse(5, OpType.UPDATE, new UpdateResponse(shardId, "field_value", "alpha.1234", 1L, Result.UPDATED)))
 
     val bulkResponse = new BulkResponse(itemResponses, 10L)
     val expectedAcknowledgement = BulkResponseAcknowledgement(
@@ -32,11 +37,11 @@ class ResponseExtensionsSpec extends FunSuiteLike
 
   test("Get non-empty deletions count map from BulkResponse") {
     val itemResponses = Array(
-      new BulkItemResponse(1, "create", new IndexResponse("spandex", "dataset_copy", "alpha.1234", 0L, true)),
-      new BulkItemResponse(2, "create", new IndexResponse("spandex", "field_value", "alpha.1234", 0L, true)),
-      new BulkItemResponse(3, "create", new IndexResponse("spandex", "column_map", "alpha.1234", 0L, true)),
-      new BulkItemResponse(4, "delete", new DeleteResponse("spandex", "dataset_copy", "alpha.1234", 0L, true)),
-      new BulkItemResponse(5, "update", new UpdateResponse("spandex", "field_value", "alpha.1234", 1L, false)))
+      new BulkItemResponse(1, OpType.CREATE, new IndexResponse(shardId, "dataset_copy", "alpha.1234", 0L, true)),
+      new BulkItemResponse(2, OpType.CREATE, new IndexResponse(shardId, "field_value", "alpha.1234", 0L, true)),
+      new BulkItemResponse(3, OpType.CREATE, new IndexResponse(shardId, "column_map", "alpha.1234", 0L, true)),
+      new BulkItemResponse(4, OpType.DELETE, new DeleteResponse(shardId, "dataset_copy", "alpha.1234", 0L, true)),
+      new BulkItemResponse(5, OpType.UPDATE, new UpdateResponse(shardId, "field_value", "alpha.1234", 1L, Result.UPDATED)))
 
     val bulkResponse = new BulkResponse(itemResponses, 10L)
     val expectedDeletionsCountMap = Map("dataset_copy" -> 1)
@@ -46,10 +51,10 @@ class ResponseExtensionsSpec extends FunSuiteLike
 
   test("Get empty deletions count map from BulkResponse") {
     val itemResponses = Array(
-      new BulkItemResponse(1, "create", new IndexResponse("spandex", "dataset_copy", "alpha.1234", 0L, true)),
-      new BulkItemResponse(2, "create", new IndexResponse("spandex", "field_value", "alpha.1234", 0L, true)),
-      new BulkItemResponse(3, "create", new IndexResponse("spandex", "column_map", "alpha.1234", 0L, true)),
-      new BulkItemResponse(5, "update", new UpdateResponse("spandex", "field_value", "alpha.1234", 1L, false)))
+      new BulkItemResponse(1, OpType.CREATE, new IndexResponse(shardId, "dataset_copy", "alpha.1234", 0L, true)),
+      new BulkItemResponse(2, OpType.CREATE, new IndexResponse(shardId, "field_value", "alpha.1234", 0L, true)),
+      new BulkItemResponse(3, OpType.CREATE, new IndexResponse(shardId, "column_map", "alpha.1234", 0L, true)),
+      new BulkItemResponse(5, OpType.UPDATE, new UpdateResponse(shardId, "field_value", "alpha.1234", 1L, Result.UPDATED)))
 
     val bulkResponse = new BulkResponse(itemResponses, 10L)
 

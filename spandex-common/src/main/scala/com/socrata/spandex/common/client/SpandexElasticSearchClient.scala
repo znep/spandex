@@ -1,25 +1,30 @@
 package com.socrata.spandex.common.client
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
+
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary._
-import com.socrata.spandex.common._
-import com.socrata.spandex.common.client.ResponseExtensions._
 import org.elasticsearch.action.ActionResponse
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest
 import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.delete.{DeleteRequestBuilder, DeleteResponse}
 import org.elasticsearch.action.index.{IndexRequestBuilder, IndexResponse}
-import org.elasticsearch.action.search.SearchType
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy
 import org.elasticsearch.action.update.{UpdateRequestBuilder, UpdateResponse}
 import org.elasticsearch.common.unit.{Fuzziness, TimeValue}
+import org.elasticsearch.common.xcontent.{ToXContent, XContentType}
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.QueryBuilders._
+import org.elasticsearch.rest.RestStatus.{CREATED, OK}
 import org.elasticsearch.search.aggregations.AggregationBuilders._
-import org.elasticsearch.search.aggregations.bucket.terms.Terms
-import org.elasticsearch.search.sort.SortOrder
-import org.elasticsearch.search.suggest.Suggest
-import org.elasticsearch.search.suggest.completion.CompletionSuggestionFuzzyBuilder
+import org.elasticsearch.search.sort.{FieldSortBuilder, SortOrder}
+import org.elasticsearch.search.suggest.completion.FuzzyOptions
+import org.elasticsearch.search.suggest.completion.context.CategoryQueryContext
+import org.elasticsearch.search.suggest.{Suggest, SuggestBuilder, SuggestBuilders}
+
+import com.socrata.spandex.common._
+import com.socrata.spandex.common.client.ResponseExtensions._
 
 // scalastyle:off number.of.methods
 case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
@@ -55,8 +60,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
   private[this] def checkForFailures(response: ActionResponse): Unit = response match {
     case i: IndexResponse =>
-      if (!i.isCreated) throw ElasticSearchResponseFailed(
-        s"${i.getType} doc with id ${i.getId} was not successfully indexed")
+      if (!Set(OK, CREATED).contains(i.status())) throw ElasticSearchResponseFailed(
+        s"${i.getType} doc with id ${i.getId} was not successfully indexed; received status ${i.status()}")
     case u: UpdateResponse =>
     // No op - UpdateResponse doesn't have any useful state to check
     case d: DeleteResponse =>
@@ -71,6 +76,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
       throw new NotImplementedError(s"Haven't implemented failure check for ${response.getClass.getSimpleName}")
   }
 
+  def refreshPolicy(refresh: Boolean): RefreshPolicy = if (refresh) RefreshPolicy.IMMEDIATE else RefreshPolicy.NONE
+
   def refresh(): Unit = client.admin().indices().prepareRefresh(config.index).execute.actionGet
 
   def indexExists: Boolean = {
@@ -84,8 +91,8 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def putColumnMap(columnMap: ColumnMap, refresh: Boolean): Unit = {
     val source = JsonUtil.renderJson(columnMap)
     val request = client.prepareIndex(config.index, config.columnMapMapping.mappingType, columnMap.docId)
-      .setSource(source)
-      .setRefresh(refresh)
+      .setSource(source, XContentType.JSON)
+      .setRefreshPolicy(refreshPolicy(refresh))
     logColumnMapIndexRequest(columnMap.docId, source)
     val response = request.execute.actionGet
     checkForFailures(response)
@@ -119,26 +126,31 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): Unit =
     deleteByQuery(byCopyNumberQuery(datasetId, copyNumber), Seq(config.columnMapMapping.mappingType))
 
-  def indexFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
-    checkForFailures(fieldValueIndexRequest(fieldValue).setRefresh(refresh).execute.actionGet)
-
-  def updateFieldValue(fieldValue: FieldValue, refresh: Boolean): Unit =
-    checkForFailures(fieldValueUpdateRequest(fieldValue).setRefresh(refresh).execute.actionGet)
+  def indexFieldValue(fieldValue: FieldValue, refresh: Boolean): Boolean = {
+    if (fieldValue.worthIndexing) {
+      checkForFailures(fieldValueIndexRequest(fieldValue).setRefreshPolicy(refreshPolicy(refresh)).execute.actionGet)
+      true
+    } else {
+      false
+    }
+  }
 
   def fieldValueIndexRequest(fieldValue: FieldValue): IndexRequestBuilder =
     client.prepareIndex(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
-          .setSource(JsonUtil.renderJson(fieldValue))
+          .setSource(JsonUtil.renderJson(fieldValue), XContentType.JSON)
 
   def fieldValueUpdateRequest(fieldValue: FieldValue): UpdateRequestBuilder = {
     client.prepareUpdate(config.index, config.fieldValueMapping.mappingType, fieldValue.docId)
-          .setDoc(JsonUtil.renderJson(fieldValue))
+          .setDoc(JsonUtil.renderJson(fieldValue), XContentType.JSON)
           .setUpsert()
   }
 
-  def fieldValueDeleteRequest(datasetId: String,
-                              copyNumber: Long,
-                              columnId: Long,
-                              rowId: Long): DeleteRequestBuilder = {
+  def fieldValueDeleteRequest(
+      datasetId: String,
+      copyNumber: Long,
+      columnId: Long,
+      rowId: Long)
+  : DeleteRequestBuilder = {
     val docId = FieldValue.makeDocId(datasetId, copyNumber, columnId, rowId)
     client.prepareDelete(config.index, config.fieldValueMapping.mappingType, docId)
   }
@@ -146,7 +158,7 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
   def sendBulkRequest(requests: Seq[Any], refresh: Boolean): Option[BulkResponse] = {
     if (requests.nonEmpty) {
-      val baseRequest = client.prepareBulk().setRefresh(refresh)
+      val baseRequest = client.prepareBulk().setRefreshPolicy(refreshPolicy(refresh))
       val bulkRequest = requests.foldLeft(baseRequest) { case (bulk, single) =>
         single match {
           case i: IndexRequestBuilder => bulk.add(i)
@@ -181,36 +193,28 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def deleteByQuery(queryBuilder: QueryBuilder, types: Seq[String] = Nil, refresh: Boolean = true): Map[String, Int] = {
     logDeleteByQueryRequest(queryBuilder, types, refresh)
     val timeout = new TimeValue(config.dataCopyTimeout)
-    val scrollInitRequest = client.prepareSearch(config.index)
+    val request = client.prepareSearch(config.index)
+      .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC)
       .setQuery(queryBuilder)
-      .setNoFields() // for delete request: only interested in type and id
       .setTypes(types: _*)
-      .setSearchType(SearchType.SCAN)
       .setScroll(timeout)
-      .setSize(calculateScrollSize(config.dataCopyBatchSize))
-    logSearchRequest(scrollInitRequest, types)
-    val scrollInit = scrollInitRequest.execute.actionGet
-
-    var scrollId = scrollInit.getScrollId
-    var batch = Seq.empty[Any]
+      .setSize(calculateScrollSize(calculateScrollSize(config.dataCopyBatchSize)))
+    logSearchRequest(request, types)
+    var response = request.execute.actionGet
     val resultCounts = mutable.Map[String, Int]()
 
     do {
-      val request = client.prepareSearchScroll(scrollId)
-        .setScroll(timeout)
-      logSearchScrollRequest(scrollId, timeout.toString)
-      val response = request.execute.actionGet
-      logSearchResponse(response)
-
-      scrollId = response.getScrollId
-      batch = response.getHits.hits.map { h =>
-        client.prepareDelete(h.index, h.`type`, h.id)
+      val batch = response.getHits.getHits.map { h =>
+        client.prepareDelete(h.getIndex, h.getType, h.getId)
       }
-
       sendBulkRequest(batch, refresh = false).foreach { response =>
         resultCounts ++= response.deletions.map { case (k, v) => (k, resultCounts.getOrElse(k, 0) + v) }
       }
-    } while (batch.nonEmpty)
+
+      response = client.prepareSearchScroll(response.getScrollId)
+        .setScroll(timeout).execute.actionGet
+      logSearchResponse(response)
+    } while (response.getHits().getHits().length != 0)
 
     if (refresh) this.refresh()
 
@@ -220,33 +224,27 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def copyFieldValues(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit = {
     logCopyFieldValuesRequest(from, to, refresh)
     val timeout = new TimeValue(config.dataCopyTimeout)
-    val scrollInitRequest = client.prepareSearch(config.index)
+    val request = client.prepareSearch(config.index)
+      .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC)
       .setTypes(config.fieldValueMapping.mappingType)
       .setQuery(byCopyNumberQuery(from.datasetId, from.copyNumber))
-      .setSearchType(SearchType.SCAN)
       .setScroll(timeout)
-      .setSize(calculateScrollSize(config.dataCopyBatchSize))
-    logSearchRequest(scrollInitRequest, Seq(config.fieldValueMapping.mappingType))
-    val scrollInit = scrollInitRequest.execute.actionGet
+      .setSize(calculateScrollSize(calculateScrollSize(config.dataCopyBatchSize)))
+    logSearchRequest(request, Seq(config.fieldValueMapping.mappingType))
+    var response = request.execute.actionGet
 
-    var scrollId = scrollInit.getScrollId
-    var batch = Seq.empty[Any]
     do {
-      val request = client.prepareSearchScroll(scrollId)
-        .setScroll(timeout)
-      logSearchScrollRequest(scrollId, timeout.toString)
-      val response = request.execute.actionGet
-      logSearchResponse(response)
-
-      scrollId = response.getScrollId
-      batch = response.results[FieldValue].thisPage.map { src =>
-        fieldValueIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.value))
+      val batch = response.results[FieldValue].thisPage.map { src =>
+        fieldValueIndexRequest(FieldValue(src.datasetId, to.copyNumber, src.columnId, src.rowId, src.rawValue))
       }
 
       if (batch.nonEmpty) {
         sendBulkRequest(batch, refresh = false)
       }
-    } while (batch.nonEmpty)
+      response = client.prepareSearchScroll(response.getScrollId)
+        .setScroll(timeout).execute.actionGet
+      logSearchResponse(response)
+    } while (response.getHits().getHits().length != 0)
 
     // TODO : Guarantee refresh before read instead of after write
     if (refresh) {
@@ -266,16 +264,18 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def deleteFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long): Unit =
     deleteByQuery(byColumnIdQuery(datasetId, copyNumber, columnId), Seq(config.fieldValueMapping.mappingType))
 
-  def putDatasetCopy(datasetId: String,
-                     copyNumber: Long,
-                     dataVersion: Long,
-                     stage: LifecycleStage,
-                     refresh: Boolean): Unit = {
+  def putDatasetCopy(
+      datasetId: String,
+      copyNumber: Long,
+      dataVersion: Long,
+      stage: LifecycleStage,
+      refresh: Boolean)
+  : Unit = {
     val id = DatasetCopy.makeDocId(datasetId, copyNumber)
     val source = JsonUtil.renderJson(DatasetCopy(datasetId, copyNumber, dataVersion, stage))
     val request = client.prepareIndex(config.index, config.datasetCopyMapping.mappingType, id)
-      .setSource(source)
-      .setRefresh(refresh)
+      .setSource(source, XContentType.JSON)
+      .setRefreshPolicy(refreshPolicy(refresh))
     logDatasetCopyIndexRequest(id, source)
     request.execute.actionGet
   }
@@ -283,9 +283,9 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def updateDatasetCopyVersion(datasetCopy: DatasetCopy, refresh: Boolean): Unit = {
     val source = JsonUtil.renderJson(datasetCopy)
     val request = client.prepareUpdate(config.index, config.datasetCopyMapping.mappingType, datasetCopy.docId)
-      .setDoc(source)
+      .setDoc(source, XContentType.JSON)
       .setUpsert()
-      .setRefresh(refresh)
+      .setRefreshPolicy(refreshPolicy(refresh))
     logDatasetCopyUpdateRequest(datasetCopy, source)
     val response = request.execute.actionGet
     checkForFailures(response)
@@ -322,16 +322,17 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
   def datasetCopiesByStage(datasetId: String, stage: Stage): List[DatasetCopy] = {
     val query = datasetIdAndOptionalStageQuery(datasetId, Some(stage))
 
-    val countRequest = client.prepareCount(config.index)
+    val countRequest = client.prepareSearch(config.index)
+      .setSize(0)
       .setTypes(config.datasetCopyMapping.mappingType)
       .setQuery(query)
 
-    val count = countRequest.execute.actionGet.result
+    val count = countRequest.execute.actionGet
 
     val request = client.prepareSearch(config.index)
       .setTypes(config.datasetCopyMapping.mappingType)
       .setQuery(query)
-      .setSize(count.toInt)
+      .setSize(count.getHits.totalHits.toInt)
 
     val response = request.execute.actionGet
     val datasetCopies = response.results[DatasetCopy]
@@ -365,21 +366,23 @@ class SpandexElasticSearchClient(config: ElasticSearchConfig) extends ElasticSea
 
   def suggest(column: ColumnMap, size: Int, text: String,
               fuzz: Fuzziness, fuzzLength: Int, fuzzPrefix: Int): Suggest = {
-    val suggestion = new CompletionSuggestionFuzzyBuilder("suggest")
-      .addContextField(SpandexFields.CompositeId, column.compositeId)
-      .setFuzziness(fuzz).setFuzzyPrefixLength(fuzzPrefix).setFuzzyMinLength(fuzzLength)
-      .field(SpandexFields.Value)
-      .text(text)
+
+    val categoryContext = List(CategoryQueryContext.builder().setCategory(column.compositeId).build()).asJava
+    val categoryMap = new java.util.HashMap[String, java.util.List[_ <: ToXContent]]()
+    categoryMap.put(SpandexFields.CompositeId, categoryContext)
+    val contexts: java.util.Map[String, java.util.List[_ <: ToXContent]] = categoryMap
+    val fuzzOptions = FuzzyOptions.builder()
+      .setFuzziness(fuzz)
+      .setFuzzyMinLength(fuzzLength)
+      .setFuzzyPrefixLength(fuzzPrefix)
+      .build()
+    val suggestion = SuggestBuilders.completionSuggestion(SpandexFields.Suggest)
+      .prefix(text, fuzzOptions)
       .size(size)
+      .contexts(contexts)
 
-    // if you ever need to examine the above, you want to do something like:
-    // suggestion.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS).prettyPrint().string()
-
-    val request = client.prepareSuggest(config.index)
-      .addSuggestion(suggestion)
-
-    val response = request.execute.actionGet
-
-    response.getSuggest
+    val request = client.prepareSearch(config.index)
+      .suggest(new SuggestBuilder().addSuggestion(SpandexFields.Suggest, suggestion))
+    request.execute.actionGet.getSuggest
   }
 }

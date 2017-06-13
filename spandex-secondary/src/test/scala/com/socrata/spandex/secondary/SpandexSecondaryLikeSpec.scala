@@ -13,8 +13,8 @@ import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, Te
 import org.joda.time.DateTime
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
-class TestSpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike {
-  val client    = new TestESClient(config)
+class TestSpandexSecondary(config: ElasticSearchConfig, testClient: TestESClient) extends SpandexSecondaryLike {
+  val client    = testClient
   val index     = config.index
   val batchSize = config.dataCopyBatchSize
 
@@ -24,7 +24,8 @@ class TestSpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondary
 // scalastyle:off
 class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESData with BeforeAndAfterEach with BeforeAndAfterAll {
   lazy val config = new SpandexConfig
-  lazy val secondary = new TestSpandexSecondary(config.es)
+  lazy val testClient = new TestESClient(config.es)
+  lazy val secondary = new TestSpandexSecondary(config.es, testClient)
 
   def client = secondary.client
 

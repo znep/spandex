@@ -1,26 +1,28 @@
 package com.socrata.spandex.common.client
 
 import java.nio.file.Files
+import scala.util.Try
+
+import org.apache.commons.io.FileUtils
+import org.elasticsearch.client.{Client, Requests}
+import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.index.query.QueryBuilders._
+import org.elasticsearch.node.Node
 
 import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.spandex.common.{ElasticSearchConfig, SpandexBootstrap}
-import org.apache.commons.io.FileUtils
-import org.elasticsearch.client.{Client, Requests}
-import org.elasticsearch.common.settings.ImmutableSettings
-import org.elasticsearch.index.query.QueryBuilders._
-import org.elasticsearch.node.NodeBuilder._
-
-import scala.util.Try
 
 class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends SpandexElasticSearchClient(config) {
   val tempDataDir = Files.createTempDirectory("elasticsearch_data_").toFile
-  val testSettings = ImmutableSettings.settingsBuilder()
+  val testSettings = Settings.builder()
     .put(settings)
-    .put("discovery.zen.ping.multicast.enabled", false)
     .put("path.data", tempDataDir.toString)
+    .put("path.home", "target/elasticsearch")
+    .put("transport.type", "local")
+    .put("http.enabled", "false")
     .build
 
-  val node = nodeBuilder().settings(testSettings).local(local).node()
+  val node = new Node(testSettings).start()
 
   override val client: Client = node.client()
 

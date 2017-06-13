@@ -28,8 +28,8 @@ class SpandexConfigSpec extends FunSuiteLike with Matchers {
 
   test("config fuzziness acceptable values") {
     Fuzziness.build("AUTO") should be (Fuzziness.AUTO)
-    Fuzziness.build("0").asInt should be (Fuzziness.ZERO.asInt)
-    Fuzziness.build("1").asInt should be (Fuzziness.ONE.asInt)
-    Fuzziness.build("2").asInt should be (Fuzziness.TWO.asInt)
+    Fuzziness.build("0") should be (Fuzziness.ZERO)
+    Fuzziness.build("1") should be (Fuzziness.ONE)
+    Fuzziness.build("2") should be (Fuzziness.TWO)
   }
 }

@@ -1,14 +1,16 @@
 package com.socrata.spandex.common
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+
+import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary.LifecycleStage
-import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import org.elasticsearch.common.unit.Fuzziness
 import org.elasticsearch.search.suggest.Suggest.Suggestion
 import org.elasticsearch.search.suggest.completion.CompletionSuggestion.Entry
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
+import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, SpandexFields, TestESClient}
 
 trait AnalyzerTest {
   def testConfig: Config = ConfigFactory.empty()
@@ -47,9 +49,15 @@ trait AnalyzerTest {
 
   protected def suggest(query: String, fuzz: Fuzziness = Fuzziness.ZERO): mutable.Buffer[String] = {
     val response = client.suggest(col, 10, query, fuzz, 2, 1)
-    val suggest = response.getSuggestion[Suggestion[Entry]]("suggest")
+    val suggest = response.getSuggestion[Suggestion[Entry]](SpandexFields.Suggest)
     val entries = suggest.getEntries
+
     val options = entries.get(0).getOptions
-    options.asScala.map(_.getText.toString)
+    options.asScala.flatMap{ opt =>
+      JsonUtil.parseJson[FieldValue](opt.getHit.getSourceAsString) match {
+        case Right(fieldValue) => Some(fieldValue.rawValue)
+        case Left(err) => None
+      }
+    }
   }
 }
