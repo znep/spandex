@@ -5,6 +5,7 @@ import org.elasticsearch.action.index.IndexRequestBuilder
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 import com.socrata.spandex.common.client.ResponseExtensions._
+import com.socrata.spandex.common.client.SpandexElasticSearchClient._
 import com.socrata.spandex.common.{SpandexConfig, TestESData}
 
 // scalastyle:off
@@ -19,14 +20,15 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
   override def afterAll(): Unit = client.close()
 
   override def beforeEach(): Unit = {
-    bootstrapData()
     client.deleteAllDatasetCopies()
+    bootstrapData()
   }
+
   override def afterEach(): Unit = removeBootstrapData()
 
   def verifyFieldValue(fieldValue: FieldValue): Option[FieldValue] =
     client.client
-      .prepareGet(config.es.index, config.es.fieldValueMapping.mappingType, fieldValue.docId)
+      .prepareGet(config.es.index, FieldValueType, fieldValue.docId)
       .execute.actionGet
       .result[FieldValue]
 
@@ -58,7 +60,8 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     verifyFieldValue(toInsert(1)).get should be (toInsert(1))
     verifyFieldValue(toInsert(2)).get should be (toUpdate(1))
 
-    val deletes = toUpdate.map(fv => client.fieldValueDeleteRequest(fv.datasetId, fv.copyNumber, fv.columnId, fv.rowId))
+    val deletes = toUpdate.map(fv =>
+      client.fieldValueDeleteRequest(fv.datasetId, fv.copyNumber, fv.columnId, fv.rowId))
     client.sendBulkRequest(deletes, refresh = true)
 
     verifyFieldValue(toInsert(0)) should not be 'defined
@@ -126,12 +129,12 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
 
   test("Copy field values from one dataset copy to another") {
     val from = DatasetCopy("copy-test", 1, 2, LifecycleStage.Published)
-    val to   = DatasetCopy("copy-test", 2, 3, LifecycleStage.Unpublished)
+    val to = DatasetCopy("copy-test", 2, 3, LifecycleStage.Unpublished)
 
     val toCopy = for {
-                   col <- 1 to 10
-                   row <- 1 to 10
-                 } yield FieldValue(from.datasetId, from.copyNumber, col, row, s"$col|$row")
+      col <- 1 to 10
+      row <- 1 to 10
+    } yield FieldValue(from.datasetId, from.copyNumber, col, row, s"$col|$row")
 
     val inserts = toCopy.map(client.fieldValueIndexRequest)
     client.sendBulkRequest(inserts, refresh = true)

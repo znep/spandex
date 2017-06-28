@@ -10,6 +10,7 @@ import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
+import com.socrata.spandex.common.client.SpandexElasticSearchClient
 import org.joda.time.DateTime
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
@@ -29,7 +30,8 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESDat
 
   def client = secondary.client
 
-  override protected def beforeAll(): Unit = SpandexBootstrap.ensureIndex(config.es, client)
+  override protected def beforeAll(): Unit =
+    SpandexElasticSearchClient.ensureIndex(config.es.index, config.es.clusterName, client)
 
   override def beforeEach(): Unit = bootstrapData()
 

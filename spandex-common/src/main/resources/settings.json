@@ -1,0 +1,26 @@
+{
+  "analysis":{
+    "analyzer":{
+      "case_insensitive_keyword":{
+        "tokenizer":"keyword",
+        "filter":["lowercase"]
+      },
+      "case_insensitive_whitespace":{
+        "tokenizer":"whitespace",
+        "filter":["lowercase"]
+      },
+      "case_insensitive_word":{
+        "tokenizer":"word",
+        "filter":["lowercase"]
+      }
+    },
+    "tokenizer":{
+      "word":{
+        "type":"pattern",
+        "pattern":"[\\p{C}\\p{P}\\p{Sm}\\p{Sk}\\p{So}\\p{Z}&&[^\\&]]+",
+        "flags":"CASE_INSENSITIVE",
+        "group":-1
+      }
+    }
+  }
+}

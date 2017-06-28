@@ -29,11 +29,6 @@ class ElasticSearchConfig(config: Config) {
   val port               = config.getInt("port") // scalastyle:ignore multiple.string.literals
   val clusterName        = config.getString("cluster-name")
   val index              = config.getString("index")
-  val settings           = config.getString("settings")
-
-  val fieldValueMapping  = new MappingConfig(config.getConfig("mappings.field-value"))
-  val columnMapMapping   = new MappingConfig(config.getConfig("mappings.column-map"))
-  val datasetCopyMapping = new MappingConfig(config.getConfig("mappings.dataset-copy"))
 
   val dataCopyBatchSize  = config.getInt("data-copy-batch-size")
   val dataCopyTimeout    = config.getDuration("data-copy-timeout", TimeUnit.MILLISECONDS)

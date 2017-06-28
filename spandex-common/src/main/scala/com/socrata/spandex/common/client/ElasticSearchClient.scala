@@ -11,13 +11,15 @@ import org.elasticsearch.transport.client.PreBuiltTransportClient
 
 import com.socrata.spandex.common.{ElasticSearchConfig, ElasticsearchClientLogger}
 
-class ElasticSearchClient(config: ElasticSearchConfig) extends Closeable with ElasticsearchClientLogger {
-  Thread.currentThread().setContextClassLoader(this.getClass.getClassLoader)
-  val settings: Settings = Settings.builder()
-    .put("cluster.name", config.clusterName)
+class ElasticSearchClient(host: String, port: Int, clusterName: String)
+  extends Closeable with ElasticsearchClientLogger {
+
+  val settings = Settings.builder()
+    .put("cluster.name", clusterName)
     .put("client.transport.sniff", true)
     .build()
-  val transportAddress = new InetSocketTransportAddress(InetAddress.getByName(config.host), config.port)
+
+  val transportAddress = new InetSocketTransportAddress(InetAddress.getByName(host), port)
   val client: Client = new PreBuiltTransportClient(settings).addTransportAddress(transportAddress)
   logClientConnected(transportAddress, settings)
 
@@ -29,4 +31,9 @@ class ElasticSearchClient(config: ElasticSearchConfig) extends Closeable with El
   logClientHealthcheckStatus(status)
 
   def close(): Unit = client.close()
+}
+
+object ElasticSearchClient {
+  def apply(config: ElasticSearchConfig): ElasticSearchClient =
+    new ElasticSearchClient(config.host, config.port, config.clusterName)
 }

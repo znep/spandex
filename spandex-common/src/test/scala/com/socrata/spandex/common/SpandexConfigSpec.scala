@@ -19,9 +19,6 @@ class SpandexConfigSpec extends FunSuiteLike with Matchers {
     Some(conf.port) should be ('defined)
     Some(conf.clusterName) should be ('defined)
     Some(conf.index) should be ('defined)
-    Some(conf.fieldValueMapping) should be ('defined)
-    Some(conf.columnMapMapping) should be ('defined)
-    Some(conf.datasetCopyMapping) should be ('defined)
     Some(conf.dataCopyBatchSize) should be ('defined)
     Some(conf.dataCopyTimeout) should be ('defined)
   }

@@ -8,15 +8,32 @@ import sbt._
 import sbtbuildinfo.BuildInfoKeys.buildInfoPackage
 import sbtbuildinfo.BuildInfoPlugin
 import scoverage.ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages
+import sbtassembly.AssemblyKeys._
+import sbtassembly.MergeStrategy
+
 
 object SpandexBuild extends Build {
   val Name = "com.socrata.spandex"
   val JettyListenPort = 8042 // required for container embedded jetty
 
+  val dependenciesSnippet = SettingKey[xml.NodeSeq]("dependencies-snippet")
+
   lazy val commonSettings = Seq(
     fork in Test := true,
     testOptions in Test += Tests.Argument("-oF"),
-    resolvers ++= Deps.resolverList
+    resolvers ++= Deps.resolverList,
+    dependenciesSnippet := <xml:group/>,
+    ivyXML <<= dependenciesSnippet { snippet =>
+      <dependencies>
+      {snippet.toList}
+      <exclude org="commons-logging" module="commons-logging-api"/>
+      <exclude org="commons-logging" module="commons-logging"/>
+      </dependencies>
+    },
+    assemblyMergeStrategy in assembly := {
+      case "META-INF/io.netty.versions.properties" => MergeStrategy.last
+      case other => MergeStrategy.defaultMergeStrategy(other)
+    }
   )
 
   lazy val build = Project(

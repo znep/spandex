@@ -5,7 +5,7 @@ import com.socrata.datacoordinator.secondary.Secondary.Cookie
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types._
-import com.socrata.spandex.common.{CompletionAnalyzer, SpandexBootstrap, ElasticSearchConfig, SpandexConfig}
+import com.socrata.spandex.common.{CompletionAnalyzer, ElasticSearchConfig, SpandexConfig}
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
 import com.typesafe.config.{ConfigFactory, Config}
 import com.typesafe.scalalogging.slf4j.Logging
@@ -17,7 +17,7 @@ class SpandexSecondary(config: SpandexConfig) extends SpandexSecondaryLike {
   def this(rawConfig: Config) = this(new SpandexConfig(rawConfig.withFallback(
     ConfigFactory.load(classOf[SpandexSecondary].getClassLoader).getConfig("com.socrata.spandex"))))
 
-  val client = new SpandexElasticSearchClient(config.es)
+  val client = SpandexElasticSearchClient(config.es)
   val index  = config.es.index
   val batchSize = config.es.dataCopyBatchSize
 
@@ -33,7 +33,7 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
 
   def init(config: SpandexConfig): Unit = {
     logger.info("Configuration:\n" + config.debugString)
-    SpandexBootstrap.ensureIndex(config.es, client)
+    SpandexElasticSearchClient.ensureIndex(config.es.index, config.es.clusterName, client)
     CompletionAnalyzer.configure(config.analysis)
   }
 

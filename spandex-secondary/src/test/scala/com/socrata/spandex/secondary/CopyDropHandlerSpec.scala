@@ -4,7 +4,7 @@ import org.scalatest.prop.PropertyChecks
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import com.socrata.datacoordinator.secondary.LifecycleStage
-import com.socrata.spandex.common.{SpandexBootstrap, SpandexConfig, TestESData}
+import com.socrata.spandex.common.{SpandexConfig, TestESData}
 import com.socrata.spandex.common.client._
 
 class CopyDropHandlerSpec extends FunSuiteLike
@@ -28,7 +28,9 @@ class CopyDropHandlerSpec extends FunSuiteLike
   // Make batches teensy weensy to expose any batching issues
   val handler = new VersionEventsHandler(client, 2)
 
-  override protected def beforeAll(): Unit = SpandexBootstrap.ensureIndex(config.es, client)
+  override protected def beforeAll(): Unit =
+    SpandexElasticSearchClient.ensureIndex(config.es.index, config.es.clusterName, client)
+
   override def beforeEach(): Unit = {
     client.deleteAllDatasetCopies()
     bootstrapData()

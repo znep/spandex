@@ -11,6 +11,7 @@ import org.elasticsearch.search.suggest.Suggest.Suggestion
 import org.elasticsearch.search.suggest.completion.CompletionSuggestion.Entry
 
 import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, SpandexFields, TestESClient}
+import com.socrata.spandex.common.client.SpandexElasticSearchClient
 
 trait AnalyzerTest {
   def testConfig: Config = ConfigFactory.empty()
@@ -26,7 +27,7 @@ trait AnalyzerTest {
   protected lazy val client = new TestESClient(config.es)
 
   protected def analyzerBeforeAll(): Unit = {
-    SpandexBootstrap.ensureIndex(config.es, client)
+    SpandexElasticSearchClient.ensureIndex(config.es.index, config.es.clusterName, client)
     CompletionAnalyzer.configure(config.analysis)
   }
 

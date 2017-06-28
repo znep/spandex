@@ -13,8 +13,9 @@ import org.scalatest.prop.PropertyChecks
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
 import com.socrata.spandex.common.client.ResponseExtensions._
-import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
-import com.socrata.spandex.common.{SpandexBootstrap, SpandexConfig, TestESData}
+import com.socrata.spandex.common.client._
+import com.socrata.spandex.common.client.SpandexElasticSearchClient._
+import com.socrata.spandex.common.{SpandexConfig, TestESData}
 
 // scalastyle:off
 class VersionEventsHandlerSpec extends FunSuiteLike
@@ -30,7 +31,9 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   val handler = new VersionEventsHandler(client, 2)
 
 
-  override protected def beforeAll(): Unit = SpandexBootstrap.ensureIndex(config.es, client)
+  override protected def beforeAll(): Unit =
+    SpandexElasticSearchClient.ensureIndex(config.es.index, config.es.clusterName, client)
+
   override def beforeEach(): Unit = {
     client.deleteAllDatasetCopies()
     bootstrapData()
@@ -374,7 +377,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val fv = RowOpsHandler.fieldValueFromDatum(datasets(0), 1L, new RowId(62L), (new ColumnId(2L), new SoQLText("(((o(\u001F´▽`\u001F)o)))")))
     client.indexFieldValue(fv, refresh = true)
     client.client
-      .prepareGet(config.es.index, config.es.fieldValueMapping.mappingType, fv.docId)
+      .prepareGet(config.es.index, FieldValueType, fv.docId)
       .execute.actionGet
       .result[FieldValue].get.rawValue should be("(((o(´▽`)o)))")
   }

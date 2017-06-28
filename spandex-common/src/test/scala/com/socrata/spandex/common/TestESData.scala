@@ -9,24 +9,21 @@ trait TestESData {
   val datasets = Seq("primus.1234", "primus.9876")
 
   def copies(dataset: String): Seq[DatasetCopy] = {
-    val snapshot    = DatasetCopy(dataset, 1, 5, LifecycleStage.Snapshotted) // scalastyle:ignore magic.number
-    val published   = DatasetCopy(dataset, 2, 10, LifecycleStage.Published) // scalastyle:ignore magic.number
+    val snapshot = DatasetCopy(dataset, 1, 5, LifecycleStage.Snapshotted) // scalastyle:ignore magic.number
+    val published = DatasetCopy(dataset, 2, 10, LifecycleStage.Published) // scalastyle:ignore magic.number
     val workingCopy = DatasetCopy(dataset, 3, 15, LifecycleStage.Unpublished) // scalastyle:ignore magic.number
     Seq(snapshot, published, workingCopy).sortBy(_.copyNumber)
   }
 
-  def columns(dataset: String, copy: DatasetCopy): Seq[ColumnMap] = {
-    for {column <- 1 to 3} yield {
-      ColumnMap(dataset, copy.copyNumber, column, s"col$column")
-    }
-  }
+  def columns(dataset: String, copy: DatasetCopy): Seq[ColumnMap] =
+    (1 to 3).map(column => ColumnMap(dataset, copy.copyNumber, column, s"col$column"))
 
   def makeRowData(col: Long, row: Long): String = s"data column $col row $row"
-  def rows(col: ColumnMap): Seq[FieldValue] = {
-    for {row <- 1 to 5} yield {
+
+  def rows(col: ColumnMap): Seq[FieldValue] =
+    (1 to 5).map(row =>
       FieldValue(col.datasetId, col.copyNumber, col.systemColumnId, row, makeRowData(col.systemColumnId, row))
-    }
-  }
+    )
 
   def config: SpandexConfig
   def client: SpandexElasticSearchClient
@@ -36,20 +33,19 @@ trait TestESData {
     // - an old snapshot copy
     // - the most recent published copy
     // - a working copy
-    for {
-      ds <- datasets
-    } {
-      for { copy <- copies(ds) } {
+    datasets.map { ds =>
+      copies(ds).map { copy =>
         client.putDatasetCopy(ds, copy.copyNumber, copy.version, copy.stage, refresh = true)
 
-        for {col <- columns(ds, copy)} {
+        columns(ds, copy).map { col =>
           client.putColumnMap(
             ColumnMap(ds, copy.copyNumber, col.systemColumnId, col.userColumnId),
-            refresh = true)
+            refresh = true
+          )
 
-          for {doc <- rows(col)} {
+          rows(col).map(doc =>
             client.indexFieldValue(doc, refresh = true)
-          }
+          )
         }
       }
     }
