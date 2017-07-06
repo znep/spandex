@@ -1,0 +1,61 @@
+#!/bin/bash
+
+set -e
+
+ENVIRONMENT="local"
+
+if [[ "$1" != "" ]]; then
+    ENVIRONMENT="$1"
+fi
+
+if [[ "$ENVIRONMENT" != "local" &&
+      "$ENVIRONMENT" != "staging" &&
+      "$ENVIRONMENT" != "rc" &&
+      "$ENVIRONMENT" != "eu-west-1-prod" &&
+      "$ENVIRONMENT" != "fedramp-prod" ]]; then
+    echo "Invalid environment specified ($ENVIRONMENT)"
+    echo "Must be one of local (default), staging, rc, eu-west-1-prod, fedramp-prod"
+    exit 1
+fi
+
+JQ=`which jq`
+
+if [[ $ENVIRONMENT == "fedramp-prod" ]]; then
+    JQ=/data/home/rlvoyer/jq-linux64
+fi
+
+HERE="$PWD"
+RESOURCES="$HERE/spandex-common/src/main/resources"
+
+ENV_SETTINGS=$(cat $RESOURCES/cluster_overrides.json | $JQ ".\"$ENVIRONMENT\"")
+echo $ENV_SETTINGS
+ES_CLUSTER_URL=$(echo $ENV_SETTINGS | $JQ -r '[.host, .port|tostring] | join(":")')
+CLUSTER_SETTINGS=$(echo $ENV_SETTINGS | $JQ -c '.settings.index')
+echo $CLUSTER_SETTINGS
+
+cat $RESOURCES/settings.json |
+    $JQ --argjson cluster_settings "$CLUSTER_SETTINGS" '{"settings": {"index": (. + $cluster_settings)}}' > /tmp/settings_full.json
+
+TIMESTAMP=$(date +"%Y%m%d")
+INDEX_NAME="spandex-$TIMESTAMP"
+
+if [[ "$ENVIRONMENT" == "local" ]]; then
+  echo "Deleting existing index on localhost (only happens in local environment)"
+  curl -XDELETE http://localhost:9200/spandex
+fi
+
+echo "Creating index $INDEX_NAME on cluster at $ES_CLUSTER_URL..."
+curl -XPUT "http://$ES_CLUSTER_URL/$INDEX_NAME" -d @/tmp/settings_full.json
+
+echo "Creating index alias..."
+curl -XPOST "http://$ES_CLUSTER_URL/_aliases" -d "
+{
+    \"actions\" : [
+        {\"add\" : {\"index\": \"$INDEX_NAME\", \"alias\": \"spandex\"}}
+    ]
+}"
+
+echo "Creating mappings..."
+curl -XPUT "http://$ES_CLUSTER_URL/$INDEX_NAME/_mapping/dataset_copy" --data-binary @$RESOURCES/mapping.dataset_copy.json
+curl -XPUT "http://$ES_CLUSTER_URL/$INDEX_NAME/_mapping/column_map" --data-binary @$RESOURCES/mapping.column_map.json
+curl -XPUT "http://$ES_CLUSTER_URL/$INDEX_NAME/_mapping/field_value" --data-binary @$RESOURCES/mapping.field_value.json
