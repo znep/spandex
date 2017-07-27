@@ -1,2 +1,2 @@
-clients-common==0.2.10
+clients-common==0.3.3
 pandas==0.19.2

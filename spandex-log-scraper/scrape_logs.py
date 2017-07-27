@@ -29,6 +29,8 @@ def one_week_ago():
     one_week_ago = now - timedelta(weeks=1)
     return one_week_ago.replace(hour=0, minute=0, second=0, microsecond=0)
 
+ENVIRONMENTS = ("us-west-2-staging", "us-west-2-rc", "eu-west-1-prod", "us-east-1-fedramp-prod")
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -40,7 +42,7 @@ def parse_args():
 
     parser.add_argument(
         "-t", "--to_date", type=isodate, default=today(),
-        help="The ISO-formatted date to end querying event data at")    
+        help="The ISO-formatted date to end querying event data at")
 
     parser.add_argument(
         "--s3_bucket", help="The S3 bucket to which logs will be written", required=True)
@@ -48,12 +50,14 @@ def parse_args():
     parser.add_argument("--aws_profile", help="The AWS profile name for writing logs to S3")
     parser.add_argument("--sumo_access_id", help="The access ID to use for the Sumo Logic API")
     parser.add_argument("--sumo_access_key", help="The access key to use for the Sumo Logic API")
+    parser.add_argument("--environment", help="The environment", choices=ENVIRONMENTS,
+                        required=True)
 
     return parser.parse_args()
 
 
-SUMO_LOGIC_QUERY = '"/suggest" | where backend_name = "spandex-http" | ' \
-                   'where env = "us-east-1-fedramp-prod"'
+def sumo_logic_query(environment):
+    return f'"/suggest" | where backend_name = "spandex-http" | where env = "{environment}"'
 
 REQUEST_FIELDS = ["_raw", "_messagetime"]
 
@@ -73,11 +77,12 @@ def main():
     sumo_access_key = args.sumo_access_key or os.environ["SUMOLOGIC_ACCESS_KEY"]
     sumo_logic_client = SumoLogicClient(sumo_access_id, sumo_access_key)
 
-    logging.info("Searching for request logs in range {} to {}".format(
-        from_date.isoformat(), to_date.isoformat()
-    ))
+    logging.info(
+        "Searching for request logs in {} in range {} to {}".format(
+            args.environment, from_date.isoformat(), to_date.isoformat()))
+
     request_logs = sumo_logic_client.search(
-        SUMO_LOGIC_QUERY, start_dt=from_date, end_dt=to_date, fields=REQUEST_FIELDS)
+        sumo_logic_query(args.environment), start_dt=from_date, end_dt=to_date, fields=REQUEST_FIELDS)
 
     tmp_file = NamedTemporaryFile(mode='w', encoding='utf-8', delete=False)
     logging.debug("Writing out logs to temporary file {}".format(tmp_file.name))

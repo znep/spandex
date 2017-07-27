@@ -6,4 +6,4 @@ source /dev/shm/spandex-log-scraper.env
 
 set -vx
 
-python scrape_logs.py --s3_bucket=${S3_BUCKET} 
+python scrape_logs.py --s3_bucket=${S3_BUCKET} --environment=${ENVIRONMENT}
