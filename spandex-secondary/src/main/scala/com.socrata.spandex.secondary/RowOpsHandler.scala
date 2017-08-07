@@ -3,18 +3,21 @@ package com.socrata.spandex.secondary
 import com.socrata.datacoordinator.id.{ColumnId, RowId}
 import com.socrata.datacoordinator.secondary._
 import com.socrata.soql.types.{SoQLText, SoQLValue}
-import com.socrata.spandex.common.client.{FieldValue, SpandexElasticSearchClient}
-import com.socrata.spandex.secondary.RowOpsHandler._
 import org.elasticsearch.action.ActionRequestBuilder
 
-case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) extends SecondaryEventLogger {
-  type RequestBuilder = ActionRequestBuilder[_,_,_,_]
+import com.socrata.spandex.common.client.{FieldValue, SpandexElasticSearchClient}
+import com.socrata.spandex.secondary.RowOpsHandler._
 
-  private[this] def requestsForRow(datasetName: String,
-                             copyNumber: Long,
-                             rowId: RowId,
-                             data: Row[SoQLValue],
-                             builder: FieldValue => RequestBuilder): Seq[RequestBuilder] = {
+case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) extends SecondaryEventLogger {
+  type RequestBuilder = ActionRequestBuilder[_,_,_]
+
+  private[this] def requestsForRow(
+      datasetName: String,
+      copyNumber: Long,
+      rowId: RowId,
+      data: Row[SoQLValue],
+      builder: FieldValue => RequestBuilder)
+  : Seq[RequestBuilder] = {
     data.toSeq.collect {
       // Spandex only stores text columns; other column types are a no op
       case (id, value: SoQLText) =>
@@ -59,10 +62,12 @@ case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) ext
 }
 
 object RowOpsHandler {
-  def fieldValueFromDatum(datasetName: String,
-                          copyNumber: Long,
-                          rowId: RowId,
-                          datum: (ColumnId, SoQLText)): FieldValue = datum match {
+  def fieldValueFromDatum(
+      datasetName: String,
+      copyNumber: Long,
+      rowId: RowId,
+      datum: (ColumnId, SoQLText))
+  : FieldValue = datum match {
     case (id, value) => FieldValue(datasetName, copyNumber, id.underlying, rowId.underlying,
       // *sigh* a cluster side analysis char_filter doesn't catch this one character in time.
       value.value.replaceAll("\u001f", ""))

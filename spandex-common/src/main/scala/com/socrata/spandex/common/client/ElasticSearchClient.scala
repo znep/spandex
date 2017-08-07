@@ -1,24 +1,26 @@
 package com.socrata.spandex.common.client
 
 import java.io.Closeable
-
-import com.socrata.spandex.common.{ElasticSearchConfig, ElasticsearchClientLogger}
-import org.elasticsearch.client.Client
-import org.elasticsearch.client.transport.TransportClient
-import org.elasticsearch.common.settings.{ImmutableSettings, Settings}
-import org.elasticsearch.common.transport.InetSocketTransportAddress
-
+import java.net.InetAddress
 import scala.util.control.NonFatal
 
-class ElasticSearchClient(config: ElasticSearchConfig) extends Closeable with ElasticsearchClientLogger {
-  Thread.currentThread().setContextClassLoader(this.getClass.getClassLoader)
-  val settings: Settings = ImmutableSettings.settingsBuilder()
-                                            .put("cluster.name", config.clusterName)
-                                            .put("client.transport.sniff", true)
-                                            .put("path.conf", "esconfigs/names.txt")
-                                            .build()
-  val transportAddress = new InetSocketTransportAddress(config.host, config.port)
-  val client: Client = new TransportClient(settings).addTransportAddress(transportAddress)
+import org.elasticsearch.client.Client
+import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.common.transport.InetSocketTransportAddress
+import org.elasticsearch.transport.client.PreBuiltTransportClient
+
+import com.socrata.spandex.common.{ElasticSearchConfig, ElasticsearchClientLogger}
+
+class ElasticSearchClient(host: String, port: Int, clusterName: String)
+  extends Closeable with ElasticsearchClientLogger {
+
+  val settings = Settings.builder()
+    .put("cluster.name", clusterName)
+    .put("client.transport.sniff", true)
+    .build()
+
+  val transportAddress = new InetSocketTransportAddress(InetAddress.getByName(host), port)
+  val client: Client = new PreBuiltTransportClient(settings).addTransportAddress(transportAddress)
   logClientConnected(transportAddress, settings)
 
   val status = try {
@@ -26,7 +28,13 @@ class ElasticSearchClient(config: ElasticSearchConfig) extends Closeable with El
   } catch {
     case NonFatal(e) => e.getMessage
   }
+
   logClientHealthcheckStatus(status)
 
   def close(): Unit = client.close()
+}
+
+object ElasticSearchClient {
+  def apply(config: ElasticSearchConfig): ElasticSearchClient =
+    new ElasticSearchClient(config.host, config.port, config.clusterName)
 }

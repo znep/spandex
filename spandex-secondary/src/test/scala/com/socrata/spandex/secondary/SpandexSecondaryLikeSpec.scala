@@ -10,12 +10,13 @@ import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
+import com.socrata.spandex.common.client.SpandexElasticSearchClient
 import org.joda.time.DateTime
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
-class TestSpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondaryLike {
-  val client    = new TestESClient(config)
-  val index     = config.index
+class TestSpandexSecondary(config: ElasticSearchConfig, testClient: TestESClient) extends SpandexSecondaryLike {
+  val client = testClient
+  val index = config.index
   val batchSize = config.dataCopyBatchSize
 
   def shutdown(): Unit = client.close()
@@ -23,12 +24,16 @@ class TestSpandexSecondary(config: ElasticSearchConfig) extends SpandexSecondary
 
 // scalastyle:off
 class SpandexSecondaryLikeSpec extends FunSuiteLike with Matchers with TestESData with BeforeAndAfterEach with BeforeAndAfterAll {
-  lazy val config = new SpandexConfig
-  lazy val secondary = new TestSpandexSecondary(config.es)
+  val config = new SpandexConfig
+
+  val indexName = getClass.getSimpleName.toLowerCase
+  val testClient = new TestESClient(indexName)
+  val secondary = new TestSpandexSecondary(config.es, testClient)
 
   def client = secondary.client
 
-  override protected def beforeAll(): Unit = SpandexBootstrap.ensureIndex(config.es, client)
+  override protected def beforeAll(): Unit =
+    SpandexElasticSearchClient.ensureIndex(config.es.index, client)
 
   override def beforeEach(): Unit = bootstrapData()
 

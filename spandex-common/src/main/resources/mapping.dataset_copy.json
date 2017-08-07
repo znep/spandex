@@ -1,0 +1,20 @@
+{
+  "dynamic": "strict",
+  "_all": {
+    "enabled": false
+  },
+  "properties": {
+    "copy_number": {
+      "type": "long"
+    },
+    "dataset_id": {
+      "type": "keyword"
+    },
+    "stage": {
+      "type": "keyword"
+    },
+    "version": {
+      "type": "long"
+    }
+  }
+}

@@ -1,13 +1,12 @@
 package com.socrata.spandex.http
 
-import javax.servlet.http.{HttpServletResponse => HttpStatus}
+import javax.servlet.http.{HttpServletRequest, HttpServletResponse => HttpStatus}
 
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.spandex.common._
 import com.socrata.spandex.common.client._
 import com.socrata.spandex.http.SpandexResult.Fields._
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
-import org.elasticsearch.common.unit.Fuzziness
 
 import scala.util.Try
 
@@ -50,10 +49,26 @@ class SpandexServlet(conf: SpandexConfig,
     clusterAdminClient.health(req).actionGet().toString
   }
 
-  def time[A](requestName: String)(f: => A): A = {
+  def formatLogging(request: HttpServletRequest, elapsedTime: Long): String = {
+    List(
+      "[" + request.getMethod + "]",
+      request.getPathInfo,
+      request.getQueryString,
+      "requested by",
+      request.getRemoteHost,
+      s"extended host = ${request.header("X-Socrata-Host")}",
+      s"request id = ${request.header("X-Socrata-RequestId")}",
+      s"user agent = ${request.header("User-Agent")}",
+      s"""TIMINGS ## ESTime : ## ServiceTime : ${elapsedTime}"""
+    ).mkString(" -- ")
+  }
+
+  def time[A](request: HttpServletRequest, requestName: String)(f: => A): A = {
     val now = Timings.now
     val res = f
     val elapsed = Timings.elapsedInMillis(now)
+    logger.info(formatLogging(request, elapsed))
+    // TODO: remove this once dashboards have been updated to use the request details logged above
     logger.info(s"Spandex $requestName request took $elapsed ms")
     res
   }
@@ -69,21 +84,14 @@ class SpandexServlet(conf: SpandexConfig,
    * @deprecated use endpoint below instead (w/ optional `paramText` query parameter)
    */
   get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId/:$paramText") {
-    time("suggestText") {
-      suggest { (col, text, fuzz, size) =>
-        SpandexResult(client.suggest(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
+    time(request, "suggestText") {
+      suggest { (col, text, size) =>
+        SpandexResult(client.suggest(col, size, text))
       }
     }
   }
 
   /* Search for suggestions given a search string or just a column identifier.
-   *
-   * Ignore the provided text and fuzziness parameters and replace as follows.
-   * Text "1 character" => blank string is not allowed, but through the fuzziness below
-   *                       this 1 character will be factored out.
-   * Fuzziness ONE => approximately allows 1 edit distance from the given to result texts.
-   * Fuzz Length 0 => start giving fuzzy results from any length of input text.
-   * Fuzz Prefix 0 => allow all results no matter how badly matched.
    *
    * @param paramDatasetId the dataset system ID for the dataset to search
    * @param paramStageInfo the publication stage or "latest"
@@ -91,23 +99,19 @@ class SpandexServlet(conf: SpandexConfig,
    * @param paramText the text to search for
    * @return `SpandexResult`
    */
-  private[this] val sampleText = "a"
-  private[this] val sampleFuzz = Fuzziness.ONE
-  private[this] val sampleFuzzLen = 0
-  private[this] val sampleFuzzPre = 0
   // looks like: /suggest/alpha.1234/latest/abcd-1234 where abcd-1234 is the column 4x4
   get(s"/$routeSuggest/:$paramDatasetId/:$paramStageInfo/:$paramUserColumnId") {
     params.get(paramText) match {
       case None =>
-        time("suggestSample") {
-          suggest { (col, _, _, size) =>
-            SpandexResult(client.suggest(col, size, sampleText, sampleFuzz, sampleFuzzLen, sampleFuzzPre))
+        time(request, "suggestSample") {
+          suggest { (col, _, size) =>
+            SpandexResult(client.suggest(col, size, ""))
           }
         }
       case Some(s) =>
-        time("suggestText") {
-          suggest { (col, text, fuzz, size) =>
-            SpandexResult(client.suggest(col, size, text, fuzz, conf.suggestFuzzLength, conf.suggestFuzzPrefix))
+        time(request, "suggestText") {
+          suggest { (col, text, size) =>
+            SpandexResult(client.suggest(col, size, text))
           }
         }
     }
@@ -123,7 +127,7 @@ class SpandexServlet(conf: SpandexConfig,
    * index it and we'll get a broken dataset alert.
    */
   delete(s"/$routeSuggest/:$paramDatasetId") {
-    time("deleteDataset") {
+    time(request, "deleteDataset") {
       contentType = ContentTypeJson
       val datasetId = params.getOrElse(paramDatasetId, halt(HttpStatus.SC_BAD_REQUEST))
       JsonUtil.renderJson(client.deleteDatasetById(datasetId))
@@ -142,7 +146,7 @@ class SpandexServlet(conf: SpandexConfig,
   }
 
   // scalastyle:ignore method.length
-  def suggest(f: (ColumnMap, String, Fuzziness, Int) => SpandexResult): String = {
+  def suggest(f: (ColumnMap, String, Int) => SpandexResult): String = {
     logger.info(s">>> $requestPath params: $params")
 
     contentType = ContentTypeJson
@@ -152,7 +156,6 @@ class SpandexServlet(conf: SpandexConfig,
     val text = urlDecode(params.getOrElse(paramText, ""))
     logger.info(s"urlDecoded param text -> $text")
 
-    val fuzz = Fuzziness.build(params.getOrElse(paramFuzz, conf.suggestFuzziness))
     val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
 
     // this results in an max aggregation with a sort
@@ -207,7 +210,8 @@ class SpandexServlet(conf: SpandexConfig,
     // }
     // https://www.elastic.co/guide/en/elasticsearch/reference/1.7/search-suggesters-completion.html
     // http://blog.mikemccandless.com/2010/12/using-finite-state-transducers-in.html
-    val result = f(column, text, fuzz, size)
+
+    val result = f(column, text, size)
     logger.info(s"<<< $result")
     JsonUtil.renderJson(result)
   }

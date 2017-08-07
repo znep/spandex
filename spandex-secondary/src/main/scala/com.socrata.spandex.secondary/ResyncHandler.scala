@@ -39,11 +39,12 @@ case class ResyncHandler(client: SpandexElasticSearchClient) extends SecondaryEv
     client.refresh()
   }
 
-  private[this] def insertRows(datasetInfo: DatasetInfo,
-                         copyInfo: CopyInfo,
-                         schema: ColumnIdMap[ColumnInfo[SoQLType]],
-                         rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],
-                         batchSize: Int) = {
+  private[this] def insertRows(
+      datasetInfo: DatasetInfo,
+      copyInfo: CopyInfo,
+      schema: ColumnIdMap[ColumnInfo[SoQLType]],
+      rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],
+      batchSize: Int) = {
     // Use the system ID of each row to derive its row ID.
     // This logic is adapted from PG Secondary code in soql-postgres-adapter
     // store-pg/src/main/scala/com/socrata/pg/store/PGSecondary.scala#L415

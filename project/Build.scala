@@ -8,15 +8,32 @@ import sbt._
 import sbtbuildinfo.BuildInfoKeys.buildInfoPackage
 import sbtbuildinfo.BuildInfoPlugin
 import scoverage.ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages
+import sbtassembly.AssemblyKeys._
+import sbtassembly.MergeStrategy
+
 
 object SpandexBuild extends Build {
   val Name = "com.socrata.spandex"
   val JettyListenPort = 8042 // required for container embedded jetty
 
+  val dependenciesSnippet = SettingKey[xml.NodeSeq]("dependencies-snippet")
+
   lazy val commonSettings = Seq(
     fork in Test := true,
     testOptions in Test += Tests.Argument("-oF"),
-    resolvers ++= Deps.resolverList
+    resolvers ++= Deps.resolverList,
+    dependenciesSnippet := <xml:group/>,
+    ivyXML <<= dependenciesSnippet { snippet =>
+      <dependencies>
+      {snippet.toList}
+      <exclude org="commons-logging" module="commons-logging-api"/>
+      <exclude org="commons-logging" module="commons-logging"/>
+      </dependencies>
+    },
+    assemblyMergeStrategy in assembly := {
+      case "META-INF/io.netty.versions.properties" => MergeStrategy.last
+      case other => MergeStrategy.defaultMergeStrategy(other)
+    }
   )
 
   lazy val build = Project(
@@ -25,14 +42,6 @@ object SpandexBuild extends Build {
     settings = commonSettings
   ).aggregate(spandexCommon, spandexHttp, spandexSecondary)
     .dependsOn(spandexCommon, spandexHttp, spandexSecondary)
-
-  lazy val perf = Project(
-    "perf",
-    file("./spandex-perf/"),
-    settings = commonSettings ++ Seq(
-      libraryDependencies ++= Deps.common ++ Deps.perf
-    )
-  ).enablePlugins(JmhPlugin).dependsOn(build % "compile;test->test")
 
   lazy val spandexCommon = Project (
     "spandex-common",
@@ -119,15 +128,17 @@ object Deps {
   )
   lazy val test = Seq(
     "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
-    "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test"
+    "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
+    "org.apache.logging.log4j" % "log4j-api" % "2.7",
+    "org.apache.logging.log4j" % "log4j-core" % "2.7"
   )
-  lazy val perf = Seq()
   lazy val common = Seq(
     "javax.servlet" % "javax.servlet-api" % "3.1.0",
     "com.typesafe" % "config" % "1.2.1",
     "com.typesafe" %% "scalalogging-slf4j" % "1.1.0",
     "commons-io" % "commons-io" % "2.4",
-    "org.elasticsearch" % "elasticsearch" % "1.7.2"
+    "org.elasticsearch" % "elasticsearch" % "5.4.1",
+    "org.elasticsearch.client" % "transport" % "5.4.1"
   )
   lazy val secondary = Seq(
     "com.socrata" %% "secondarylib" % "3.3.5"

@@ -7,29 +7,31 @@ import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLText, SoQLValue}
-import com.socrata.spandex.common.client.ResponseExtensions._
-import com.socrata.spandex.common.client.{ColumnMap, DatasetCopy, FieldValue, TestESClient}
-import com.socrata.spandex.common.{SpandexBootstrap, SpandexConfig, TestESData}
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.joda.time.DateTime
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
 
+import com.socrata.spandex.common.client.ResponseExtensions._
+import com.socrata.spandex.common.client._
+import com.socrata.spandex.common.client.SpandexElasticSearchClient._
+import com.socrata.spandex.common.TestESData
+
 // scalastyle:off
 class VersionEventsHandlerSpec extends FunSuiteLike
-                                  with Matchers
-                                  with BeforeAndAfterAll
-                                  with BeforeAndAfterEach
-                                  with PropertyChecks
-                                  with TestESData {
-  val config = new SpandexConfig(ConfigFactory.load().getConfig("com.socrata.spandex")
-    .withValue("elastic-search.index", ConfigValueFactory.fromAnyRef("spandex-dataset-versioneventshandler")))
-  val client = new TestESClient(config.es)
+  with Matchers
+  with BeforeAndAfterAll
+  with BeforeAndAfterEach
+  with PropertyChecks
+  with TestESData {
+
+  val indexName = getClass.getSimpleName.toLowerCase
+  val client = new TestESClient(indexName)
+
   // Make batches teensy weensy to expose any batching issues
   val handler = new VersionEventsHandler(client, 2)
 
+  override protected def beforeAll(): Unit = SpandexElasticSearchClient.ensureIndex(indexName, client)
 
-  override protected def beforeAll(): Unit = SpandexBootstrap.ensureIndex(config.es, client)
   override def beforeEach(): Unit = {
     client.deleteAllDatasetCopies()
     bootstrapData()
@@ -373,7 +375,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val fv = RowOpsHandler.fieldValueFromDatum(datasets(0), 1L, new RowId(62L), (new ColumnId(2L), new SoQLText("(((o(\u001F´▽`\u001F)o)))")))
     client.indexFieldValue(fv, refresh = true)
     client.client
-      .prepareGet(config.es.index, config.es.fieldValueMapping.mappingType, fv.docId)
+      .prepareGet(indexName, FieldValueType, fv.docId)
       .execute.actionGet
       .result[FieldValue].get.value should be("(((o(´▽`)o)))")
   }

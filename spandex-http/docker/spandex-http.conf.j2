@@ -2,10 +2,9 @@ com.socrata.spandex {
   port = 8042
 
   elastic-search {
-    host = "{{ SPANDEX_SECONDARY_ES_HOST }}"
+    host = {{ SPANDEX_SECONDARY_ES_HOST }}
     port = {{ SPANDEX_SECONDARY_ES_PORT }}
-    cluster-name = "{{ SPANDEX_SECONDARY_ES_CLUSTER_NAME }}"
-    index = "{{ SPANDEX_SECONDARY_ES_INDEX_ALIAS }}"
+    cluster-name = {{ SPANDEX_SECONDARY_ES_CLUSTER_NAME }}
   }
 
   log4j.rootLogger = [ {{ LOG_LEVEL }}, console ]

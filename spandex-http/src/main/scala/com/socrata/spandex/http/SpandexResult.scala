@@ -1,13 +1,16 @@
 package com.socrata.spandex.http
 
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
-import com.socrata.spandex.common.client.{FieldValue, SearchResults}
-import org.elasticsearch.search.suggest.Suggest
-import org.elasticsearch.search.suggest.Suggest.Suggestion
-import org.elasticsearch.search.suggest.completion.CompletionSuggestion.Entry
+import com.typesafe.scalalogging.slf4j.Logging
+import com.socrata.spandex.common.client.BucketKeyVal
 
-import scala.collection.JavaConverters._
-import scala.util.Try
+import com.socrata.spandex.common.client.{FieldValue, SearchResults}
+
+import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
+import com.typesafe.scalalogging.slf4j.Logging
+import com.socrata.spandex.common.client.BucketKeyVal
+
+import com.socrata.spandex.common.client.{FieldValue, SearchResults, SpandexFields}
 
 case class SpandexOption(text: String, score: Option[Float])
 
@@ -17,25 +20,15 @@ object SpandexOption {
 
 case class SpandexResult(options: Seq[SpandexOption])
 
-object SpandexResult {
+object SpandexResult extends Logging {
   implicit val jCodec = AutomaticJsonCodecBuilder[SpandexResult]
 
-  def apply(response: Suggest): SpandexResult = {
-    val suggest = response.getSuggestion[Suggestion[Entry]]("suggest")
-    val entries = suggest.getEntries
-    val options = entries.get(0).getOptions
-    SpandexResult(options.asScala.map { a =>
-      SpandexOption(a.getText.string(), Try{Some(a.getScore)}.getOrElse(None))
-    })
-  }
-
-  /* Not yet used.
-   * Transforms a search result with aggregation into spandex result options
-   */
-  def apply(response: SearchResults[FieldValue]): SpandexResult =
-    SpandexResult(response.aggs.map { src =>
-      SpandexOption(src.key, Some(src.docCount))
-    })
+  def apply(results: SearchResults[FieldValue]): SpandexResult =
+    SpandexResult(
+      results.aggs.map { case BucketKeyVal(key, value) =>
+        SpandexOption(key, Some(value.toFloat))
+      }
+    )
 
   object Fields {
     private[this] def formatQuotedString(s: String) = "\"%s\"" format s
@@ -45,7 +38,6 @@ object SpandexResult {
     val paramStageInfo = "stage"
     val paramUserColumnId = "userColumnId"
     val paramText = "text"
-    val paramFuzz = "fuzz"
     val paramSize = "size"
     val options = "options"
     val optionsJson = formatQuotedString(options)

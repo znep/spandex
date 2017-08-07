@@ -5,7 +5,7 @@ import com.socrata.datacoordinator.secondary.Secondary.Cookie
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types._
-import com.socrata.spandex.common.{CompletionAnalyzer, SpandexBootstrap, ElasticSearchConfig, SpandexConfig}
+import com.socrata.spandex.common.SpandexConfig
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
 import com.typesafe.config.{ConfigFactory, Config}
 import com.typesafe.scalalogging.slf4j.Logging
@@ -17,7 +17,7 @@ class SpandexSecondary(config: SpandexConfig) extends SpandexSecondaryLike {
   def this(rawConfig: Config) = this(new SpandexConfig(rawConfig.withFallback(
     ConfigFactory.load(classOf[SpandexSecondary].getClassLoader).getConfig("com.socrata.spandex"))))
 
-  val client = new SpandexElasticSearchClient(config.es)
+  val client = SpandexElasticSearchClient(config.es)
   val index  = config.es.index
   val batchSize = config.es.dataCopyBatchSize
 
@@ -33,8 +33,7 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
 
   def init(config: SpandexConfig): Unit = {
     logger.info("Configuration:\n" + config.debugString)
-    SpandexBootstrap.ensureIndex(config.es, client)
-    CompletionAnalyzer.configure(config.analysis)
+    SpandexElasticSearchClient.ensureIndex(config.es.index, client)
   }
 
   def currentVersion(datasetInternalName: String, cookie: Cookie): Long =
@@ -66,13 +65,15 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
     cookie
   }
 
-  def resync(datasetInfo: DatasetInfo,
-             copyInfo: CopyInfo,
-             schema: ColumnIdMap[ColumnInfo[SoQLType]],
-             cookie: Cookie,
-             rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],
-             rollups: Seq[RollupInfo],
-             isLatestLivingCopy: Boolean): Cookie = {
+  def resync(
+      datasetInfo: DatasetInfo,
+      copyInfo: CopyInfo,
+      schema: ColumnIdMap[ColumnInfo[SoQLType]],
+      cookie: Cookie,
+      rows: Managed[Iterator[ColumnIdMap[SoQLValue]]],
+      rollups: Seq[RollupInfo],
+      isLatestLivingCopy: Boolean)
+  : Cookie = {
     // Delete any existing documents related to this copy
     doDropCopy(datasetInfo.internalName, copyInfo.copyNumber)
     ResyncHandler(client).go(datasetInfo, copyInfo, schema, rows, batchSize)

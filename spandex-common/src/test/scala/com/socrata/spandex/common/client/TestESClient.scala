@@ -1,30 +1,35 @@
 package com.socrata.spandex.common.client
 
 import java.nio.file.Files
-
-import com.socrata.spandex.common.client.ResponseExtensions._
-import com.socrata.spandex.common.{ElasticSearchConfig, SpandexBootstrap}
-import org.apache.commons.io.FileUtils
-import org.elasticsearch.client.{Client, Requests}
-import org.elasticsearch.common.settings.ImmutableSettings
-import org.elasticsearch.index.query.QueryBuilders._
-import org.elasticsearch.node.NodeBuilder._
-
 import scala.util.Try
 
-class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends SpandexElasticSearchClient(config) {
+import org.apache.commons.io.FileUtils
+import org.elasticsearch.client.{Client, Requests}
+import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.index.query.QueryBuilders._
+import org.elasticsearch.node.Node
+
+import com.socrata.spandex.common.client.Queries._
+import com.socrata.spandex.common.client.ResponseExtensions._
+import com.socrata.spandex.common.client.SpandexElasticSearchClient._
+
+class TestESClient(testSuiteName: String)
+  extends SpandexElasticSearchClient("", 0, "", testSuiteName, 10000, 60000) {
+
   val tempDataDir = Files.createTempDirectory("elasticsearch_data_").toFile
-  val testSettings = ImmutableSettings.settingsBuilder()
-    .put(settings)
-    .put("discovery.zen.ping.multicast.enabled", false)
+  val testSettings = Settings.builder()
+    .put("cluster.name", testSuiteName)
     .put("path.data", tempDataDir.toString)
+    .put("path.home", "target/elasticsearch")
+    .put("transport.type", "local")
+    .put("http.enabled", "false")
     .build
 
-  val node = nodeBuilder().settings(testSettings).local(local).node()
+  val node = new Node(testSettings).start()
 
   override val client: Client = node.client()
 
-  SpandexBootstrap.ensureIndex(config, this)
+  SpandexElasticSearchClient.ensureIndex(testSuiteName, this)
 
   override def close(): Unit = {
     deleteIndex()
@@ -38,62 +43,62 @@ class TestESClient(config: ElasticSearchConfig, local: Boolean = true) extends S
   }
 
   def deleteIndex(): Unit = {
-    client.admin().indices().delete(Requests.deleteIndexRequest(config.index))
+    client.admin().indices().delete(Requests.deleteIndexRequest(testSuiteName))
   }
 
   def deleteAllDatasetCopies(): Unit =
-    deleteByQuery(termQuery("_type", config.datasetCopyMapping), Seq(config.datasetCopyMapping.mappingType))
-
+    deleteByQuery(termQuery("_type", DatasetCopyType))
 
   def searchColumnMapsByDataset(datasetId: String): SearchResults[ColumnMap] =
-    client.prepareSearch(config.index)
-          .setTypes(config.columnMapMapping.mappingType)
-          .setQuery(byDatasetIdQuery(datasetId))
-          .execute.actionGet.results[ColumnMap]
+    client.prepareSearch(testSuiteName)
+      .setTypes(ColumnMapType)
+      .setQuery(byDatasetIdQuery(datasetId))
+      .execute.actionGet.results[ColumnMap]
 
   def searchColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[ColumnMap] =
-    client.prepareSearch(config.index)
-          .setTypes(config.columnMapMapping.mappingType)
-          .setQuery(byCopyNumberQuery(datasetId, copyNumber))
-          .execute.actionGet.results[ColumnMap]
+    client.prepareSearch(testSuiteName)
+      .setTypes(ColumnMapType)
+      .setQuery(byCopyNumberQuery(datasetId, copyNumber))
+      .execute.actionGet.results[ColumnMap]
 
   def searchFieldValuesByDataset(datasetId: String): SearchResults[FieldValue] = {
-    val response = client.prepareSearch(config.index)
-                         .setTypes(config.fieldValueMapping.mappingType)
-                         .setQuery(byDatasetIdQuery(datasetId))
-                         .execute.actionGet
+    val response = client.prepareSearch(testSuiteName)
+      .setTypes(FieldValueType)
+      .setQuery(byDatasetIdQuery(datasetId))
+      .execute.actionGet
     response.results[FieldValue]
   }
 
   def searchFieldValuesByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[FieldValue] = {
-    val response = client.prepareSearch(config.index)
-                         .setTypes(config.fieldValueMapping.mappingType)
-                         .setQuery(byCopyNumberQuery(datasetId, copyNumber))
-                         .execute.actionGet
+    val response = client.prepareSearch(testSuiteName)
+      .setTypes(FieldValueType)
+      .setQuery(byCopyNumberQuery(datasetId, copyNumber))
+      .execute.actionGet
     response.results[FieldValue]
   }
 
   def searchFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long): SearchResults[FieldValue] = {
-    val response = client.prepareSearch(config.index)
-                         .setTypes(config.fieldValueMapping.mappingType)
-                         .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))
-                         .execute.actionGet
+    val response = client.prepareSearch(testSuiteName)
+      .setTypes(FieldValueType)
+      .setQuery(byColumnIdQuery(datasetId, copyNumber, columnId))
+      .execute.actionGet
     response.results[FieldValue]
   }
 
   def searchFieldValuesByRowId(datasetId: String, copyNumber: Long, rowId: Long): SearchResults[FieldValue] = {
-    val response = client.prepareSearch(config.index)
-                         .setTypes(config.fieldValueMapping.mappingType)
-                         .setQuery(byRowIdQuery(datasetId, copyNumber, rowId))
-                         .execute.actionGet
+    val response = client.prepareSearch(testSuiteName)
+      .setTypes(FieldValueType)
+      .setQuery(byRowIdQuery(datasetId, copyNumber, rowId))
+      .execute.actionGet
     response.results[FieldValue]
   }
 
   def searchCopiesByDataset(datasetId: String): SearchResults[DatasetCopy] = {
-    val response = client.prepareSearch(config.index)
-                         .setTypes(config.datasetCopyMapping.mappingType)
-                         .setQuery(byDatasetIdQuery(datasetId))
-                         .execute.actionGet
+    val response = client.prepareSearch(testSuiteName)
+      .setTypes(DatasetCopyType)
+      .setQuery(byDatasetIdQuery(datasetId))
+      .execute.actionGet
     response.results[DatasetCopy]
   }
 }
+
