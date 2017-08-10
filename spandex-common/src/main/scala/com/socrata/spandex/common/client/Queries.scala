@@ -14,29 +14,29 @@ object Queries {
 
   def byDatasetIdAndStageQuery(datasetId: String, stage: LifecycleStage): QueryBuilder =
     boolQuery()
-      .must(termQuery(SpandexFields.DatasetId, datasetId))
-      .must(termQuery(SpandexFields.Stage, stage.toString))
+      .filter(termQuery(SpandexFields.DatasetId, datasetId))
+      .filter(termQuery(SpandexFields.Stage, stage.toString))
 
   def byCopyNumberQuery(datasetId: String, copyNumber: Long): QueryBuilder =
     boolQuery()
-      .must(termQuery(SpandexFields.DatasetId, datasetId))
-      .must(termQuery(SpandexFields.CopyNumber, copyNumber))
+      .filter(termQuery(SpandexFields.DatasetId, datasetId))
+      .filter(termQuery(SpandexFields.CopyNumber, copyNumber))
 
   def byColumnIdQuery(datasetId: String, copyNumber: Long, columnId: Long): QueryBuilder =
     boolQuery()
-      .must(termQuery(SpandexFields.DatasetId, datasetId))
-      .must(termQuery(SpandexFields.CopyNumber, copyNumber))
-      .must(termQuery(SpandexFields.ColumnId, columnId))
+      .filter(termQuery(SpandexFields.DatasetId, datasetId))
+      .filter(termQuery(SpandexFields.CopyNumber, copyNumber))
+      .filter(termQuery(SpandexFields.ColumnId, columnId))
 
   def byCompositeIdQuery(column: ColumnMap): QueryBuilder =
     boolQuery()
-      .must(termQuery(SpandexFields.CompositeId, column.compositeId))
+      .filter(termQuery(SpandexFields.CompositeId, column.compositeId))
 
   def byRowIdQuery(datasetId: String, copyNumber: Long, rowId: Long): QueryBuilder =
     boolQuery()
-      .must(termQuery(SpandexFields.DatasetId, datasetId))
-      .must(termQuery(SpandexFields.CopyNumber, copyNumber))
-      .must(termQuery(SpandexFields.RowId, rowId))
+      .filter(termQuery(SpandexFields.DatasetId, datasetId))
+      .filter(termQuery(SpandexFields.CopyNumber, copyNumber))
+      .filter(termQuery(SpandexFields.RowId, rowId))
 
   def byDatasetIdAndOptionalStageQuery(datasetId: String, stage: Option[Stage]): QueryBuilder =
     stage match {
