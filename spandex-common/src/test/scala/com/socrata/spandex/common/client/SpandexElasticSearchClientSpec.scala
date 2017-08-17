@@ -80,7 +80,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.searchFieldValuesByDataset(datasets(0)).totalHits should be (45)
     client.searchFieldValuesByDataset(datasets(1)).totalHits should be (45)
 
-    client.deleteFieldValuesByDataset(datasets(0))
+    client.deleteFieldValuesByDataset(datasets(0), refresh=true)
 
     client.searchFieldValuesByDataset(datasets(0)).totalHits should be (0)
     client.searchFieldValuesByDataset(datasets(1)).totalHits should be (45)
@@ -92,7 +92,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.searchFieldValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
 
-    client.deleteFieldValuesByCopyNumber(datasets(0), 2)
+    client.deleteFieldValuesByCopyNumber(datasets(0), 2, refresh=true)
 
     client.searchFieldValuesByCopyNumber(datasets(0), 1).totalHits should be (15)
     client.searchFieldValuesByCopyNumber(datasets(0), 2).totalHits should be (0)
@@ -106,7 +106,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.searchFieldValuesByColumnId(datasets(0), 2, 2).totalHits should be (5)
     client.searchFieldValuesByColumnId(datasets(1), 2, 1).totalHits should be (5)
 
-    client.deleteFieldValuesByColumnId(datasets(0), 2, 1)
+    client.deleteFieldValuesByColumnId(datasets(0), 2, 1, refresh=true)
 
     client.searchFieldValuesByColumnId(datasets(0), 1, 1).totalHits should be (5)
     client.searchFieldValuesByColumnId(datasets(0), 2, 1).totalHits should be (0)
@@ -120,7 +120,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.searchFieldValuesByRowId(datasets(0), 1, 1).totalHits should be (3)
     client.searchFieldValuesByRowId(datasets(1), 2, 1).totalHits should be (3)
 
-    client.deleteFieldValuesByRowId(datasets(0), 2, 1)
+    client.deleteFieldValuesByRowId(datasets(0), 2, 1, refresh=true)
 
     client.searchFieldValuesByRowId(datasets(0), 2, 1).totalHits should be (0)
     client.searchFieldValuesByRowId(datasets(0), 2, 2).totalHits should be (3)
@@ -172,7 +172,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     val colMap2 = client.columnMap(datasets(0), 1, "col2-2222")
     colMap2 should not be 'defined
 
-    client.deleteColumnMap(colMap.datasetId, colMap.copyNumber, colMap.userColumnId)
+    client.deleteColumnMap(colMap.datasetId, colMap.copyNumber, colMap.userColumnId, refresh = false)
 
     client.columnMap(datasets(0), 1, "col1-1111") should not be 'defined
   }
@@ -181,7 +181,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.searchColumnMapsByDataset(datasets(0)).totalHits should be (9)
     client.searchColumnMapsByDataset(datasets(1)).totalHits should be (9)
 
-    client.deleteColumnMapsByDataset(datasets(0))
+    client.deleteColumnMapsByDataset(datasets(0), refresh=true)
 
     client.searchColumnMapsByDataset(datasets(0)).totalHits should be (0)
     client.searchColumnMapsByDataset(datasets(1)).totalHits should be (9)
@@ -191,7 +191,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (3)
     client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
 
-    client.deleteColumnMapsByCopyNumber(datasets(0), 1)
+    client.deleteColumnMapsByCopyNumber(datasets(0), 1, refresh=true)
 
     client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (0)
     client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
@@ -209,11 +209,11 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.datasetCopy(datasets(0), 4) should be
       (Some(DatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished)))
 
-    client.deleteDatasetCopy(datasets(0), 4)
+    client.deleteDatasetCopy(datasets(0), 4, refresh = true)
     client.datasetCopy(datasets(0), 4) should not be 'defined
     client.searchCopiesByDataset(datasets(0)).totalHits should be (3)
 
-    client.deleteDatasetCopiesByDataset(datasets(0))
+    client.deleteDatasetCopiesByDataset(datasets(0), refresh = true)
     client.searchCopiesByDataset(datasets(0)).totalHits should be (0)
   }
 
@@ -257,7 +257,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.datasetCopy(datasets(0), 1) should be ('defined)
     client.datasetCopy(datasets(0), 2) should be ('defined)
 
-    client.deleteDatasetCopy(datasets(0), 2)
+    client.deleteDatasetCopy(datasets(0), 2, refresh = true)
 
     client.datasetCopy(datasets(0), 1) should be ('defined)
     client.datasetCopy(datasets(0), 2) should not be ('defined)
@@ -286,7 +286,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.putDatasetCopy(datasets(0), 1, 1L, LifecycleStage.Published, refresh = true)
     client.datasetCopy(datasets(0), 1) shouldBe defined
     client.refresh()
-    client.deleteDatasetById(datasets(0)) should be(
+    client.deleteDatasetById(datasets(0), refresh = true) should be(
       Map("column_map" -> 9, "dataset_copy" -> 3, "field_value" -> 45))
     client.datasetCopy(datasets(0), 1) shouldBe None
   }

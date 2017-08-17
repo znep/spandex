@@ -43,11 +43,12 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
           }
         case ColumnRemoved(info) =>
           logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
-          client.deleteFieldValuesByColumnId(datasetName, latest.copyNumber, info.systemId.underlying)
-          client.deleteColumnMap(datasetName, latest.copyNumber, info.id.underlying)
+          client.deleteFieldValuesByColumnId(datasetName, latest.copyNumber, info.systemId.underlying, refresh = false)
+          client.deleteColumnMap(datasetName, latest.copyNumber, info.id.underlying, refresh = false)
+          client.refresh()
         case Truncated =>
           logTruncate(datasetName, latest.copyNumber)
-          client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber)
+          client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber, refresh = true)
         case LastModifiedChanged(lm) =>
         // TODO : Support if-modified-since one day
         case RowIdentifierSet(info) =>

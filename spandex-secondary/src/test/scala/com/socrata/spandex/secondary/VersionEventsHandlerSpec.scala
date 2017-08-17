@@ -348,7 +348,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   test("DataCopied - all field values from last published copy should be copied to latest copy") {
     // Remove bootstrapped data on working copy
-    client.deleteFieldValuesByCopyNumber(datasets(1), 3)
+    client.deleteFieldValuesByCopyNumber(datasets(1), 3, refresh = true)
 
     val expectedBefore = copies(datasets(1)).last
     client.datasetCopyLatest(datasets(1)) should be (Some(expectedBefore))

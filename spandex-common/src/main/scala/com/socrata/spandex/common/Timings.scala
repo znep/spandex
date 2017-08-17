@@ -1,4 +1,4 @@
-package com.socrata.spandex.http
+package com.socrata.spandex.common
 
 import java.util.concurrent.TimeUnit
 

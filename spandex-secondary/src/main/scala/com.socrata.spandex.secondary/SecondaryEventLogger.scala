@@ -23,6 +23,9 @@ trait SecondaryEventLogger extends Logging {
   def logResync(dataset: String, copyNumber: Long): Unit =
     logEvent("Resync", s"Resyncing dataset $dataset copy $copyNumber")
 
+  def logResyncCompleted(dataset: String, copyNumber: Long, elapsedTimeMs: Long): Unit =
+    logger.info(s"Resyncing dataset $dataset (copy number $copyNumber) completed in $elapsedTimeMs milliseconds")
+
   def logWorkingCopyCreated(dataset: String, copyNumber: Long): Unit =
     logEvent("WorkingCopyCreated",
              s"registering new copy number $copyNumber for dataset $dataset")

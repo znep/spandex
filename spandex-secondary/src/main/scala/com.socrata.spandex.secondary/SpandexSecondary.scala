@@ -5,7 +5,7 @@ import com.socrata.datacoordinator.secondary.Secondary.Cookie
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types._
-import com.socrata.spandex.common.SpandexConfig
+import com.socrata.spandex.common.{SpandexConfig, Timings}
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
 import com.typesafe.config.{ConfigFactory, Config}
 import com.typesafe.scalalogging.slf4j.Logging
@@ -26,7 +26,7 @@ class SpandexSecondary(config: SpandexConfig) extends SpandexSecondaryLike {
   def shutdown(): Unit = client.close()
 }
 
-trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
+trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with SecondaryEventLogger {
   def client: SpandexElasticSearchClient
   def index: String
   def batchSize: Int
@@ -36,6 +36,13 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
     SpandexElasticSearchClient.ensureIndex(config.es.index, client)
   }
 
+  def time[A](f: => A): (Long, A) = {
+    val now = Timings.now
+    val res = f
+    val elapsed = Timings.elapsedInMillis(now)
+    (elapsed, res)
+  }
+
   def currentVersion(datasetInternalName: String, cookie: Cookie): Long =
     throw new NotImplementedError("Not used anywhere yet") // scalastyle:ignore multiple.string.literals
 
@@ -43,9 +50,11 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
     throw new NotImplementedError("Not used anywhere yet") // scalastyle:ignore multiple.string.literals
 
   def dropDataset(datasetInternalName: String, cookie: Cookie): Unit = {
-    client.deleteFieldValuesByDataset(datasetInternalName)
-    client.deleteColumnMapsByDataset(datasetInternalName)
-    client.deleteDatasetCopiesByDataset(datasetInternalName)
+    client.deleteFieldValuesByDataset(datasetInternalName, refresh = false)
+    client.deleteColumnMapsByDataset(datasetInternalName, refresh = false)
+    client.deleteDatasetCopiesByDataset(datasetInternalName, refresh = false)
+    logRefreshRequest()
+    client.refresh()
   }
 
   def dropCopy(datasetInfo: DatasetInfo, copyInfo: CopyInfo, cookie: Cookie, isLatestCopy: Boolean): Cookie = {
@@ -54,9 +63,11 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
   }
 
   private[this] def doDropCopy(datasetInternalName: String, copyNumber: Long): Unit = {
-    client.deleteFieldValuesByCopyNumber(datasetInternalName, copyNumber)
-    client.deleteColumnMapsByCopyNumber(datasetInternalName, copyNumber)
-    client.deleteDatasetCopy(datasetInternalName, copyNumber)
+    client.deleteFieldValuesByCopyNumber(datasetInternalName, copyNumber, refresh = false)
+    client.deleteColumnMapsByCopyNumber(datasetInternalName, copyNumber, refresh = false)
+    client.deleteDatasetCopy(datasetInternalName, copyNumber, refresh = false)
+    logRefreshRequest()
+    client.refresh()
   }
 
   def version(datasetInfo: DatasetInfo, dataVersion: Long, cookie: Cookie, events: Iterator[Event]): Cookie = {
@@ -76,7 +87,12 @@ trait SpandexSecondaryLike extends Secondary[SoQLType, SoQLValue] with Logging {
   : Cookie = {
     // Delete any existing documents related to this copy
     doDropCopy(datasetInfo.internalName, copyInfo.copyNumber)
-    ResyncHandler(client).go(datasetInfo, copyInfo, schema, rows, batchSize)
+
+    val (elapsedtime, _) = time {
+      ResyncHandler(client).go(datasetInfo, copyInfo, schema, rows, batchSize)
+    }
+
+    logResyncCompleted(datasetInfo.internalName, copyInfo.copyNumber, elapsedtime)
     cookie
   }
 }

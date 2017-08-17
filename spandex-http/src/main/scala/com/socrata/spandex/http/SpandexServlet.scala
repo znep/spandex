@@ -130,7 +130,7 @@ class SpandexServlet(conf: SpandexConfig,
     time(request, "deleteDataset") {
       contentType = ContentTypeJson
       val datasetId = params.getOrElse(paramDatasetId, halt(HttpStatus.SC_BAD_REQUEST))
-      JsonUtil.renderJson(client.deleteDatasetById(datasetId))
+      JsonUtil.renderJson(client.deleteDatasetById(datasetId, refresh = true))
     }
   }
 

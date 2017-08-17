@@ -51,8 +51,9 @@ trait TestESData {
   }
 
   def removeBootstrapData(): Unit = {
-    datasets.foreach(client.deleteFieldValuesByDataset)
-    datasets.foreach(client.deleteColumnMapsByDataset)
-    datasets.foreach(client.deleteDatasetCopiesByDataset)
+    datasets.foreach(d => client.deleteFieldValuesByDataset(d, false))
+    datasets.foreach(d => client.deleteColumnMapsByDataset(d, false))
+    datasets.foreach(d => client.deleteDatasetCopiesByDataset(d, false))
+    client.refresh()
   }
 }

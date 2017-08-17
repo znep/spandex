@@ -25,6 +25,7 @@ case class PublishHandler(client: SpandexElasticSearchClient) extends SecondaryE
         lastPublished.copy(stage = LifecycleStage.Snapshotted), refresh = false)
     }
 
+    logRefreshRequest()
     client.refresh()
   }
 }

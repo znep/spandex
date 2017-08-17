@@ -57,6 +57,7 @@ case class RowOpsHandler(client: SpandexElasticSearchClient, batchSize: Int) ext
       client.sendBulkRequest(batch, refresh = false)
     }
 
+    logRefreshRequest()
     client.refresh()
   }
 }

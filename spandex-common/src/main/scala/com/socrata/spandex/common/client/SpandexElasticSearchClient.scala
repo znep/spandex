@@ -95,13 +95,19 @@ class SpandexElasticSearchClient(
     response.result[ColumnMap]
   }
 
-  def deleteColumnMap(datasetId: String, copyNumber: Long, userColumnId: String): Unit = {
+  def deleteColumnMap(datasetId: String, copyNumber: Long, userColumnId: String, refresh: Boolean): Unit = {
     val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
-    checkForFailures(client.prepareDelete(indexName, ColumnMapType, id).execute.actionGet)
+    val delete = client.prepareDelete(indexName, ColumnMapType, id)
+
+    if (refresh) {
+      delete.setRefreshPolicy(refreshPolicy(true))
+    }
+
+    checkForFailures(delete.execute.actionGet)
   }
 
-  def deleteColumnMapsByDataset(datasetId: String): Unit =
-    deleteByQuery(byDatasetIdQuery(datasetId), Seq(ColumnMapType))
+  def deleteColumnMapsByDataset(datasetId: String, refresh: Boolean): Unit =
+    deleteByQuery(byDatasetIdQuery(datasetId), Seq(ColumnMapType), refresh)
 
   // We don't expect the number of column maps to exceed dataCopyBatchSize.
   // As of April 2015 the widest dataset is ~1000 cols wide.
@@ -112,8 +118,8 @@ class SpandexElasticSearchClient(
       .setSize(dataCopyBatchSize)
       .execute.actionGet.results[ColumnMap]
 
-  def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): Unit =
-    deleteByQuery(byCopyNumberQuery(datasetId, copyNumber), Seq(ColumnMapType))
+  def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long, refresh: Boolean): Unit =
+    deleteByQuery(byCopyNumberQuery(datasetId, copyNumber), Seq(ColumnMapType), refresh)
 
   def indexFieldValue(fieldValue: FieldValue, refresh: Boolean): Boolean = {
     if (fieldValue.isNonEmpty) {
@@ -248,17 +254,17 @@ class SpandexElasticSearchClient(
     }
   }
 
-  def deleteFieldValuesByDataset(datasetId: String): Unit =
-    deleteByQuery(byDatasetIdQuery(datasetId), Seq(FieldValueType))
+  def deleteFieldValuesByDataset(datasetId: String, refresh: Boolean): Unit =
+    deleteByQuery(byDatasetIdQuery(datasetId), Seq(FieldValueType), refresh)
 
-  def deleteFieldValuesByCopyNumber(datasetId: String, copyNumber: Long): Unit =
-    deleteByQuery(byCopyNumberQuery(datasetId, copyNumber), Seq(FieldValueType))
+  def deleteFieldValuesByCopyNumber(datasetId: String, copyNumber: Long, refresh: Boolean): Unit =
+    deleteByQuery(byCopyNumberQuery(datasetId, copyNumber), Seq(FieldValueType), refresh)
 
-  def deleteFieldValuesByRowId(datasetId: String, copyNumber: Long, rowId: Long): Unit =
-    deleteByQuery(byRowIdQuery(datasetId, copyNumber, rowId), Seq(FieldValueType))
+  def deleteFieldValuesByRowId(datasetId: String, copyNumber: Long, rowId: Long, refresh: Boolean): Unit =
+    deleteByQuery(byRowIdQuery(datasetId, copyNumber, rowId), Seq(FieldValueType), refresh)
 
-  def deleteFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long): Unit =
-    deleteByQuery(byColumnIdQuery(datasetId, copyNumber, columnId), Seq(FieldValueType))
+  def deleteFieldValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long, refresh: Boolean): Unit =
+    deleteByQuery(byColumnIdQuery(datasetId, copyNumber, columnId), Seq(FieldValueType), refresh)
 
   def putDatasetCopy(
       datasetId: String,
@@ -336,16 +342,16 @@ class SpandexElasticSearchClient(
     datasetCopy
   }
 
-  def deleteDatasetCopy(datasetId: String, copyNumber: Long): Unit =
-    deleteByQuery(byCopyNumberQuery(datasetId, copyNumber), Seq(DatasetCopyType))
+  def deleteDatasetCopy(datasetId: String, copyNumber: Long, refresh: Boolean): Unit =
+    deleteByQuery(byCopyNumberQuery(datasetId, copyNumber), Seq(DatasetCopyType), refresh)
 
-  def deleteDatasetCopiesByDataset(datasetId: String): Unit =
-    deleteByQuery(byDatasetIdQuery(datasetId), Seq(DatasetCopyType))
+  def deleteDatasetCopiesByDataset(datasetId: String, refresh: Boolean): Unit =
+    deleteByQuery(byDatasetIdQuery(datasetId), Seq(DatasetCopyType), refresh)
 
   private val allTypes = Seq(DatasetCopyType, ColumnMapType, FieldValueType)
 
-  def deleteDatasetById(datasetId: String): Map[String, Int] =
-    deleteByQuery(byDatasetIdQuery(datasetId), allTypes)
+  def deleteDatasetById(datasetId: String, refresh: Boolean): Map[String, Int] =
+    deleteByQuery(byDatasetIdQuery(datasetId), allTypes, refresh)
 
   def suggest(column: ColumnMap, size: Int, text: String): SearchResults[FieldValue] = {
     val fieldValue = if (text.length > 0) Some(text) else None
