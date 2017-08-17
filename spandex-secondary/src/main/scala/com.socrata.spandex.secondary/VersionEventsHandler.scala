@@ -2,6 +2,7 @@ package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.secondary._
 import com.socrata.soql.types.SoQLText
+import com.socrata.spandex.common.Timings
 import com.socrata.spandex.common.client._
 
 class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) extends SecondaryEventLogger {
@@ -9,6 +10,8 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
              dataVersion: Long,
              events: Iterator[Event]): Unit = {
     require(dataVersion > 0, s"Unexpected value for data version: $dataVersion")
+
+    val startTime = Timings.now
 
     // First, handle any working copy events
     val remainingEvents = WorkingCopyCreatedHandler(client).go(datasetName, dataVersion, events)
@@ -75,5 +78,8 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
 
     // Super double check that we have the correct dataset copy info
     client.datasetCopy(datasetName, latest.copyNumber)
+
+    val timeElapsed = Timings.elapsedInMillis(startTime)
+    logVersionEventsProcessed(datasetName, finalLatest.copyNumber, finalLatest.version, timeElapsed)
   }
 }
