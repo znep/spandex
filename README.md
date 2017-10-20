@@ -79,7 +79,7 @@ ln -s $PWD/spandex-secondary/target/scala-2.10/spandex-secondary-assembly-*.jar 
 ### Register Spandex secondary in truth DB
 
 ```sh
-psql -U blist -d datacoordinator -c "INSERT INTO secondary_stores_config (store_id, next_run_time, interval_in_seconds) values ('spandex', now(), 5);"
+psql -U blist -d datacoordinator -c "INSERT INTO secondary_stores_config (store_id, next_run_time, interval_in_seconds, group_name) values ('spandex', now(), 5, 'autocomplete');"
 ```
 
 ### Configuration changes
@@ -181,7 +181,7 @@ The response has the same format, but score is meaningless.
 
 ##### Querying autocomplete via Core
 
-Querying autocomplete through the full stack looks like this: 
+Querying autocomplete through the full stack looks like this:
 
 ```sh
 curl {domain}/api/views/{4x4}/columns/{field_name}/suggest?text={query}
