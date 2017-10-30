@@ -6,10 +6,13 @@ Dataset cell-level autocomplete with Elasticsearch.
 
 ## Install ElasticSearch
 
-Make sure you're running ES 5.4.*. On Macs, this is best done via Homebrew.
+This following setup instructions are not necessary if you run the Socrata stack installation
+script.
+
+Make sure you're running ES >= 5.4.1. On Macs, this is best done via Homebrew.
 
 ``` sh
-brew install elasticsearch54
+brew install elasticsearch
 ```
 
 Or if you like to do things the hard way, you can download and install manually. Follow the
