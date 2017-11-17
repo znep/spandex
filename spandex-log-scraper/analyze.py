@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import re
 from collections import namedtuple
 from datetime import datetime
@@ -9,7 +10,6 @@ from urllib.parse import parse_qs
 
 import pandas as pd
 import simplejson as json
-from clients_common import ElasticsearchClient
 
 
 def parse_args():
@@ -20,14 +20,18 @@ def parse_args():
                         help="A tab delimited file mapping FXFs to domains")
     parser.add_argument("--dataset_id_fxf_map_file", required=True,
                         help="A tab delimited file mapping dataset IDs to FXFs")
+    parser.add_argument("--spandex_dataset_ids", required=True,
+                        help="A file containing the set of dataset IDs currently indexed in Spandex")
     parser.add_argument("--logfile", action="append")
+    parser.add_argument("--logfile_dir", help="A directory containing spandex request log files")
     parser.add_argument("--log_dataframe",
                         help="Instead of reading in raw logs, read previously extracted logs from "
                         "a pickled DataFrame")
+    parser.add_argument("--zero_request_datasets", default="spandex_zero_request_datasets.txt",
+                        help="A path to a text file containing data the IDs for the datasets that "
+                        "received 0 requests")
     parser.add_argument("--output_file", help="Where to write the resulting DataFrame",
                         default="spandex_logs_df.pickle")
-    parser.add_argument("--es_host", help="The Elasticsearch host")
-    parser.add_argument("--es_port", help="The Elasticsearch port")
 
     return parser.parse_args()
 
@@ -90,7 +94,7 @@ def fxf_domain_map_from_file(input_file):
 
 REQUEST_PATH_RE = re.compile(
     r"GET /suggest/"
-    r"(?P<dataset_id>alpha\.[0-9]+)/"
+    r"(?P<dataset_id>(?:alpha|bravo)\.[0-9]+)/"
     r"(?P<pub_stage>[A-Za-z0-9]+)/"
     r"(?P<column_id>[0-9a-z]{4}-[0-9a-z]{4})"
     r"(\?(?P<query_params>[^ ]+))?")
@@ -194,12 +198,12 @@ def read_log_file(input_file):
     return [json.loads(line.strip()) for line in open(input_file, "r") if line.strip()]
 
 
-def fetch_spandex_datasets(es_client):
+def spandex_dataset_ids(input_file):
     """
-    Fetch all dataset IDs from the Spandex index.
+    Read all dataset IDs currently in the Spandex index.
 
     Args:
-        es_client (clients_common.ElasticsearchClient): An Elasticsearch client
+        input_file (str): The path to a flat file with a list of dataset IDs currently in spandex
 
     Returns:
         A set of dataset IDs
@@ -208,7 +212,7 @@ def fetch_spandex_datasets(es_client):
         The Spandex index is extremely sensitive to expensive queries. If you change this, be
         mindful of query performance and monitor cluster health when you run it.
     """
-    return {copy.get("dataset_id") for copy in es_client.fetch_all(doc_type="dataset_copy")}
+    return {x.strip() for x in open(input_file, "r") if x.strip()}
 
 
 def count_field_values(es_client):
@@ -251,25 +255,25 @@ def main():
     dataset_id_fxf_map = dataset_id_fxf_map_from_file(args.dataset_id_fxf_map_file)
     fxf_domain_map = fxf_domain_map_from_file(args.fxf_domain_map_file)
 
-    # fetch spandex dataset information
-    es_host = args.es_host or "spandex-6.elasticsearch.aws-us-east-1-fedramp-prod.socrata.net"
-    es_port = args.es_port or 80
-    es_client = ElasticsearchClient.connect(host=es_host, port=es_port, index="", max_retries=1)
-    spandex_datasets = fetch_spandex_datasets(es_client)
+    # read spandex dataset information
+    spandex_datasets = spandex_dataset_ids(args.spandex_dataset_ids)
     print("Found {} datasets in the Spandex index".format(len(spandex_datasets)))
 
     # read request logs either from previously pickled DataFrame or JSON lines
     if args.log_dataframe:
         logs_df = pd.read_pickle(args.log_dataframe)
     else:
-        log_files = args.logfile
+        log_dir = args.logfile_dir
+        log_files = sorted(
+            [os.path.join(log_dir, log_file) for log_file in os.listdir(log_dir)],
+            reverse=True)
         logging.info("Reading logfiles: {}".format(log_files))
         extract_ = partial(
             extract, dataset_id_fxf_map=dataset_id_fxf_map, fxf_domain_map=fxf_domain_map)
         logs = (extract_(msg) for msg in chain.from_iterable(
             read_log_file(logfile) for logfile in log_files))
 
-        logs_df = pd.DataFrame.from_records(record for record in logs)
+        logs_df = pd.DataFrame.from_records(record for record in logs if record)
 
     print("Found {} suggest requests".format(len(logs_df)))
     pd.options.display.max_rows = 1000
@@ -284,6 +288,9 @@ def main():
     nonzero_request_datasets = set(logs_df["dataset_id"].unique())
     zero_request_datasets = spandex_datasets - nonzero_request_datasets
     print("{} datasets in Spandex received 0 suggest requests".format(len(zero_request_datasets)))
+    with open(args.zero_request_datasets, "w") as outfile:
+        for dataset in zero_request_datasets:
+            outfile.write(dataset + "\n")
 
     zero_request_datasets_df = pd.DataFrame(
         enrich_data_from_spandex(zero_request_datasets, dataset_id_fxf_map, fxf_domain_map))
