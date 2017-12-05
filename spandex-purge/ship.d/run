@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -e
+
+source /dev/shm/spandex-purge.env
+
+set -vx
+
+/bin/bash purge

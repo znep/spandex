@@ -1,0 +1,5 @@
+pandas==0.19.2
+simplejson==3.13.2
+# Not required for the python script, but for some reason
+# the AWS CLI is installed by pip
+awscli==1.14.9

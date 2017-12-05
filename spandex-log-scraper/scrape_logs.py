@@ -38,11 +38,11 @@ def parse_args():
 
     parser.add_argument(
         "-f", "--from_date", type=isodate, default=one_week_ago(),
-        help="The ISO-formatted date to begin querying event data from (defaults to 2 weeks ago)")
+        help="The ISO-formatted date to begin querying event data from (default 1 week ago)")
 
     parser.add_argument(
         "-t", "--to_date", type=isodate, default=today(),
-        help="The ISO-formatted date to end querying event data at")
+        help="The ISO-formatted date to end querying event data at, (default today)")
 
     parser.add_argument(
         "--s3_bucket", help="The S3 bucket to which logs will be written", required=True)

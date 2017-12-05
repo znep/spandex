@@ -1,0 +1,147 @@
+#! /bin/bash
+
+##################################################
+DATASET_ID_FXF_MAP=dataset_id_fxf_map
+FXF_DOMAIN_MAP=fxf_domain_map
+LOGFILES=logfiles
+ALL_LOGS=all_logs
+COUNTED_LOGS=counted_logs
+SPANDEX_DATASET_IDS=spandex_dataset_ids
+ZERO_REQUEST_DATASETS=zero_request_datasets
+FILTERED_ZERO_REQUEST_DATASETS=$ZERO_REQUEST_DATASETS.filtered
+NON_INDEXED=non_indexed
+BELLEROPHON_FXFS=bellerophon_fxfs
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+echo $SODA_FOUNTAIN_HOST:5432:$SODA_FOUNTAIN_DB:$SODA_FOUNTAIN_USER:$SODA_FOUNTAIN_PASSWORD >> ~/.pgpass
+echo $METADB_HOST:5432:$METADB_DB:$METADB_USER:$METADB_PASSWORD >> ~/.pgpass
+chmod 600 ~/.pgpass
+
+##################################################
+echo "Getting a list of system IDs to four by fours"
+##################################################
+
+psql \
+    -U $SODA_FOUNTAIN_USER \
+    -h $SODA_FOUNTAIN_HOST \
+    -d $SODA_FOUNTAIN_DB \
+    -c "\copy (SELECT dataset_system_id, resource_name, latest_version, created_at FROM datasets) to $DATASET_ID_FXF_MAP with (format csv, delimiter E'\t')"
+
+perl -pi -e 's/\t_/\t/g' $DATASET_ID_FXF_MAP
+
+##################################################
+echo "Getting a list of uids to domain information"
+##################################################
+
+psql \
+    -U $METADB_USER \
+    -h $METADB_HOST \
+    -d $METADB_DB \
+    -c "\copy
+(SELECT l.uid, d.cname, d.salesforce_id, d.deleted_at
+FROM lenses l LEFT JOIN blists b ON l.blist_id = b.id
+LEFT JOIN domains d ON b.domain_id = d.id
+WHERE l.deleted_at IS NULL
+AND b.deleted_at IS NULL
+AND l.is_default
+) to $FXF_DOMAIN_MAP with (format csv, delimiter E'\t')"
+
+##################################################
+echo "Getting a list of all the dataset fxfs that back Bellerophon (Open Budget/Expenditures/Performance)"
+##################################################
+
+ruby $DIR/list_bellerophon_uids.rb $BELLEROPHON_HOST $BELLEROPHON_FXFS
+
+##################################################
+echo "Getting the last $WEEKS_WITH_NO_USAGE logs from s3"
+##################################################
+if [ -d $LOGFILES ]; then
+    rm -rf $LOGFILES
+fi
+mkdir $LOGFILES
+
+LAST_N_LOGS=$(aws s3 ls s3://$S3_BUCKET \
+		  | awk -F ' ' '{print $4}' \
+		  | sort -r \
+		  | head -n $WEEKS_WITH_NO_USAGE)
+
+for logfile in $LAST_N_LOGS; do
+    aws s3 cp s3://$S3_BUCKET/$logfile $LOGFILES/$logfile
+done
+
+##################################################
+echo "Uniquifying and counting up dataset_ids from the log files"
+##################################################
+
+if [ -f $ALL_LOGS ]; then
+    rm $ALL_LOGS
+fi
+
+for log in $(ls $LOGFILES); do
+    echo $log
+    egrep -o "GET /suggest/(alpha|bravo).[0-9]+/" $LOGFILES/$log \
+	| sed "s|GET /suggest/||g" \
+	| sed "s|/||g" >> $ALL_LOGS
+done
+
+sort $ALL_LOGS | uniq -c > $COUNTED_LOGS
+
+##################################################
+echo "Getting all the datasets currently in spandex"
+##################################################
+
+count=$(curl -XGET $SPANDEX_HOST/spandex/dataset_copy/_count | jq .count)
+# why not, yo
+count_plus_500=$(echo "$count + 500" | bc)
+curl -XGET $SPANDEX_HOST:$SPAN/spandex/dataset_copy/_search?size=$count_plus_500 | jq -r ".hits.hits[] | ._source.dataset_id" > $SPANDEX_DATASET_IDS
+
+
+##################################################
+echo "Output all the datasets that have not been touched in $WEEKS_WITH_NO_USAGE weeks"
+##################################################
+
+python analyze.py \
+    --fxf_domain_map_file $FXF_DOMAIN_MAP \
+    --dataset_id_fxf_map_file $DATASET_ID_FXF_MAP \
+    --spandex_dataset_ids $SPANDEX_DATASET_IDS \
+    --counted_logs $COUNTED_LOGS \
+    --zero_request_datasets $ZERO_REQUEST_DATASETS \
+    --non_indexed $NON_INDEXED \
+    --threshold $THRESHOLD \
+    --whitelist_fxfs_file $BELLEROPHON_FXFS
+
+if [ -f $NON_INDEXED ]; then
+    ##################################################
+    echo "Sending an email to $EMAIL_TO for datasets that possibly should be put back into spandex"
+    ##################################################
+
+    SUBJ=$(head -n 1 $NON_INDEXED)
+    sed -i -e '1d' $NON_INDEXED
+    CONTENTS=$(cat $NON_INDEXED)
+
+    python mail.py $ARK_HOST $SEND_TO $SEND_FROM "$SUBJ" "$CONTENTS"
+
+    # cat "$NON_INDEXED" | mail -a 'Content-Type: text/html' -aFrom:$EMAIL_FROM -s "$SUBJ" $EMAIL_TO
+else
+    ##################################################
+    echo "Zero datasets to possibly poke back into spandex, skipping email"
+    ##################################################
+fi
+
+if [ -f $ZERO_REQUEST_DATASETS ]; then
+    ##################################################
+    echo "Deleting $(wc -l $ZERO_REQUEST_DATASETS) datasets from spandex"
+    ##################################################
+
+    for DSID in $(cat $ZERO_REQUEST_DATASETS); do
+        curl -s -XDELETE $SPANDEX_HTTP/suggest/$DSID
+        curl -XDELETE $DATA_COORDINATOR/secondary-manifest/spandex/$DSID
+    done
+
+    echo "Deleted $(wc -l $ZERO_REQUEST_DATASETS) datasets from spandex"
+else
+    ##################################################
+    echo "Zero datasets to delete"
+    ##################################################
+fi
