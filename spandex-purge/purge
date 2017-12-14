@@ -80,7 +80,7 @@ fi
 
 for log in $(ls $LOGFILES); do
     echo $log
-    egrep -o "GET /suggest/(alpha|bravo).[0-9]+/" $LOGFILES/$log \
+    egrep -o "GET /suggest/[a-z]+\.[0-9]+/" $LOGFILES/$log \
 	| sed "s|GET /suggest/||g" \
 	| sed "s|/||g" >> $ALL_LOGS
 done
@@ -135,8 +135,10 @@ if [ -f $ZERO_REQUEST_DATASETS ]; then
     ##################################################
 
     for DSID in $(cat $ZERO_REQUEST_DATASETS); do
+        echo -e "\nDeleting $DSID..."
+        INSTANCE=$(echo $DISD | sed "s/\.[0-9]*$//") # eg. alpha or bravo
         curl -s -XDELETE $SPANDEX_HTTP/suggest/$DSID
-        curl -XDELETE $DATA_COORDINATOR/secondary-manifest/spandex/$DSID
+        curl -XDELETE ${DATA_COORDINATOR}-${INSTANCE}/secondary-manifest/spandex/$DSID
     done
 
     echo "Deleted $(wc -l $ZERO_REQUEST_DATASETS) datasets from spandex"
