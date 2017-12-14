@@ -136,9 +136,9 @@ if [ -f $ZERO_REQUEST_DATASETS ]; then
 
     for DSID in $(cat $ZERO_REQUEST_DATASETS); do
         echo -e "\nDeleting $DSID..."
-        INSTANCE=$(echo $DISD | sed "s/\.[0-9]*$//") # eg. alpha or bravo
+        INSTANCE=$(echo $DSID | sed "s/\.[0-9]*$//") # eg. alpha or bravo
         curl -s -XDELETE $SPANDEX_HTTP/suggest/$DSID
-        curl -XDELETE ${DATA_COORDINATOR}-${INSTANCE}/secondary-manifest/spandex/$DSID
+        curl -XDELETE ${DATA_COORDINATOR_PREFIX}-${INSTANCE}${DATA_COORDINATOR_SUFFIX}/secondary-manifest/spandex/$DSID
     done
 
     echo "Deleted $(wc -l $ZERO_REQUEST_DATASETS) datasets from spandex"
