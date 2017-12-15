@@ -23,5 +23,7 @@ if [ -z $CLUSTER ]; then
 fi
 
 curl -s -XDELETE $CLUSTER/*.html
+curl -s -XDELETE $CLUSTER/*.exe
 curl -s -XDELETE $CLUSTER/perl
 curl -s -XDELETE $CLUSTER/spipe
+curl -s -XDELETE $CLUSTER/jsonrpc
