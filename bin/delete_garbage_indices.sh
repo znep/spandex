@@ -22,8 +22,7 @@ if [ -z $CLUSTER ]; then
   exit 1
 fi
 
-curl -s -XDELETE $CLUSTER/*.html
-curl -s -XDELETE $CLUSTER/*.exe
-curl -s -XDELETE $CLUSTER/perl
-curl -s -XDELETE $CLUSTER/spipe
-curl -s -XDELETE $CLUSTER/jsonrpc
+for garbage in "*.html" "*.exe" perl spipe jsonrpc; do
+    echo "curl -s -XDELETE $CLUSTER/$garbage"
+    curl -s -XDELETE $CLUSTER/$garbage | jq .
+done

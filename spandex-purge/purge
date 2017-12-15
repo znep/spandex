@@ -26,7 +26,10 @@ psql \
     -U $SODA_FOUNTAIN_USER \
     -h $SODA_FOUNTAIN_HOST \
     -d $SODA_FOUNTAIN_DB \
-    -c "\copy (SELECT dataset_system_id, resource_name, latest_version, created_at FROM datasets) to $DATASET_ID_FXF_MAP with (format csv, delimiter E'\t')"
+    -c "\copy
+(SELECT dataset_system_id, resource_name, latest_version, created_at FROM datasets
+WHERE created_at < current_date - interval '2 weeks')
+ to $DATASET_ID_FXF_MAP with (format csv, delimiter E'\t')"
 
 perl -pi -e 's/\t_/\t/g' $DATASET_ID_FXF_MAP
 
@@ -137,7 +140,9 @@ if [ -f $ZERO_REQUEST_DATASETS ]; then
     for DSID in $(cat $ZERO_REQUEST_DATASETS); do
         echo -e "\nDeleting $DSID..."
         INSTANCE=$(echo $DSID | sed "s/\.[0-9]*$//") # eg. alpha or bravo
+        echo "curl -s -XDELETE $SPANDEX_HTTP/suggest/$DSID"
         curl -s -XDELETE $SPANDEX_HTTP/suggest/$DSID
+        echo "curl -XDELETE ${DATA_COORDINATOR_PREFIX}-${INSTANCE}${DATA_COORDINATOR_SUFFIX}/secondary-manifest/spandex/$DSID"
         curl -XDELETE ${DATA_COORDINATOR_PREFIX}-${INSTANCE}${DATA_COORDINATOR_SUFFIX}/secondary-manifest/spandex/$DSID
     done
 
