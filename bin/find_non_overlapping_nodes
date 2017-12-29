@@ -19,67 +19,69 @@ elif 'eu' in env:
 elif 'fedramp' in env:
     cluster = 'http://spandex-6.elasticsearch.aws-us-east-1-fedramp-prod.socrata.net'
 
-def get_shards(cluster):
-    url = '{}/_cat/shards'.format(cluster)
-    r = requests.get(url)
-    shards = [line.split() for line in r.text.splitlines()]
 
-    shards_per_node = {}
-    relocating_target_shards = set()
-    initializing_shards = set()
-    for s in shards:
-        if 'spandex' not in s[0]:
-            continue
-        try:
-            if len(s) == 12:
-                index, shard, prirep, state, docs, store, ip, node, _, new_ip, _, new_node = s
-                if state == 'RELOCATING':
-                    relocating_target_shards.add(new_ip)
-                    continue
-            elif len(s) == 6:
-                index, shard, prirep, state, ip, node = s
-                if state == 'INITIALIZING':
-                    initializing_shards.add(ip)
-                    continue
+url = '{}/_cat/shards'.format(cluster)
+r = requests.get(url)
+shards = [line.split() for line in r.text.splitlines()]
 
-            index, shard, prirep, state, docs, store, ip, node = s
-
-        except ValueError:
-            print('Unable to parse {}'.format(s))
-
-        ip_node = (ip, node)
-        existing_shards = shards_per_node.get(ip_node, set())
-        existing_shards.add(shard)
-        shards_per_node[ip_node] = existing_shards
-
-    # there are more efficient ways to do this, sure
-    # and this doesn't get _all_ the non-overlapping sets
-    # but good enough
-    non_overlapping = []
-    for ip_node, shards in shards_per_node.items():
-        all_shards = shards.copy()
-        nodes = [ip_node]
-        for _ip_node, _shards in shards_per_node.items():
-            if _ip_node == ip_node:
+shards_per_node = {}
+relocating_target_shards = set()
+initializing_shards = set()
+for s in shards:
+    if 'spandex' not in s[0]:
+        continue
+    try:
+        if len(s) == 12:
+            index, shard, prirep, state, docs, store, ip, node, _, new_ip, _, new_node = s
+            if state == 'RELOCATING':
+                relocating_target_shards.add(new_ip)
                 continue
-            if len(_shards.intersection(all_shards)) == 0:
-                all_shards = all_shards.union(_shards)
-                nodes.append(_ip_node)
-        non_overlapping.append(nodes)
+        elif len(s) == 6:
+            index, shard, prirep, state, ip, node = s
+            if state == 'INITIALIZING':
+                initializing_shards.add(ip)
+                continue
 
-    cmd = 'aws --profile fedramp-prod autoscaling terminate-instance-in-auto-scaling-group --should-decrement-desired-capacity --instance-id {}'
-    print('The following sets of nodes do not share any shards:')
-    print('=' * 50)
-    # just print out all the ones in the first set
-    for ip, node in list(non_overlapping)[0]:
-        # We probably don't want to touch nodes where shards are being relocated to
-        # or whether they're bootstrapping
-        if ip in relocating_target_shards or ip in initializing_shards:
+        index, shard, prirep, state, docs, store, ip, node = s
+
+    except ValueError:
+        print('Unable to parse {}'.format(s))
+
+    ip_node = (ip, node)
+    existing_shards = shards_per_node.get(ip_node, set())
+    existing_shards.add(shard)
+    shards_per_node[ip_node] = existing_shards
+
+# there are more efficient ways to do this, sure
+# and this doesn't get _all_ the non-overlapping sets
+# but good enough
+non_overlapping = []
+for ip_node, shards in shards_per_node.items():
+    all_shards = shards.copy()
+    nodes = [ip_node]
+    for _ip_node, _shards in shards_per_node.items():
+        if _ip_node == ip_node:
             continue
-        shards = shards_per_node[(ip, node)]
-        instance_id = node.split('.')[0]
-        print(cmd.format(instance_id))
-        print('# {}'.format(', '.join(shards)))
+        if len(_shards.intersection(all_shards)) == 0:
+            all_shards = all_shards.union(_shards)
+            nodes.append(_ip_node)
+    non_overlapping.append(nodes)
 
+if len(non_overlapping) == 0:
+    sys.exit("Uh oh. Are you connected to the right VPN? You specified "
+             "the {} environment. If you want to work on fedramp, "
+             "you need to also be on the bastion.".format(env))
 
-get_shards(cluster)
+cmd = 'aws --profile fedramp-prod autoscaling terminate-instance-in-auto-scaling-group --should-decrement-desired-capacity --instance-id {}'
+print('The following sets of nodes do not share any shards:')
+print('=' * 50)
+# just print out all the ones in the first set
+for ip, node in list(non_overlapping)[0]:
+    # We probably don't want to touch nodes where shards are being relocated to
+    # or whether they're bootstrapping
+    if ip in relocating_target_shards or ip in initializing_shards:
+        continue
+    shards = shards_per_node[(ip, node)]
+    instance_id = node.split('.')[0]
+    print(cmd.format(instance_id))
+    print('# {}'.format(', '.join(shards)))
