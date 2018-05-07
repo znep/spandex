@@ -50,7 +50,7 @@ trait SecondaryEventLogger extends Logging {
 
   def logTruncate(dataset: String, copyNumber: Long): Unit =
     logEvent("Truncate",
-             s"deleting field values for latest copy $copyNumber of dataset $dataset")
+             s"deleting columns values for latest copy $copyNumber of dataset $dataset")
 
   def logWorkingCopyPublished(dataset: String, copyNumber: Long): Unit =
     logEvent("WorkingCopyPublished",

@@ -5,7 +5,11 @@ import com.socrata.soql.types.SoQLText
 import com.socrata.spandex.common.Timings
 import com.socrata.spandex.common.client._
 
-class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) extends SecondaryEventLogger {
+class VersionEventsHandler(
+    client: SpandexElasticSearchClient,
+    maxValueLength: Int)
+  extends SecondaryEventLogger {
+
   def handle(datasetName: String, // scalastyle:ignore cyclomatic.complexity method.length
              dataVersion: Long,
              events: Iterator[Event]): Unit = {
@@ -14,7 +18,7 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
     val startTime = Timings.now
 
     // First, handle any working copy events
-    val remainingEvents = WorkingCopyCreatedHandler(client).go(datasetName, dataVersion, events)
+    val remainingEvents = new WorkingCopyCreatedHandler(client).go(datasetName, dataVersion, events)
 
     // Find the latest dataset copy number. This *should* exist since
     // we have already handled creation of any initial working copies.
@@ -29,16 +33,16 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
           val latestPublished = client.datasetCopyLatest(datasetName, Some(Published)).getOrElse(
             throw InvalidStateBeforeEvent(s"Could not find a published copy to copy data from"))
           logDataCopied(datasetName, latestPublished.copyNumber, latest.copyNumber)
-          client.copyFieldValues(from = latestPublished, to = latest, refresh = true)
+          client.copyColumnValues(from = latestPublished, to = latest, refresh = true)
         case RowDataUpdated(ops) =>
-          RowOpsHandler(client, batchSize).go(datasetName, latest.copyNumber, ops)
+          new RowOpsHandler(client, maxValueLength).go(datasetName, latest.copyNumber, ops)
         case SnapshotDropped(info) =>
-          CopyDropHandler(client).dropSnapshot(datasetName, info)
+          new CopyDropHandler(client).dropSnapshot(datasetName, info)
         case WorkingCopyDropped =>
-          CopyDropHandler(client).dropWorkingCopy(datasetName, latest)
+          new CopyDropHandler(client).dropWorkingCopy(datasetName, latest)
         case WorkingCopyPublished =>
-          PublishHandler(client).go(datasetName, latest)
-          CopyDropHandler(client).dropUnpublishedCopies(datasetName)
+          new PublishHandler(client).go(datasetName, latest)
+          new CopyDropHandler(client).dropUnpublishedCopies(datasetName)
         case ColumnCreated(info) =>
           if (info.typ == SoQLText) {
             logColumnCreated(datasetName, latest.copyNumber, info)
@@ -46,12 +50,12 @@ class VersionEventsHandler(client: SpandexElasticSearchClient, batchSize: Int) e
           }
         case ColumnRemoved(info) =>
           logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
-          client.deleteFieldValuesByColumnId(datasetName, latest.copyNumber, info.systemId.underlying, refresh = false)
+          client.deleteColumnValuesByColumnId(datasetName, latest.copyNumber, info.systemId.underlying, refresh = false)
           client.deleteColumnMap(datasetName, latest.copyNumber, info.id.underlying, refresh = false)
           client.refresh()
         case Truncated =>
           logTruncate(datasetName, latest.copyNumber)
-          client.deleteFieldValuesByCopyNumber(datasetName, latest.copyNumber, refresh = true)
+          client.deleteColumnValuesByCopyNumber(datasetName, latest.copyNumber, refresh = true)
         case LastModifiedChanged(lm) =>
         // TODO : Support if-modified-since one day
         case RowIdentifierSet(info) =>

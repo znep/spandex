@@ -38,6 +38,6 @@ curl -XDELETE $DATACOORDINATOR/secondary-manifest/spandex/$DCU.$DSID
 result=$(curl -s -XDELETE $SPANDEXHTTP/suggest/$DCU.$DSID)
 num_copies=$(echo $result | jq '.dataset_copy')
 num_columns=$(echo $result | jq '.column_map')
-num_field_values=$(echo $result | jq '.field_value')
+num_column_values=$(echo $result | jq '.column_value')
 
-echo "Deleted $num_copies dataset copies, $num_columns columns, and $num_field_values field values"
+echo "Deleted $num_copies dataset copies, $num_columns columns, and $num_column_values column values"

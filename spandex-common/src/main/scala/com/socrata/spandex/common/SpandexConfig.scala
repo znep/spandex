@@ -8,6 +8,7 @@ class SpandexConfig(config: Config = ConfigFactory.load().getConfig("com.socrata
   val spandexPort = config.getInt("port") // scalastyle:ignore multiple.string.literals
   val es = new ElasticSearchConfig(config.getConfig("elastic-search"))
   val suggestSize = config.getInt("suggest-size")
+  val resyncBatchSize = config.getInt("resync-batch-size")
 
   val debugString = config.root.render()
 }
@@ -20,4 +21,5 @@ class ElasticSearchConfig(config: Config) {
 
   val dataCopyBatchSize = config.getInt("data-copy-batch-size")
   val dataCopyTimeout = config.getDuration("data-copy-timeout", TimeUnit.MILLISECONDS)
+  val maxColumnValueLength = config.getInt("max-input-length")
 }

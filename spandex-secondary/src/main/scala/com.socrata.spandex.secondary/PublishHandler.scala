@@ -3,7 +3,7 @@ package com.socrata.spandex.secondary
 import com.socrata.datacoordinator.secondary.{LifecycleStage, ResyncSecondaryException}
 import com.socrata.spandex.common.client.{DatasetCopy, Published, SpandexElasticSearchClient}
 
-case class PublishHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
+class PublishHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
   def go(datasetName: String, latest: DatasetCopy): Unit = {
     if (latest.stage != LifecycleStage.Unpublished) {
       throw ResyncSecondaryException(

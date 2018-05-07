@@ -8,6 +8,5 @@ if [ "" == "$dsid" ]; then
   exit 1
 fi
 
-query="{\"query\":{\"match\":{\"dataset_id\":\"alpha.$dsid\"}},\"_source\":\"value.output\"}"
-curl -s $ES/spandex/field_value/_search?size=1000 -d $query |jq '.hits.hits[]._source.value.output |length' |sort |uniq -c |sort -nr -k 2
-
+query="{\"query\":{\"match\":{\"dataset_id\":\"alpha.$dsid\"}},\"_source\":\"value\"}"
+curl -s "$ES/spandex/column_value/_search?size=1000" -d $query |jq -r '.hits.hits[]._source.value|length' |sort |uniq -c |sort -nr -k2

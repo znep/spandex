@@ -3,7 +3,7 @@ package com.socrata.spandex.secondary
 import com.socrata.datacoordinator.secondary.{ResyncSecondaryException, WorkingCopyCreated}
 import com.socrata.spandex.common.client.SpandexElasticSearchClient
 
-case class WorkingCopyCreatedHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
+class WorkingCopyCreatedHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
   def go(datasetName: String, dataVersion: Long, events: Iterator[Event]): Iterator[Event] = {
     val (wccEvents, remainingEvents) = events.span {
       case WorkingCopyCreated(copyInfo) => true

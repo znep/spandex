@@ -24,16 +24,16 @@ class ResponseExtensionsSpec extends FunSuiteLike
   test("Create BulkResponseAcknowledgement from BulkResponse") {
     val itemResponses = Array(
       new BulkItemResponse(1, OpType.CREATE, new IndexResponse(shardId, "dataset_copy", "alpha.1234", 0L, true)),
-      new BulkItemResponse(2, OpType.CREATE, new IndexResponse(shardId, "field_value", "alpha.1234", 0L, true)),
+      new BulkItemResponse(2, OpType.CREATE, new IndexResponse(shardId, "column_value", "alpha.1234", 0L, true)),
       new BulkItemResponse(3, OpType.CREATE, new IndexResponse(shardId, "column_map", "alpha.1234", 0L, true)),
       new BulkItemResponse(4, OpType.DELETE, new DeleteResponse(shardId, "dataset_copy", "alpha.1234", 0L, true)),
-      new BulkItemResponse(5, OpType.UPDATE, new UpdateResponse(shardId, "field_value", "alpha.1234", 1L, Result.UPDATED)))
+      new BulkItemResponse(5, OpType.UPDATE, new UpdateResponse(shardId, "column_value", "alpha.1234", 1L, Result.UPDATED)))
 
     val bulkResponse = new BulkResponse(itemResponses, 10L)
     val expectedAcknowledgement = BulkResponseAcknowledgement(
       deletions = Map("dataset_copy" -> 1),
-      updates = Map("field_value" -> 1),
-      creations = Map("dataset_copy" -> 1, "field_value" -> 1, "column_map" -> 1))
+      updates = Map("column_value" -> 1),
+      creations = Map("dataset_copy" -> 1, "column_value" -> 1, "column_map" -> 1))
 
     BulkResponseAcknowledgement(bulkResponse) should be (expectedAcknowledgement)
   }
@@ -41,10 +41,10 @@ class ResponseExtensionsSpec extends FunSuiteLike
   test("Get non-empty deletions count map from BulkResponse") {
     val itemResponses = Array(
       new BulkItemResponse(1, OpType.CREATE, new IndexResponse(shardId, "dataset_copy", "alpha.1234", 0L, true)),
-      new BulkItemResponse(2, OpType.CREATE, new IndexResponse(shardId, "field_value", "alpha.1234", 0L, true)),
+      new BulkItemResponse(2, OpType.CREATE, new IndexResponse(shardId, "column_value", "alpha.1234", 0L, true)),
       new BulkItemResponse(3, OpType.CREATE, new IndexResponse(shardId, "column_map", "alpha.1234", 0L, true)),
       new BulkItemResponse(4, OpType.DELETE, new DeleteResponse(shardId, "dataset_copy", "alpha.1234", 0L, true)),
-      new BulkItemResponse(5, OpType.UPDATE, new UpdateResponse(shardId, "field_value", "alpha.1234", 1L, Result.UPDATED)))
+      new BulkItemResponse(5, OpType.UPDATE, new UpdateResponse(shardId, "column_value", "alpha.1234", 1L, Result.UPDATED)))
 
     val bulkResponse = new BulkResponse(itemResponses, 10L)
     val expectedDeletionsCountMap = Map("dataset_copy" -> 1)
@@ -55,16 +55,16 @@ class ResponseExtensionsSpec extends FunSuiteLike
   test("Get empty deletions count map from BulkResponse") {
     val itemResponses = Array(
       new BulkItemResponse(1, OpType.CREATE, new IndexResponse(shardId, "dataset_copy", "alpha.1234", 0L, true)),
-      new BulkItemResponse(2, OpType.CREATE, new IndexResponse(shardId, "field_value", "alpha.1234", 0L, true)),
+      new BulkItemResponse(2, OpType.CREATE, new IndexResponse(shardId, "column_value", "alpha.1234", 0L, true)),
       new BulkItemResponse(3, OpType.CREATE, new IndexResponse(shardId, "column_map", "alpha.1234", 0L, true)),
-      new BulkItemResponse(5, OpType.UPDATE, new UpdateResponse(shardId, "field_value", "alpha.1234", 1L, Result.UPDATED)))
+      new BulkItemResponse(5, OpType.UPDATE, new UpdateResponse(shardId, "column_value", "alpha.1234", 1L, Result.UPDATED)))
 
     val bulkResponse = new BulkResponse(itemResponses, 10L)
 
     bulkResponse.deletions shouldBe empty
   }
 
-  test("JSON serialzation of dataset copies, column maps, and field values includes composite fields") {
+  test("JSON serialzation of dataset copies, column maps, and column values includes composite fields") {
     val datasetId = "ds.one"
     val datasetCopy = DatasetCopy(datasetId, 1, 42, LifecycleStage.Published)
     var expected = j"""{"dataset_id":"ds.one","copy_number":1,"version":42,"stage":"Published"}"""
@@ -74,8 +74,18 @@ class ResponseExtensionsSpec extends FunSuiteLike
     expected = j"""{"dataset_id":"ds.one","copy_number":1,"system_column_id":2,"user_column_id":"column2"}"""
     JsonEncode.toJValue(columnMap) should be(expected)
 
-    val fieldValue = FieldValue(columnMap.datasetId, columnMap.copyNumber, columnMap.systemColumnId, 42, "foo")
-    expected = j"""{"column_id":2,"composite_id":"ds.one|1|2","copy_number":1,"dataset_id":"ds.one","row_id":42,"value":"foo"}"""
-    JsonEncode.toJValue(fieldValue) should be(expected)
+    val columnValue = ColumnValue(columnMap.datasetId, columnMap.copyNumber, columnMap.systemColumnId, "foo", 1L)
+    expected = j"""{"column_id":2,"composite_id":"ds.one|1|2","copy_number":1,"dataset_id":"ds.one","value":"foo","count": 1}"""
+    JsonEncode.toJValue(columnValue) should be(expected)
+  }
+
+  test("The ColumnValue.truncate method should return the same ColumnValue when the value string is shorter than the truncation length") {
+    val columnValue = ColumnValue("ds.one", 10L, 11L, "foo", 1L)
+    columnValue.truncate(4) should be(columnValue)
+  }
+
+  test("The ColumnValue.truncate method should return the expected ColumnValue when the value string is longer than the truncation length") {
+    val columnValue = ColumnValue("ds.one", 10L, 11L, "four", 1L)
+    columnValue.truncate(3) should be(ColumnValue("ds.one", 10L, 11L, "fou", 1L))
   }
 }

@@ -1,78 +1,55 @@
 package com.socrata.spandex.common.client
 
-import org.elasticsearch.index.query.QueryBuilder
+import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilder, TermQueryBuilder}
 import org.elasticsearch.index.query.QueryBuilders._
-import org.elasticsearch.script.Script
-import org.elasticsearch.search.aggregations.AggregationBuilder
-import org.elasticsearch.search.aggregations.AggregationBuilders._
-import org.elasticsearch.search.aggregations.bucket.terms.Terms
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
 
 object Queries {
-  def byDatasetIdQuery(datasetId: String): QueryBuilder = termQuery(SpandexFields.DatasetId, datasetId)
+  def byDatasetId(datasetId: String): TermQueryBuilder =
+    termQuery(SpandexFields.DatasetId, datasetId)
 
-  def byDatasetIdAndStageQuery(datasetId: String, stage: LifecycleStage): QueryBuilder =
+  def byDatasetIdAndStage(datasetId: String, stage: LifecycleStage): BoolQueryBuilder =
     boolQuery()
       .filter(termQuery(SpandexFields.DatasetId, datasetId))
       .filter(termQuery(SpandexFields.Stage, stage.toString))
 
-  def byCopyNumberQuery(datasetId: String, copyNumber: Long): QueryBuilder =
+  def byDatasetIdAndCopyNumber(datasetId: String, copyNumber: Long): BoolQueryBuilder =
     boolQuery()
       .filter(termQuery(SpandexFields.DatasetId, datasetId))
       .filter(termQuery(SpandexFields.CopyNumber, copyNumber))
 
-  def byColumnIdQuery(datasetId: String, copyNumber: Long, columnId: Long): QueryBuilder =
+  def byDatasetIdCopyNumberAndColumnId(datasetId: String, copyNumber: Long, columnId: Long): BoolQueryBuilder =
     boolQuery()
       .filter(termQuery(SpandexFields.DatasetId, datasetId))
       .filter(termQuery(SpandexFields.CopyNumber, copyNumber))
       .filter(termQuery(SpandexFields.ColumnId, columnId))
 
-  def byCompositeIdQuery(column: ColumnMap): QueryBuilder =
+  def byCompositeId(column: ColumnMap): BoolQueryBuilder =
     boolQuery()
       .filter(termQuery(SpandexFields.CompositeId, column.compositeId))
 
-  def byRowIdQuery(datasetId: String, copyNumber: Long, rowId: Long): QueryBuilder =
-    boolQuery()
-      .filter(termQuery(SpandexFields.DatasetId, datasetId))
-      .filter(termQuery(SpandexFields.CopyNumber, copyNumber))
-      .filter(termQuery(SpandexFields.RowId, rowId))
-
-  def byDatasetIdAndOptionalStageQuery(datasetId: String, stage: Option[Stage]): QueryBuilder =
+  def byDatasetIdAndOptionalStage(datasetId: String, stage: Option[Stage]): QueryBuilder =
     stage match {
       case Some(n @ Number(_)) => throw new IllegalArgumentException(s"cannot request latest copy for stage = $n")
-      case Some(Unpublished) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Unpublished)
-      case Some(Published) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Published)
-      case Some(Snapshotted) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Snapshotted)
-      case Some(Discarded) => byDatasetIdAndStageQuery(datasetId, LifecycleStage.Discarded)
-      case _ => byDatasetIdQuery(datasetId)
+      case Some(Unpublished) => byDatasetIdAndStage(datasetId, LifecycleStage.Unpublished)
+      case Some(Published) => byDatasetIdAndStage(datasetId, LifecycleStage.Published)
+      case Some(Snapshotted) => byDatasetIdAndStage(datasetId, LifecycleStage.Snapshotted)
+      case Some(Discarded) => byDatasetIdAndStage(datasetId, LifecycleStage.Discarded)
+      case _ => byDatasetId(datasetId)
     }
 
-  def byFieldValueAutocompleteQuery(fieldValue: Option[String]): QueryBuilder =
-    fieldValue match {
+  def byColumnValueAutocomplete(columnValue: Option[String]): QueryBuilder =
+    columnValue match {
       case Some(value) => matchQuery(SpandexFields.ValueAutocomplete, value)
       case None => matchAllQuery()
     }
 
-  def byFieldValueAutocompleteAndCompositeIdQuery(fieldValue: Option[String], column: ColumnMap): QueryBuilder =
+  def byColumnValueAutocompleteAndCompositeId(columnValue: Option[String], column: ColumnMap): BoolQueryBuilder =
     boolQuery()
-      .filter(byCompositeIdQuery(column))
-      .must(byFieldValueAutocompleteQuery(fieldValue))
+      .filter(byCompositeId(column))
+      .must(byColumnValueAutocomplete(columnValue))
 
-  def fieldValueTermsAggregation(
-      size: Int,
-      aggKey: String = "values",
-      orderByScore: Boolean = false)
-    : AggregationBuilder = {
-
-    val termsAgg = terms(aggKey).field(SpandexFields.Value).size(size)
-
-    if (orderByScore) {
-      termsAgg.subAggregation(
-        max("max_score").script(new Script("_score"))
-      ).order(Terms.Order.aggregation("max_score.value", false))
-    } else {
-      termsAgg.order(Terms.Order.count(false))
-    }
-  }
+  def nonPositiveCountColumnValuesByDatasetIdAndCopyNumber(datasetId: String, copyNumber: Long): BoolQueryBuilder =
+    byDatasetIdAndCopyNumber(datasetId, copyNumber).filter(rangeQuery(SpandexFields.Count).lte(0))
 }

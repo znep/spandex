@@ -29,8 +29,8 @@ fi
 delete_query="{\"query\":{\"term\":{\"dataset_id\":{\"value\":\"$DCU.$DSID\"}}}}"
 copy_count=$(curl -s $CLUSTER/spandex/dataset_copy/_search?size=0 -d $delete_query |jq '.hits.total')
 column_count=$(curl -s $CLUSTER/spandex/column_map/_search?size=0 -d $delete_query |jq '.hits.total')
-value_count=$(curl -s $CLUSTER/spandex/field_value/_search?size=0 -d $delete_query |jq '.hits.total')
+value_count=$(curl -s $CLUSTER/spandex/column_value/_search?size=0 -d $delete_query |jq '.hits.total')
 
 echo "found $copy_count copies, $column_count columns, $value_count values; deleting $DSID"
-curl -XDELETE $CLUSTER/spandex/_query -d $delete_query
+curl -XPOST $CLUSTER/spandex/_delete_by_query -d $delete_query
 echo

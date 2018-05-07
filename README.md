@@ -128,9 +128,9 @@ curl http://localhost:8042/health
 The following searches should all return documents (hits.total should be > 0)
 
 ```sh
-curl http://localhost:9200/spandex/field_value/_search?q=*
-curl http://localhost:9200/spandex/column_map/_search?q=*
-curl http://localhost:9200/spandex/dataset_copy/_search?q=*
+curl http://localhost:9200/spandex/column/_search
+curl http://localhost:9200/spandex/column_value/_search
+curl http://localhost:9200/spandex/dataset_copy/_search
 ```
 
 ##### Issue an autocomplete query directly to Spandex
