@@ -1,10 +1,12 @@
 package com.socrata.spandex.common.client
 
+import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
 import java.net.InetAddress
 import java.io.Closeable
 
+import org.elasticsearch.action.admin.indices.analyze.AnalyzeRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.client.Client
 import org.elasticsearch.cluster.health.ClusterHealthStatus
@@ -13,7 +15,7 @@ import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.index.query.QueryBuilders.{boolQuery, termQuery}
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 
-import com.socrata.spandex.common.TestData
+import com.socrata.spandex.common.{TestData, Token}
 import Queries._
 import ResponseExtensions._
 import SpandexElasticSearchClient.{ColumnType, ColumnValueType, DatasetCopyType}
@@ -137,6 +139,12 @@ class SpandexESIntegrationTestClient(val client: SpandexElasticSearchClient) ext
       .execute.actionGet
 
     response.results[ColumnValue]().thisPage.map(_.result.count).headOption
+  }
+
+  def analyze(analyzer: String, text: String): List[Token] = {
+    val request = new AnalyzeRequest(client.indexName).analyzer(analyzer).text(text)
+    client.client.admin().indices().analyze(request).actionGet().getTokens.asScala.map(
+      Token.apply).toList
   }
 }
 

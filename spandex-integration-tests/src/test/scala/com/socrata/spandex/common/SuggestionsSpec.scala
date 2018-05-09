@@ -137,4 +137,10 @@ class SuggestionsSpec extends FunSuiteLike
 
     suggest("") should contain inOrder ("baz", "bar", "foo")
   }
+
+  test("suggest returns the expected field values when the values contain accented characters") {
+    val value = "la mémoire d'éléphant"
+    index(value)
+    suggest("elephant") should contain(value)
+  }
 }
