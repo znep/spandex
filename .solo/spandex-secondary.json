@@ -1,0 +1,7 @@
+{
+  "aliases": [ ],
+  "ports": [ ],
+  "start_container": "bin/start_spandex_secondary_docker",
+  "start_process": "bin/start_spandex_secondary",
+  "health_checks": [ ]
+}

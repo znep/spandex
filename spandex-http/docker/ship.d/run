@@ -4,7 +4,9 @@ set -evx
 
 SERVER_JAR="$SERVER_ROOT/$SERVER_ARTIFACT"
 
-/bin/env_parse /etc/${SERVER_CONFIG}.j2
+if [ ! -z "$MARATHON_APP_ID" ]; then
+    /bin/env_parse /etc/${SERVER_CONFIG}.j2
+fi
 
 exec su socrata -c "exec /usr/bin/java \
      -Xmx${JAVA_XMX} \

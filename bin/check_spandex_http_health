@@ -1,0 +1,5 @@
+#!/bin/bash
+
+is_healthy=$(curl -s -XGET localhost:8042/health | jq -r '[.[]|.healthy]|all')
+
+[[ $is_healthy == "true" ]]

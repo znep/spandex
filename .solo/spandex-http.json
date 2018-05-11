@@ -1,0 +1,8 @@
+{
+  "aliases": [ ],
+  "ports": [ 8042 ],
+  "start_container": "bin/start_spandex_http_docker",
+  "start_process": "bin/start_spandex_http",
+  "http_check": "/version",
+  "health_checks": [ "bin/check_spandex_http_health" ]
+}

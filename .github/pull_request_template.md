@@ -1,0 +1,5 @@
+- [ ] styleCheck passes
+- [ ] unit tests pass
+- [ ] integration tests pass
+- [ ] manual tests pass
+- [ ] API docs updated

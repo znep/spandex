@@ -1,0 +1,19 @@
+#!/bin/bash
+
+image="$1"
+if [ -z "$image" ]; then
+  echo "ERR >> Please supply a full image name as an argument to this script!"
+  exit 1
+fi
+
+INDEX_NAME=$(curl -s -XGET localhost:9200/spandex | jq -r 'keys[0]')
+
+if [[ $INDEX_NAME == "error" ]]; then
+    $HERE/setup_index
+fi
+
+AWS_PROFILE=infrastructure docker run \
+  -e CONFIG_LINE="-Dconfig.file=/etc/configs/application.conf" \
+  -v "$(realpath $0)/../../configs":/etc/configs \
+  -p 68:68 \
+  "$image"

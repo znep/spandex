@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Start the spandex-http service
+set -e
+
+HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+SUBPROJECT=spandex-http
+JARFILE="`$HERE/build.sh $SUBPROJECT`"
+DEBUG_PORT=${1:-8043}
+
+java \
+  -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=localhost:$DEBUG_PORT \
+  -Dconfig.file=$HERE/../configs/application.conf \
+  -Djava.net.preferIPv4Stack=true \
+  -jar "$JARFILE"

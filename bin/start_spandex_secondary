@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Start the spandex secondary watcher
+set -e
+
+HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SUBPROJECT=spandex-secondary
+JARFILE="`$HERE/build.sh $SUBPROJECT`"
+DEBUG_PORT=${1:-8044}
+
+INDEX_NAME=$(curl -s -XGET localhost:9200/spandex | jq -r 'keys[0]')
+
+if [[ $INDEX_NAME == "error" ]]; then
+    $HERE/setup_index
+fi
+
+java \
+  -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=localhost:$DEBUG_PORT \
+  -Dconfig.file=$HERE/../configs/application.conf \
+  -Djava.net.preferIPv4Stack=true \
+  -jar "$JARFILE"
