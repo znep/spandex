@@ -31,6 +31,7 @@ object SpandexBuild extends Build {
       <exclude org="commons-logging" module="commons-logging"/>
       </dependencies>
     },
+    test in assembly := {},
     assemblyMergeStrategy in assembly := {
       case "META-INF/io.netty.versions.properties" => MergeStrategy.last
       case "application.conf" => MergeStrategy.last
