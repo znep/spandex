@@ -10,7 +10,7 @@ export UUID=$(cat /proc/sys/kernel/random/uuid)
 exec su socrata -c '/usr/bin/java \
     -Xmx${JAVA_XMX} \
     -Xms${JAVA_XMX} \
-    -Dconfig.file=${SERVER_ROOT}/${SERVER_CONFIG} \
+    ${CONFIG_LINE} \
     -Dcom.socrata.coordinator.common.log4j.logger.com.socrata.spandex=${LOG_LEVEL} \
     -Djava.net.preferIPv4Stack=true \
     -Dcom.sun.management.jmxremote.port=${JMX_PORT} \
