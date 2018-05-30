@@ -10,6 +10,7 @@ ENV SERVER_NAME spandex-http
 ENV SERVER_ROOT      /srv/${SERVER_NAME}/
 ENV SERVER_CONFIG    ${SERVER_NAME}.conf
 ENV SERVER_ARTIFACT  ${SERVER_NAME}-assembly.jar
+ENV CONFIG_LINE      -Dconfig.file=/etc/${SERVER_CONFIG}
 
 # Environment settings.
 ENV JAVA_XMX 512m

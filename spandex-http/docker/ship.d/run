@@ -11,7 +11,7 @@ fi
 exec su socrata -c "exec /usr/bin/java \
      -Xmx${JAVA_XMX} \
      -Xms${JAVA_XMX} \
-     -Dconfig.file=/etc/${SERVER_CONFIG} \
+     ${CONFIG_LINE} \
      -Djava.net.preferIPv4Stack=true \
      -Dcom.sun.management.jmxremote.port=${JMX_PORT} \
      -Dcom.sun.management.jmxremote.rmi.port=${JMX_PORT} \
