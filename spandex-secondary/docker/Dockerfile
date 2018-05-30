@@ -1,8 +1,9 @@
 FROM socrata/java8
 
-ENV SERVER_ROOT /srv/secondary-watcher
-ENV SERVER_ARTIFACT spandex-secondary-assembly.jar
-ENV SERVER_CONFIG secondary-watcher.conf
+ENV SERVER_ROOT       /srv/secondary-watcher
+ENV SERVER_ARTIFACT   spandex-secondary-assembly.jar
+ENV SERVER_CONFIG     secondary-watcher.conf
+ENV CONFIG_LINE       -Dconfig.file=${SERVER_ROOT}/${SERVER_CONFIG}
 
 # general secondary-watcher defaults
 ENV TRUTH_CLUSTER alpha
