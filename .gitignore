@@ -74,4 +74,4 @@ spandex-http/docker/*.jar
 spandex-secondary/docker/*.jar
 
 configs/local.conf
-spandex-http.log
+/*.log
