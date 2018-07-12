@@ -12,7 +12,7 @@ else
   /bin/env_parse ${SECONDARY_CONFIG}.j2
 fi
 
-exec su socrata -c '/usr/bin/java \
+exec su socrata -c "/usr/bin/java \
     -Xmx${JAVA_XMX} \
     -Xms${JAVA_XMX} \
     ${CONFIG_LINE} \
@@ -25,5 +25,4 @@ exec su socrata -c '/usr/bin/java \
     -Djava.rmi.server.hostname=${ARK_HOST:-localhost} \
     -XX:+ExitOnOutOfMemoryError \
     -XX:MaxMetaspaceSize=${JAVA_MAX_METASPACE} \
-    -jar $SERVER_ARTIFACT
-    '
+    -jar $SERVER_ARTIFACT"
