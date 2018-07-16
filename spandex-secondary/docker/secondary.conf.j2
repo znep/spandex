@@ -1,7 +1,7 @@
 instances.{{ SPANDEX_SECONDARY_TYPE }} {
   secondaryType = autocomplete
   numWorkers = {{ SPANDEX_SECONDARY_NUM_WORKERS }}
-  resync-batch-size = {{ SPANDEX_SECONDARY_RESYNC_BATCH_SIZE }}
+  resync-batch-size = {{ SPANDEX_RESYNC_BATCH_SIZE }}
 
   config.elastic-search {
     host = "{{ SPANDEX_SECONDARY_ES_HOST }}"
