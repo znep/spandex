@@ -9,8 +9,8 @@ import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.spandex.common._
-import com.socrata.spandex.common.client.{ColumnMap, ColumnValue, DatasetCopy}
-import com.socrata.spandex.common.client.SpandexElasticSearchClient
+import com.socrata.spandex.common.client.{ColumnMap, ColumnValue, DatasetCopy, Immediately, SpandexElasticSearchClient}
+
 import org.joda.time.DateTime
 import org.scalatest.{FunSuiteLike, Matchers}
 
@@ -20,6 +20,8 @@ class TestSpandexSecondary(
     override val resyncBatchSize: Int,
     override val maxValueLength: Int)
   extends SpandexSecondaryLike {
+
+  override val refresh = Immediately
 
   def shutdown(): Unit = client.close()
 }
@@ -79,8 +81,8 @@ class SpandexSecondaryLikeSpec extends FunSuiteLike
   test("resync") {
     // Add some stale data related to this dataset, which should be cleaned up in the resync
     client.indexColumnValue(ColumnValue("zoo-animals", 5, 3, "marmot", 1))
-    client.putColumnMap(ColumnMap("zoo-animals", 5, 3, "species"), refresh = true)
-    client.putDatasetCopy("zoo-animals", 5, 5, LifecycleStage.Unpublished, refresh = true)
+    client.putColumnMap(ColumnMap("zoo-animals", 5, 3, "species"), refresh = Immediately)
+    client.putDatasetCopy("zoo-animals", 5, 5, LifecycleStage.Unpublished, refresh = Immediately)
 
     client.searchCopiesByDataset("zoo-animals").totalHits should be (1)
     client.searchColumnMapsByDataset("zoo-animals").totalHits should be (1)

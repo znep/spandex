@@ -32,7 +32,7 @@ class CopyDropHandlerSpec extends FunSuiteLike
 
     // set last published copy to snapshotted, simulating behavior of PublishHandler
     val lastPublished = client.datasetCopy(datasetName, 2).map(_.copy(stage=LifecycleStage.Snapshotted)).get
-    client.updateDatasetCopyVersion(lastPublished, refresh = true)
+    client.updateDatasetCopyVersion(lastPublished, refresh = Immediately)
     client.refresh()
 
     new CopyDropHandler(client).dropUnpublishedCopies(datasetName)

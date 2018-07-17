@@ -32,7 +32,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     }
 
     val inserts = toInsert.map(client.columnValueIndexRequest)
-    client.sendBulkRequest(inserts, refresh = true)
+    client.sendBulkRequest(inserts, refresh = Immediately)
 
     toInsert.foreach { fv =>
       verifyColumnValue(fv) should be (Some(fv))
@@ -43,7 +43,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
       ColumnValue("alpha.1337", 1, 22, "Henry", 1L))
 
     val updates = toUpdate.map(client.columnValueIndexRequest)
-    client.sendBulkRequest(updates, refresh = true)
+    client.sendBulkRequest(updates, refresh = Immediately)
 
     verifyColumnValue(toInsert(0)).get should be (toUpdate(0))
     verifyColumnValue(toInsert(1)).get should be (toInsert(1))
@@ -51,7 +51,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
 
     val deletes = toUpdate.map(columnValue =>
       client.deleteColumnValuesByColumnId(
-        columnValue.datasetId, columnValue.copyNumber, columnValue.columnId, refresh = true))
+        columnValue.datasetId, columnValue.copyNumber, columnValue.columnId, refresh = Immediately))
 
     verifyColumnValue(toInsert(0)) should not be 'defined
     verifyColumnValue(toInsert(1)).get should be (toInsert(1))
@@ -61,14 +61,14 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
   test("Don't send empty bulk requests to Elasticsearch") {
     val empty = Seq.empty[IndexRequestBuilder]
     // BulkRequest.validate throws if given an empty bulk request
-    client.sendBulkRequest(empty, refresh = true)
+    client.sendBulkRequest(empty, refresh = Immediately)
   }
 
   test("Delete column values by dataset") {
     client.searchColumnValuesByDataset(datasets(0)).totalHits should be (45)
     client.searchColumnValuesByDataset(datasets(1)).totalHits should be (45)
 
-    client.deleteColumnValuesByDataset(datasets(0), refresh=true)
+    client.deleteColumnValuesByDataset(datasets(0), refresh = Immediately)
 
     client.searchColumnValuesByDataset(datasets(0)).totalHits should be (0)
     client.searchColumnValuesByDataset(datasets(1)).totalHits should be (45)
@@ -80,7 +80,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.searchColumnValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
     client.searchColumnValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
 
-    client.deleteColumnValuesByCopyNumber(datasets(0), 2, refresh=true)
+    client.deleteColumnValuesByCopyNumber(datasets(0), 2, refresh = Immediately)
 
     client.searchColumnValuesByCopyNumber(datasets(0), 1).totalHits should be (15)
     client.searchColumnValuesByCopyNumber(datasets(0), 2).totalHits should be (0)
@@ -94,7 +94,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.searchColumnValuesByColumnId(datasets(0), 2, 2).totalHits should be (5)
     client.searchColumnValuesByColumnId(datasets(1), 2, 1).totalHits should be (5)
 
-    client.deleteColumnValuesByColumnId(datasets(0), 2, 1, refresh=true)
+    client.deleteColumnValuesByColumnId(datasets(0), 2, 1, refresh = Immediately)
 
     client.searchColumnValuesByColumnId(datasets(0), 1, 1).totalHits should be (5)
     client.searchColumnValuesByColumnId(datasets(0), 2, 1).totalHits should be (0)
@@ -112,12 +112,12 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     } yield ColumnValue(from.datasetId, from.copyNumber, col, s"$col|$row", 1)
 
     val inserts = toCopy.map(client.columnValueUpsertRequest)
-    client.sendBulkRequest(inserts, refresh = true)
+    client.sendBulkRequest(inserts, refresh = Immediately)
 
     client.searchColumnValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)
     client.searchColumnValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be (0)
 
-    client.copyColumnValues(from, to, refresh = true)
+    client.copyColumnValues(from, to, refresh = Immediately)
 
     client.searchColumnValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)
     client.searchColumnValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be (100)
@@ -127,8 +127,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     // Make sure that searchLotsOfColumnMapsByCopyNumber returns more than the standard
     // 10-result page of data. Start by creating column maps for a very wide dataset.
     val columns = (1 to 1000).map { idx => ColumnMap("wide-dataset", 1, idx, "col" + idx) }
-    columns.foreach(client.putColumnMap(_, refresh = false))
-    client.refresh()
+    columns.foreach(client.putColumnMap(_, refresh = Immediately))
 
     val retrieved = client.searchLotsOfColumnMapsByCopyNumber("wide-dataset", 1)
     retrieved.thisPage.map(_.result).sortBy(_.systemColumnId) should be (columns)
@@ -139,14 +138,14 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.fetchColumnMap(datasets(0), 1, "col2-2222") should not be 'defined
 
     val colMap = ColumnMap(datasets(0), 1, 1, "col1-1111")
-    client.putColumnMap(colMap, refresh = true)
+    client.putColumnMap(colMap, refresh = Immediately)
 
     val colMap1 = client.fetchColumnMap(datasets(0), 1, "col1-1111")
     colMap1 should be (Some(colMap))
     val colMap2 = client.fetchColumnMap(datasets(0), 1, "col2-2222")
     colMap2 should not be 'defined
 
-    client.deleteColumnMap(colMap.datasetId, colMap.copyNumber, colMap.userColumnId, refresh = false)
+    client.deleteColumnMap(colMap.datasetId, colMap.copyNumber, colMap.userColumnId, refresh = Immediately)
 
     client.fetchColumnMap(datasets(0), 1, "col1-1111") should not be 'defined
   }
@@ -155,7 +154,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.searchColumnMapsByDataset(datasets(0)).totalHits should be (9)
     client.searchColumnMapsByDataset(datasets(1)).totalHits should be (9)
 
-    client.deleteColumnMapsByDataset(datasets(0), refresh=true)
+    client.deleteColumnMapsByDataset(datasets(0), refresh = Immediately)
 
     client.searchColumnMapsByDataset(datasets(0)).totalHits should be (0)
     client.searchColumnMapsByDataset(datasets(1)).totalHits should be (9)
@@ -165,7 +164,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (3)
     client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
 
-    client.deleteColumnMapsByCopyNumber(datasets(0), 1, refresh=true)
+    client.deleteColumnMapsByCopyNumber(datasets(0), 1, refresh = Immediately)
 
     client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (0)
     client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
@@ -179,15 +178,15 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.datasetCopy(datasets(0), 3) should be (Some(copies(datasets(0))(2)))
     client.datasetCopy(datasets(0), 4) should not be 'defined
 
-    client.putDatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished, refresh = true)
+    client.putDatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished, refresh = Immediately)
     client.datasetCopy(datasets(0), 4) should be
       (Some(DatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished)))
 
-    client.deleteDatasetCopy(datasets(0), 4, refresh = true)
+    client.deleteDatasetCopy(datasets(0), 4, refresh = Immediately)
     client.datasetCopy(datasets(0), 4) should not be 'defined
     client.searchCopiesByDataset(datasets(0)).totalHits should be (3)
 
-    client.deleteDatasetCopiesByDataset(datasets(0), refresh = true)
+    client.deleteDatasetCopiesByDataset(datasets(0), refresh = Immediately)
     client.searchCopiesByDataset(datasets(0)).totalHits should be (0)
   }
 
@@ -208,7 +207,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
   }
 
   test("Update dataset copy version") {
-    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Unpublished, refresh = true)
+    client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Unpublished, refresh = Immediately)
 
     val current = client.datasetCopy(datasets(1), 1)
     current should be ('defined)
@@ -217,7 +216,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
 
     client.updateDatasetCopyVersion(
       current.get.copy(version = 5, stage = LifecycleStage.Published),
-      refresh = true)
+      refresh = Immediately)
 
     client.datasetCopy(datasets(1), 1) should be ('defined)
     client.datasetCopy(datasets(1), 1).get.version should be (5)
@@ -225,13 +224,13 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
   }
 
   test("Delete dataset copy by copy number") {
-    client.putDatasetCopy(datasets(0), 1, 50L, LifecycleStage.Unpublished, refresh = true)
-    client.putDatasetCopy(datasets(0), 2, 100L, LifecycleStage.Published, refresh = true)
+    client.putDatasetCopy(datasets(0), 1, 50L, LifecycleStage.Unpublished, refresh = Immediately)
+    client.putDatasetCopy(datasets(0), 2, 100L, LifecycleStage.Published, refresh = Immediately)
 
     client.datasetCopy(datasets(0), 1) should be ('defined)
     client.datasetCopy(datasets(0), 2) should be ('defined)
 
-    client.deleteDatasetCopy(datasets(0), 2, refresh = true)
+    client.deleteDatasetCopy(datasets(0), 2, refresh = Immediately)
 
     client.datasetCopy(datasets(0), 1) should be ('defined)
     client.datasetCopy(datasets(0), 2) should not be ('defined)
@@ -261,10 +260,9 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
   }
 
   test("Delete all documents associated with a dataset and return counts of types deleted") {
-    client.putDatasetCopy(datasets(0), 1, 1L, LifecycleStage.Published, refresh = true)
+    client.putDatasetCopy(datasets(0), 1, 1L, LifecycleStage.Published, refresh = Immediately)
     client.datasetCopy(datasets(0), 1) shouldBe defined
-    client.refresh()
-    client.deleteDatasetById(datasets(0), refresh = true) should be(
+    client.deleteDatasetById(datasets(0), refresh = Immediately) should be(
       Map("column" -> 9, "dataset_copy" -> 3, "column_value" -> 45))
     client.datasetCopy(datasets(0), 1) shouldBe None
   }

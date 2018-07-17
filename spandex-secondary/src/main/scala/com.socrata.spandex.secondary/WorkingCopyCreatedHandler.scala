@@ -1,9 +1,13 @@
 package com.socrata.spandex.secondary
 
 import com.socrata.datacoordinator.secondary.{ResyncSecondaryException, WorkingCopyCreated}
-import com.socrata.spandex.common.client.SpandexElasticSearchClient
+import com.socrata.spandex.common.client.{Eventually, RefreshPolicy, SpandexElasticSearchClient}
 
-class WorkingCopyCreatedHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
+class WorkingCopyCreatedHandler(
+    client: SpandexElasticSearchClient,
+    refresh: RefreshPolicy = Eventually)
+  extends SecondaryEventLogger {
+
   def go(datasetName: String, dataVersion: Long, events: Iterator[Event]): Iterator[Event] = {
     val (wccEvents, remainingEvents) = events.span {
       case WorkingCopyCreated(copyInfo) => true
@@ -23,7 +27,7 @@ class WorkingCopyCreatedHandler(client: SpandexElasticSearchClient) extends Seco
             // Tell ES that this new copy exists
             logWorkingCopyCreated(datasetName, copyInfo.copyNumber)
             client.putDatasetCopy(
-              datasetName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage, refresh = true)
+              datasetName, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage, refresh)
           }
         case _ =>
           throw new UnsupportedOperationException(s"Unexpected event ${event.getClass}")

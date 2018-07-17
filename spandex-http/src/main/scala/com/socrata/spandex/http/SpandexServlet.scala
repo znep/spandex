@@ -132,7 +132,7 @@ class SpandexServlet(conf: SpandexConfig,
     time(request, "deleteDataset") {
       contentType = ContentTypeJson
       val datasetId = params.getOrElse(paramDatasetId, halt(HttpStatus.SC_BAD_REQUEST))
-      JsonUtil.renderJson(client.deleteDatasetById(datasetId, refresh = true))
+      JsonUtil.renderJson(client.deleteDatasetById(datasetId))
     }
   }
 
@@ -160,58 +160,12 @@ class SpandexServlet(conf: SpandexConfig,
 
     val size = params.get(paramSize).headOption.fold(conf.suggestSize)(_.toInt)
 
-    // this results in an max aggregation with a sort
-    //
-    // {
-    //   "query": {
-    //     "bool": {
-    //       "must": [
-    //         {
-    //           "term": {
-    //             "stage": "<STAGE>"
-    //           },
-    //           "term": {
-    //             "dataset_id": "<DATASET_ID>"
-    //           }
-    //         }
-    //       ]
-    //     }
-    //   },
-    //   "size": 1,
-    //   "sort": {
-    //     "copy_number": "desc"
-    //   },
-    //   "aggregations": {
-    //     "latest_copy": {
-    //       "max": {
-    //         "field": "copy_number"
-    //       }
-    //     }
-    //   }
-    // }
     val copy = copyNum(datasetId, stageInfoText)
     logger.info(s"found copy $copy")
 
     // this results in a fetch by composite ID
     val column = columnMap(datasetId, copy, userColumnId)
     logger.info(s"found column $column")
-
-    // this results in a suggest query
-    //
-    // {
-    //   "suggest": {
-    //     "completion": {
-    //       "context": {
-    //         "composite_id": <COMPOSITE_ID>
-    //       }
-    //       "field": "value",
-    //       "text": <TEXT>,
-    //       "size": 10
-    //     }
-    //   }
-    // }
-    // https://www.elastic.co/guide/en/elasticsearch/reference/1.7/search-suggesters-completion.html
-    // http://blog.mikemccandless.com/2010/12/using-finite-state-transducers-in.html
 
     val result = f(column, text, size)
     logger.info(s"<<< $result")

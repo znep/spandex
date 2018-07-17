@@ -11,7 +11,7 @@ import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLText, SoQLValue}
 import com.socrata.spandex.common.SpandexIntegrationTest
-import com.socrata.spandex.common.client.{ColumnMap, ColumnValue, DatasetCopy, SpandexESIntegrationTestClient}
+import com.socrata.spandex.common.client.{ColumnMap, ColumnValue, DatasetCopy, Immediately, SpandexESIntegrationTestClient}
 
 // scalastyle:off
 class VersionEventsHandlerSpec extends FunSuiteLike
@@ -21,7 +21,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   // Make batches teensy weensy to expose any batching issues
   override lazy val client = SpandexESIntegrationTestClient("localhost", 9300, "es_dev", indexName, 10, 60000, 64)
-  val handler = new VersionEventsHandler(client, 64)
+  val handler = new VersionEventsHandler(client, 64, refresh = Immediately)
 
   test("All - throw an exception if data version is invalid") {
     val invalidDataVersion = 0
@@ -43,7 +43,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     val copyInfo = CopyInfo(new CopyId(100), 1, LifecycleStage.Unpublished, 1, DateTime.now)
     val events = Seq(WorkingCopyCreated(copyInfo)).iterator
 
-    client.putDatasetCopy(dataset, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage, refresh = true)
+    client.putDatasetCopy(dataset, copyInfo.copyNumber, dataVersion, copyInfo.lifecycleStage, refresh = Immediately)
 
     a [ResyncSecondaryException] should be thrownBy handler.handle(dataset, 1, events)
   }
@@ -77,6 +77,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     latestAfter should be ('defined)
     latestAfter.get.copyNumber should be (expectedLatestBefore.copyNumber)
     latestAfter.get.version should be (expectedLatestBefore.version + 1)
+    client.refresh()
     client.searchColumnValuesByCopyNumber(datasets(0), expectedLatestBefore.copyNumber).totalHits should be (0)
   }
 
@@ -120,20 +121,21 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     latestAfterDelete should be ('defined)
     latestAfterDelete.get.copyNumber should be (expectedLatestBefore.copyNumber)
     latestAfterDelete.get.version should be (expectedLatestBefore.version + 1)
+    client.refresh()
     client.searchColumnValuesByColumnId(
       datasets(0), expectedLatestBefore.copyNumber, info.systemId.underlying).totalHits should be (0)
     client.fetchColumnMap(datasets(0), expectedLatestBefore.copyNumber, info.id.underlying) should not be 'defined
   }
 
   test("WorkingCopyPublished - throw exception if the current copy is not Unpublished.") {
-    client.putDatasetCopy("wcp-invalid-test", 1, 2, LifecycleStage.Published, refresh = true)
+    client.putDatasetCopy("wcp-invalid-test", 1, 2, LifecycleStage.Published, refresh = Immediately)
 
     a [ResyncSecondaryException] should be thrownBy
       handler.handle("wcp-invalid-test", 3, Seq(WorkingCopyPublished).iterator)
   }
 
   test("WorkingCopyPublished - publish first working copy") {
-    client.putDatasetCopy("wcp-first-test", 1, 2, LifecycleStage.Unpublished, refresh = true)
+    client.putDatasetCopy("wcp-first-test", 1, 2, LifecycleStage.Unpublished, refresh = Immediately)
 
     handler.handle("wcp-first-test", 3, Seq(WorkingCopyPublished).iterator)
 
@@ -142,8 +144,8 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   }
 
   test("WorkingCopyPublished - publish subsequent working copy, set previous published copies to snapshotted") {
-   client.putDatasetCopy("wcp-second-test", 1, 2, LifecycleStage.Published, refresh = true)
-   client.putDatasetCopy("wcp-second-test", 2, 4, LifecycleStage.Unpublished, refresh = true)
+   client.putDatasetCopy("wcp-second-test", 1, 2, LifecycleStage.Published, refresh = Immediately)
+   client.putDatasetCopy("wcp-second-test", 2, 4, LifecycleStage.Unpublished, refresh = Immediately)
 
    handler.handle("wcp-second-test", 5, Seq(WorkingCopyPublished).iterator)
 
@@ -154,7 +156,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   }
 
   test("WorkingCopyDropped - throw an exception if the copy is the initial copy") {
-    client.putDatasetCopy("wcd-test-initial-copy", 1, 1, LifecycleStage.Unpublished, refresh = true)
+    client.putDatasetCopy("wcd-test-initial-copy", 1, 1, LifecycleStage.Unpublished, refresh = Immediately)
 
     val expectedBefore = Some(DatasetCopy("wcd-test-initial-copy", 1, 1, LifecycleStage.Unpublished))
     client.datasetCopyLatest("wcd-test-initial-copy") should be(expectedBefore)
@@ -164,7 +166,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   }
 
   test("WorkingCopyDropped - throw an exception if the copy is in the wrong stage") {
-    client.putDatasetCopy("wcd-test-published", 2, 2, LifecycleStage.Published, refresh = true)
+    client.putDatasetCopy("wcd-test-published", 2, 2, LifecycleStage.Published, refresh = Immediately)
 
     val expectedBefore = Some(DatasetCopy("wcd-test-published", 2, 2, LifecycleStage.Published))
     client.datasetCopyLatest("wcd-test-published") should be(expectedBefore)
@@ -184,6 +186,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     client.searchColumnMapsByCopyNumber(datasets(1), 3).totalHits should be (3)
 
     handler.handle(datasets(1), expectedBefore.version + 1, Seq(WorkingCopyDropped).iterator)
+    client.refresh()
 
     val expectedAfter = copies(datasets(1))(1).copy(version = expectedBefore.version + 1)
     client.datasetCopyLatest(datasets(1)) should be (Some(expectedAfter))
@@ -196,7 +199,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   }
 
   test("SnapshotDropped - throw an exception if the copy is in the wrong stage") {
-    client.putDatasetCopy("sd-test-notsnapshot", 2, 2, LifecycleStage.Unpublished, refresh = true)
+    client.putDatasetCopy("sd-test-notsnapshot", 2, 2, LifecycleStage.Unpublished, refresh = Immediately)
 
     val expectedBefore = Some(DatasetCopy("sd-test-notsnapshot", 2, 2, LifecycleStage.Unpublished))
     client.datasetCopyLatest("sd-test-notsnapshot") should be (expectedBefore)
@@ -242,6 +245,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     val insertEvents = Seq(RowDataUpdated(Seq[Operation](insert))).iterator
     handler.handle(datasets(1), expectedBeforeInsert.version + 1, insertEvents)
+    client.refresh()
 
     val expectedAfterInsert = expectedBeforeInsert.copy(version = expectedBeforeInsert.version + 1)
     client.datasetCopyLatest(datasets(1)) should be (Some(expectedAfterInsert))
@@ -263,11 +267,14 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
     val updateEvents = Seq(RowDataUpdated(Seq[Operation](update))).iterator
     handler.handle(datasets(1), expectedAfterInsert.version + 1, updateEvents)
+    client.refresh()
 
     val expectedAfter = expectedAfterInsert.copy(version = expectedAfterInsert.version + 1)
     client.datasetCopyLatest(datasets(1)) should be (Some(expectedAfter))
+
     val results = client.searchColumnValuesByCopyNumber(datasets(1), expectedAfterInsert.copyNumber, 16)
     results.totalHits should be (16)
+
     val newCopyColumnValues = results.thisPage.map(_.result)
     val newCopyValuesOnlySet = newCopyColumnValues.map(_.value).toSet
 
@@ -305,6 +312,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
     ).iterator
 
     handler.handle(datasets(1), expectedBefore.version + 1, events)
+    client.refresh()
 
     val expectedAfter = expectedBefore.copy(version = expectedBefore.version + 1)
     client.datasetCopyLatest(datasets(1)) should be (Some(expectedAfter))
@@ -323,9 +331,9 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   test("RowDataUpdated - operations get executed in the right order") {
     // Add column mappings for imaginary columns
-    client.putDatasetCopy("fun-with-ordering", 1, 1, LifecycleStage.Unpublished, refresh = true)
-    client.putColumnMap(ColumnMap("fun-with-ordering", 1, 50, "myco-l050"), refresh = true)
-    client.putColumnMap(ColumnMap("fun-with-ordering", 1, 51, "myco-l051"), refresh = true)
+    client.putDatasetCopy("fun-with-ordering", 1, 1, LifecycleStage.Unpublished, refresh = Immediately)
+    client.putColumnMap(ColumnMap("fun-with-ordering", 1, 50, "myco-l050"), refresh = Immediately)
+    client.putColumnMap(ColumnMap("fun-with-ordering", 1, 51, "myco-l051"), refresh = Immediately)
 
     // Row 1 - we'll insert it first, then delete it.
     // We expect it not to exist at the end of the test.
@@ -375,7 +383,7 @@ class VersionEventsHandlerSpec extends FunSuiteLike
 
   test("DataCopied - all column values from last published copy should be copied to latest copy") {
     // Remove bootstrapped data on working copy
-    client.deleteColumnValuesByCopyNumber(datasets(1), 3, refresh = true)
+    client.deleteColumnValuesByCopyNumber(datasets(1), 3, refresh = Immediately)
 
     val expectedBefore = copies(datasets(1)).last
     client.datasetCopyLatest(datasets(1)) should be (Some(expectedBefore))

@@ -7,7 +7,8 @@ import com.socrata.spandex.common.client._
 
 class VersionEventsHandler(
     client: SpandexElasticSearchClient,
-    maxValueLength: Int)
+    maxValueLength: Int,
+    refresh: RefreshPolicy = Eventually)
   extends SecondaryEventLogger {
 
   def handle(datasetName: String, // scalastyle:ignore cyclomatic.complexity method.length
@@ -18,7 +19,7 @@ class VersionEventsHandler(
     val startTime = Timings.now
 
     // First, handle any working copy events
-    val remainingEvents = new WorkingCopyCreatedHandler(client).go(datasetName, dataVersion, events)
+    val remainingEvents = new WorkingCopyCreatedHandler(client, refresh).go(datasetName, dataVersion, events)
 
     // Find the latest dataset copy number. This *should* exist since
     // we have already handled creation of any initial working copies.
@@ -33,29 +34,28 @@ class VersionEventsHandler(
           val latestPublished = client.datasetCopyLatest(datasetName, Some(Published)).getOrElse(
             throw InvalidStateBeforeEvent(s"Could not find a published copy to copy data from"))
           logDataCopied(datasetName, latestPublished.copyNumber, latest.copyNumber)
-          client.copyColumnValues(from = latestPublished, to = latest, refresh = true)
+          client.copyColumnValues(from = latestPublished, to = latest, refresh)
         case RowDataUpdated(ops) =>
-          new RowOpsHandler(client, maxValueLength).go(datasetName, latest.copyNumber, ops)
+          new RowOpsHandler(client, maxValueLength, refresh).go(datasetName, latest.copyNumber, ops)
         case SnapshotDropped(info) =>
-          new CopyDropHandler(client).dropSnapshot(datasetName, info)
+          new CopyDropHandler(client, refresh).dropSnapshot(datasetName, info)
         case WorkingCopyDropped =>
-          new CopyDropHandler(client).dropWorkingCopy(datasetName, latest)
+          new CopyDropHandler(client, refresh).dropWorkingCopy(datasetName, latest)
         case WorkingCopyPublished =>
-          new PublishHandler(client).go(datasetName, latest)
-          new CopyDropHandler(client).dropUnpublishedCopies(datasetName)
+          new PublishHandler(client, refresh).go(datasetName, latest)
+          new CopyDropHandler(client, refresh).dropUnpublishedCopies(datasetName)
         case ColumnCreated(info) =>
           if (info.typ == SoQLText) {
             logColumnCreated(datasetName, latest.copyNumber, info)
-            client.putColumnMap(ColumnMap(datasetName, latest.copyNumber, info), refresh = true)
+            client.putColumnMap(ColumnMap(datasetName, latest.copyNumber, info), refresh)
           }
         case ColumnRemoved(info) =>
           logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
-          client.deleteColumnValuesByColumnId(datasetName, latest.copyNumber, info.systemId.underlying, refresh = false)
-          client.deleteColumnMap(datasetName, latest.copyNumber, info.id.underlying, refresh = false)
-          client.refresh()
+          client.deleteColumnValuesByColumnId(datasetName, latest.copyNumber, info.systemId.underlying, refresh)
+          client.deleteColumnMap(datasetName, latest.copyNumber, info.id.underlying, refresh)
         case Truncated =>
           logTruncate(datasetName, latest.copyNumber)
-          client.deleteColumnValuesByCopyNumber(datasetName, latest.copyNumber, refresh = true)
+          client.deleteColumnValuesByCopyNumber(datasetName, latest.copyNumber, refresh)
         case LastModifiedChanged(lm) =>
         // TODO : Support if-modified-since one day
         case RowIdentifierSet(info) =>
@@ -74,14 +74,13 @@ class VersionEventsHandler(
       }
     }
 
+    client.deleteNonPositiveCountColumnValues(datasetName, latest.copyNumber, refresh)
+
     // Finally, get whatever the new latest copy is and bump its data version.
     logDataVersionBump(datasetName, latest.copyNumber, latest.version, dataVersion)
     val finalLatest = client.datasetCopyLatest(datasetName).getOrElse(
       throw InvalidStateAfterEvent(s"Couldn't get latest copy number for dataset $datasetName"))
-    client.updateDatasetCopyVersion(finalLatest.copy(version = dataVersion), refresh = true)
-
-    // Super double check that we have the correct dataset copy info
-    client.datasetCopy(datasetName, latest.copyNumber)
+    client.updateDatasetCopyVersion(finalLatest.copy(version = dataVersion), refresh)
 
     val timeElapsed = Timings.elapsedInMillis(startTime)
     logVersionEventsProcessed(datasetName, finalLatest.copyNumber, finalLatest.version, timeElapsed)

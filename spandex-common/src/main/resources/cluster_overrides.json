@@ -20,7 +20,7 @@
     }
   },
   "eu-west-1-prod": {
-    "host": "autocomplete.elasticsearch.aws-eu-west-1-prod.socrata.net",
+    "host": "autocomplete-1.elasticsearch.aws-eu-west-1-prod.socrata.net",
     "port": 80,
     "settings": {
       "index": {
@@ -34,7 +34,7 @@
     "port": 80,
     "settings": {
       "index": {
-        "number_of_shards": "90",
+        "number_of_shards": "50",
         "number_of_replicas": "1"
       }
     }

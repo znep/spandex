@@ -20,7 +20,7 @@ class SuggestionsSpec extends FunSuiteLike
   def index(value: String, count: Long = 1): Unit =
     client.indexColumnValues(
       List(ColumnValue(col.datasetId, col.copyNumber, col.systemColumnId, value, count)),
-      refresh = true
+      refresh = BeforeReturning
     )
 
   def suggest(query: String): List[String] = {
@@ -36,7 +36,7 @@ class SuggestionsSpec extends FunSuiteLike
     val date = ColumnValue(col.datasetId, col.copyNumber, col.systemColumnId, "04/2014", 1)
     val sym  = ColumnValue(col.datasetId, col.copyNumber, col.systemColumnId, "@giraffe", 1)
 
-    client.indexColumnValues(List(fool, food, date, sym), refresh = true)
+    client.indexColumnValues(List(fool, food, date, sym), refresh = BeforeReturning)
 
     val suggestions = suggest("foo")
     suggestions.length should be(2)
@@ -133,7 +133,7 @@ class SuggestionsSpec extends FunSuiteLike
     val foo = ColumnValue(col.datasetId, col.copyNumber, col.systemColumnId, "foo", 1)
     val bar = ColumnValue(col.datasetId, col.copyNumber, col.systemColumnId, "bar", 2)
     val baz = ColumnValue(col.datasetId, col.copyNumber, col.systemColumnId, "baz", 3)
-    client.indexColumnValues(List(foo, bar, baz), refresh = true)
+    client.indexColumnValues(List(foo, bar, baz), refresh = BeforeReturning)
 
     suggest("") should contain inOrder ("baz", "bar", "foo")
   }

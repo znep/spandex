@@ -4,12 +4,13 @@ import com.rojoma.simplearm._
 import com.socrata.datacoordinator.secondary._
 import com.socrata.datacoordinator.util.collection.ColumnIdMap
 import com.socrata.soql.types.{SoQLText, SoQLType, SoQLValue}
-import com.socrata.spandex.common.client.{ColumnMap, ColumnValue, SpandexElasticSearchClient}
+import com.socrata.spandex.common.client._
 
 class ResyncHandler(
     client: SpandexElasticSearchClient,
     batchSize: Int,
-    maxValueLength: Int)
+    maxValueLength: Int,
+    refresh: RefreshPolicy = Eventually)
   extends SecondaryEventLogger {
 
   def go(datasetInfo: DatasetInfo,
@@ -19,12 +20,12 @@ class ResyncHandler(
     logResync(datasetInfo.internalName, copyInfo.copyNumber)
 
     // Add dataset copy
-    // Don't refresh ES during resync
-    client.putDatasetCopy(datasetInfo.internalName,
+    client.putDatasetCopy(
+      datasetInfo.internalName,
       copyInfo.copyNumber,
       copyInfo.dataVersion,
       copyInfo.lifecycleStage,
-      refresh = false)
+      refresh)
 
     // Add column maps for text columns
     val textColumns =
@@ -32,14 +33,16 @@ class ResyncHandler(
         ColumnMap(datasetInfo.internalName, copyInfo.copyNumber, info)
       }
 
-    // Don't refresh ES during resync
-    textColumns.foreach(client.putColumnMap(_, refresh = false))
+    textColumns.foreach(client.putColumnMap(_))
 
     // Delete all existing column values
-    client.deleteColumnValuesByCopyNumber(datasetInfo.internalName, copyInfo.copyNumber, false)
+    // Wait for these delete operations to be refreshed before continuing
+    client.deleteColumnValuesByCopyNumber(datasetInfo.internalName, copyInfo.copyNumber, refresh = BeforeReturning)
 
     // Add/update column values for each row
     insertRows(datasetInfo, copyInfo, schema, rows)
+
+    client.deleteNonPositiveCountColumnValues(datasetInfo.internalName, copyInfo.copyNumber, refresh)
   }
 
   private def insertRows(
@@ -56,8 +59,11 @@ class ResyncHandler(
         ColumnValue.fromDatum(datasetInfo.internalName, copyInfo.copyNumber, (id, value), maxValueLength)
       }
 
+      val datasetId = datasetInfo.internalName
+      val copyNumber = copyInfo.copyNumber
+
       columnValues.grouped(batchSize).foreach { batch =>
-        client.putColumnValues(datasetInfo.internalName, copyInfo.copyNumber, ColumnValue.aggregate(batch).toList)
+        client.putColumnValues(datasetId, copyNumber, ColumnValue.aggregate(batch).toList, refresh)
       }
     }
   }

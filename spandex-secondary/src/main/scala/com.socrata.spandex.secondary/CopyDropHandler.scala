@@ -5,7 +5,11 @@ import com.socrata.datacoordinator.secondary.{CopyInfo, LifecycleStage}
 import com.socrata.spandex.common.client._
 import org.joda.time.DateTime
 
-class CopyDropHandler(client: SpandexElasticSearchClient) extends SecondaryEventLogger {
+class CopyDropHandler(
+    client: SpandexElasticSearchClient,
+    refresh: RefreshPolicy = Eventually)
+  extends SecondaryEventLogger {
+
   private[this] def checkStage(expected: LifecycleStage, actual: LifecycleStage): Unit =
     if (actual != expected) {
       throw InvalidStateBeforeEvent(
@@ -15,21 +19,17 @@ class CopyDropHandler(client: SpandexElasticSearchClient) extends SecondaryEvent
   def dropCopy(datasetName: String, info: CopyInfo, expectedStage: LifecycleStage): Unit = {
     checkStage(expectedStage, info.lifecycleStage)
     logCopyDropped(datasetName, info.lifecycleStage, info.copyNumber)
-    client.deleteDatasetCopy(datasetName, info.copyNumber, refresh = false)
-    client.deleteColumnValuesByCopyNumber(datasetName, info.copyNumber, refresh = false)
-    client.deleteColumnMapsByCopyNumber(datasetName, info.copyNumber, refresh = false)
-    logRefreshRequest()
-    client.refresh()
+    client.deleteDatasetCopy(datasetName, info.copyNumber, refresh)
+    client.deleteColumnValuesByCopyNumber(datasetName, info.copyNumber, refresh)
+    client.deleteColumnMapsByCopyNumber(datasetName, info.copyNumber, refresh)
   }
 
   def dropSnapshot(datasetName: String, info: CopyInfo): Unit = {
     checkStage(LifecycleStage.Snapshotted, info.lifecycleStage)
     logSnapshotDropped(datasetName, info.copyNumber)
-    client.deleteDatasetCopy(datasetName, info.copyNumber, refresh = false)
-    client.deleteColumnValuesByCopyNumber(datasetName, info.copyNumber, refresh = false)
-    client.deleteColumnMapsByCopyNumber(datasetName, info.copyNumber, refresh = false)
-    logRefreshRequest()
-    client.refresh()
+    client.deleteDatasetCopy(datasetName, info.copyNumber, refresh)
+    client.deleteColumnValuesByCopyNumber(datasetName, info.copyNumber, refresh)
+    client.deleteColumnMapsByCopyNumber(datasetName, info.copyNumber, refresh)
   }
 
   def dropUnpublishedCopies(datasetName: String): Unit = {
@@ -60,10 +60,8 @@ class CopyDropHandler(client: SpandexElasticSearchClient) extends SecondaryEvent
     }
 
     logWorkingCopyDropped(datasetName, latest.copyNumber)
-    client.deleteDatasetCopy(datasetName, latest.copyNumber, refresh = false)
-    client.deleteColumnValuesByCopyNumber(datasetName, latest.copyNumber, refresh = false)
-    client.deleteColumnMapsByCopyNumber(datasetName, latest.copyNumber, refresh = false)
-    logRefreshRequest()
-    client.refresh()
+    client.deleteDatasetCopy(datasetName, latest.copyNumber, refresh)
+    client.deleteColumnValuesByCopyNumber(datasetName, latest.copyNumber, refresh)
+    client.deleteColumnMapsByCopyNumber(datasetName, latest.copyNumber, refresh)
   }
 }

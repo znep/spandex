@@ -45,12 +45,12 @@ class SpandexESIntegrationTestClient(val client: SpandexElasticSearchClient) ext
     // - a working copy
     testData.datasets.foreach { ds =>
       testData.copies(ds).foreach { copy =>
-        client.putDatasetCopy(ds, copy.copyNumber, copy.version, copy.stage, refresh = true)
+        client.putDatasetCopy(ds, copy.copyNumber, copy.version, copy.stage, refresh = Immediately)
 
         testData.columns(ds, copy).foreach { col =>
           client.putColumnMap(
             ColumnMap(ds, copy.copyNumber, col.systemColumnId, col.userColumnId),
-            refresh = true
+            refresh = Immediately
           )
 
           testData.rows(col).foreach(indexColumnValue)
@@ -59,18 +59,21 @@ class SpandexESIntegrationTestClient(val client: SpandexElasticSearchClient) ext
     }
   }
 
-  def removeBootstrapData(testData: TestData): Unit =
+  def removeBootstrapData(testData: TestData): Unit = {
     testData.datasets.foreach { d =>
-      client.deleteColumnValuesByDataset(d, false)
-      client.deleteColumnMapsByDataset(d, false)
-      client.deleteDatasetCopiesByDataset(d, false)
+      client.deleteColumnValuesByDataset(d)
+      client.deleteColumnMapsByDataset(d)
+      client.deleteDatasetCopiesByDataset(d)
     }
+
+    client.refresh()
+  }
 
   def deleteIndex(): Unit =
     client.client.admin().indices().delete(new DeleteIndexRequest(client.indexName)).actionGet()
   
   def deleteAllDatasetCopies(): Unit =
-    client.deleteByQuery(termQuery("_type", DatasetCopyType))
+    client.deleteByQuery(termQuery("_type", DatasetCopyType), refresh = Immediately)
 
   def searchColumnValuesByCopyNumber(datasetId: String, copyNumber: Long, size: Int = 10): SearchResults[ColumnValue] = {
     val response = client.client.prepareSearch(client.indexName)
@@ -98,7 +101,7 @@ class SpandexESIntegrationTestClient(val client: SpandexElasticSearchClient) ext
   }
 
   def indexColumnValue(columnValue: ColumnValue): Unit =
-    client.indexColumnValues(Seq(columnValue), refresh = true)
+    client.indexColumnValues(Seq(columnValue), refresh = Immediately)
 
   def fetchColumnValue(columnValue: ColumnValue): Option[ColumnValue] = {
     val response = client.client.prepareGet(client.indexName, ColumnValueType, columnValue.docId)

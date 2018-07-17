@@ -6,7 +6,7 @@ import org.elasticsearch.action.bulk.BulkRequestBuilder
 import org.elasticsearch.action.search.{SearchRequestBuilder, SearchResponse}
 import org.elasticsearch.index.query.QueryBuilder
 
-import com.socrata.spandex.common.client.{DatasetCopy, SpandexElasticSearchClient, SearchResults}
+import com.socrata.spandex.common.client.{DatasetCopy, RefreshPolicy, SpandexElasticSearchClient, SearchResults}
 
 trait ElasticsearchClientLogger extends Logging {
   this: SpandexElasticSearchClient =>
@@ -38,10 +38,10 @@ trait ElasticsearchClientLogger extends Logging {
   def logIndexAlreadyExists(index: String): Unit =
     logger.info(s"actually that index ($index) already exists")
 
-  def logBulkRequest(request: BulkRequestBuilder, refresh: Boolean): Unit =
-    logger.debug(s"sending bulk request of size ${request.numberOfActions} with refresh=$refresh")
+  def logBulkRequest(request: BulkRequestBuilder, refresh: RefreshPolicy): Unit =
+    logger.debug(s"sending bulk request of size ${request.numberOfActions} with refresh=${refresh.toString}")
 
-  def logDeleteByQueryRequest(queryBuilder: QueryBuilder, types: Seq[String], refresh: Boolean): Unit =
+  def logDeleteByQueryRequest(queryBuilder: QueryBuilder, types: Seq[String], refresh: RefreshPolicy): Unit =
     logger.debug(
       s"delete by query ${queryToString(queryBuilder)} on types=${types.toString} with refresh=${refresh.toString}")
 
@@ -51,8 +51,8 @@ trait ElasticsearchClientLogger extends Logging {
   def logSearchScrollRequest(scrollId: String, timeout: String): Unit =
     logger.trace(s"search scroll request id=$scrollId timeout=$timeout")
 
-  def logCopyColumnValuesRequest(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit =
-    logger.debug(s"copy column_values from=$from to=$to refresh=$refresh")
+  def logCopyColumnValuesRequest(from: DatasetCopy, to: DatasetCopy, refresh: RefreshPolicy): Unit =
+    logger.debug(s"copy column_values from=$from to=$to refresh=${refresh.toString}")
 
   def logDatasetCopyIndexRequest(id: String, source: String): Unit =
     logger.debug(s"executing index dataset copy on id=$id with $source")

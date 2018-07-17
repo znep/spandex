@@ -3,12 +3,13 @@ package com.socrata.spandex.secondary
 import com.socrata.datacoordinator.secondary.Row
 import com.socrata.soql.types.{SoQLText, SoQLValue}
 
-import com.socrata.spandex.common.client.{ColumnValue, SpandexElasticSearchClient}
+import com.socrata.spandex.common.client._
 import com.socrata.spandex.secondary.RowOpsHandler.columnValuesForRow
 
 class RowOpsHandler(
     client: SpandexElasticSearchClient,
-    maxValueLength: Int)
+    maxValueLength: Int,
+    refresh: RefreshPolicy = Eventually)
   extends SecondaryEventLogger {
 
   def go(datasetName: String, copyNumber: Long, ops: Seq[Operation]): Unit = {
@@ -30,16 +31,17 @@ class RowOpsHandler(
           deletes ++ inserts
         case delete: Delete =>
           // decrement deleted column values
-          delete.oldData.map(data =>
+          delete.oldData.map { data =>
             columnValuesForRow(datasetName, copyNumber, data, maxValueLength, isInsertion = false)
-          ).getOrElse(List.empty)
+          }.getOrElse(List.empty)
         case _ => throw new UnsupportedOperationException(s"Row operation ${op.getClass.getSimpleName} not supported")
       }
     }
 
     // NOTE: row ops are already batched coming from DC, so there's no need to batch here.
     // All column values are already materialized; the ES client handles batching indexing operations.
-    client.putColumnValues(datasetName, copyNumber, ColumnValue.aggregate(columnValues).toList)
+    client.putColumnValues(datasetName, copyNumber, ColumnValue.aggregate(columnValues).toList, refresh)
+    client.deleteNonPositiveCountColumnValues(datasetName, copyNumber, refresh)
   }
 }
 

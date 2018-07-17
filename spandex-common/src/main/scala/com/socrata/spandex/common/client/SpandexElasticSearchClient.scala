@@ -14,7 +14,6 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsReques
 import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.delete.{DeleteRequestBuilder, DeleteResponse}
 import org.elasticsearch.action.index.{IndexRequestBuilder, IndexResponse}
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy
 import org.elasticsearch.action.update.{UpdateRequestBuilder, UpdateResponse}
 import org.elasticsearch.client.Client
 import org.elasticsearch.common.settings.Settings
@@ -102,9 +101,6 @@ class SpandexElasticSearchClient(
       throw new NotImplementedError(s"Haven't implemented failure check for ${response.getClass.getSimpleName}")
   }
 
-  def refreshPolicy(refresh: Boolean): RefreshPolicy =
-    if (refresh) RefreshPolicy.IMMEDIATE else RefreshPolicy.NONE
-
   def refresh(): Unit =
     client.admin().indices().prepareRefresh(indexName).execute.actionGet
 
@@ -116,11 +112,11 @@ class SpandexElasticSearchClient(
     result
   }
 
-  def putColumnMap(columnMap: ColumnMap, refresh: Boolean = false): Unit = {
+  def putColumnMap(columnMap: ColumnMap, refresh: RefreshPolicy = Eventually): Unit = {
     val source = JsonUtil.renderJson(columnMap)
     val request = client.prepareIndex(indexName, ColumnType, columnMap.docId)
       .setSource(source, XContentType.JSON)
-      .setRefreshPolicy(refreshPolicy(refresh))
+      .setRefreshPolicy(refresh)
     logColumnMapIndexRequest(columnMap.docId, source)
     val response = request.execute.actionGet
     checkForFailures(response)
@@ -132,18 +128,20 @@ class SpandexElasticSearchClient(
     response.result[ColumnMap]
   }
 
-  def deleteColumnMap(datasetId: String, copyNumber: Long, userColumnId: String, refresh: Boolean = false): Unit = {
+  def deleteColumnMap(
+      datasetId: String,
+      copyNumber: Long,
+      userColumnId: String,
+      refresh: RefreshPolicy = Eventually)
+    : Unit = {
     val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
     val delete = client.prepareDelete(indexName, ColumnType, id)
-
-    if (refresh) {
-      delete.setRefreshPolicy(refreshPolicy(true))
-    }
+    delete.setRefreshPolicy(refresh)
 
     checkForFailures(delete.execute.actionGet)
   }
 
-  def deleteColumnMapsByDataset(datasetId: String, refresh: Boolean = false): Unit =
+  def deleteColumnMapsByDataset(datasetId: String, refresh: RefreshPolicy = Eventually): Unit =
     deleteByQuery(byDatasetId(datasetId), Seq(ColumnType), refresh)
 
   // We don't expect the number of column maps to exceed dataCopyBatchSize.
@@ -155,7 +153,7 @@ class SpandexElasticSearchClient(
       .setSize(dataCopyBatchSize)
       .execute.actionGet.results[ColumnMap]()
 
-  def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long, refresh: Boolean = false): Unit =
+  def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long, refresh: RefreshPolicy = Eventually): Unit =
     deleteByQuery(byDatasetIdAndCopyNumber(datasetId, copyNumber), Seq(ColumnType), refresh)
 
   def columnValueUpsertRequest(columnValue: ColumnValue): UpdateRequestBuilder = {
@@ -170,7 +168,7 @@ class SpandexElasticSearchClient(
       .setUpsert(JsonUtil.renderJson(columnValue.truncate(maxColumnValueLength)), XContentType.JSON)
   }
 
-  def indexColumnValues(columnValues: Iterable[ColumnValue], refresh: Boolean = false): Unit =
+  def indexColumnValues(columnValues: Iterable[ColumnValue], refresh: RefreshPolicy = Eventually): Unit =
     sendBulkRequest(
       columnValues.collect {
         case cv: ColumnValue if cv.isNonEmpty =>
@@ -178,18 +176,24 @@ class SpandexElasticSearchClient(
       }, refresh
     )
 
-  def putColumnValues(datasetId: String, copyNumber: Long, columnValues: Iterable[ColumnValue]): Unit = {
+  def putColumnValues(
+      datasetId: String,
+      copyNumber: Long,
+      columnValues: Iterable[ColumnValue],
+      refresh: RefreshPolicy = Eventually)
+    : Unit = {
     columnValues.grouped(dataCopyBatchSize).foreach { batch =>
-      indexColumnValues(batch, refresh = true)
-      deleteNonPositiveCountColumnValues(datasetId, copyNumber, refresh = true)
+      indexColumnValues(batch, Eventually)
     }
+
+    if (refresh != Eventually) this.refresh()
   }
 
   def columnValueIndexRequest(columnValue: ColumnValue): IndexRequestBuilder =
     client.prepareIndex(indexName, ColumnValueType, columnValue.docId)
       .setSource(JsonUtil.renderJson(columnValue.truncate(maxColumnValueLength)), XContentType.JSON)
 
-  def copyColumnValues(from: DatasetCopy, to: DatasetCopy, refresh: Boolean): Unit = {
+  def copyColumnValues(from: DatasetCopy, to: DatasetCopy, refresh: RefreshPolicy = Eventually): Unit = {
     logCopyColumnValuesRequest(from, to, refresh)
     val timeout = new TimeValue(dataCopyTimeout)
     val request = client.prepareSearch(indexName)
@@ -208,38 +212,44 @@ class SpandexElasticSearchClient(
       }
 
       if (batch.nonEmpty) {
-        sendBulkRequest(batch, refresh = false)
+        sendBulkRequest(batch, refresh = Eventually)
       }
       response = client.prepareSearchScroll(response.getScrollId)
         .setScroll(timeout).execute.actionGet
       logSearchResponse(response)
     } while (response.getHits().getHits().length != 0)
 
-    // TODO : Guarantee refresh before read instead of after write
-    if (refresh) {
-      this.refresh()
-    }
+    if (refresh != Eventually) this.refresh()
   }
 
-  def deleteColumnValuesByDataset(datasetId: String, refresh: Boolean): Unit =
+  def deleteColumnValuesByDataset(datasetId: String, refresh: RefreshPolicy = Eventually): Unit =
     deleteByQuery(byDatasetId(datasetId), Seq(ColumnValueType), refresh)
 
-  def deleteColumnValuesByCopyNumber(datasetId: String, copyNumber: Long, refresh: Boolean): Unit =
+  def deleteColumnValuesByCopyNumber(datasetId: String, copyNumber: Long, refresh: RefreshPolicy = Eventually): Unit =
     deleteByQuery(byDatasetIdAndCopyNumber(datasetId, copyNumber), Seq(ColumnValueType), refresh)
 
-  def deleteNonPositiveCountColumnValues(datasetId: String, copyNumber: Long, refresh: Boolean = false): Unit =
+  def deleteNonPositiveCountColumnValues(
+      datasetId: String,
+      copyNumber: Long,
+      refresh: RefreshPolicy = Eventually)
+    : Unit =
     deleteByQuery(
       nonPositiveCountColumnValuesByDatasetIdAndCopyNumber(datasetId, copyNumber),
       Seq(ColumnValueType),
       refresh)
 
-  def deleteColumnValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long, refresh: Boolean): Unit =
+  def deleteColumnValuesByColumnId(
+      datasetId: String,
+      copyNumber: Long,
+      columnId: Long,
+      refresh: RefreshPolicy = Eventually)
+    : Unit =
     deleteByQuery(byDatasetIdCopyNumberAndColumnId(datasetId, copyNumber, columnId), Seq(ColumnValueType), refresh)
 
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
-  def sendBulkRequest(requests: Iterable[Any], refresh: Boolean = false): Option[BulkResponse] = {
+  def sendBulkRequest(requests: Iterable[Any], refresh: RefreshPolicy = Eventually): Option[BulkResponse] = {
     if (requests.nonEmpty) {
-      val baseRequest = client.prepareBulk().setRefreshPolicy(refreshPolicy(refresh))
+      val baseRequest = client.prepareBulk().setRefreshPolicy(refresh)
       val bulkRequest = requests.foldLeft(baseRequest) { case (bulk, single) =>
         single match {
           case i: IndexRequestBuilder => bulk.add(i)
@@ -274,7 +284,7 @@ class SpandexElasticSearchClient(
   def deleteByQuery(
       queryBuilder: QueryBuilder,
       types: Seq[String] = Nil,
-      refresh: Boolean = false)
+      refresh: RefreshPolicy = Eventually)
     : Map[String, Int] = {
 
     val timeout = new TimeValue(dataCopyTimeout)
@@ -294,7 +304,7 @@ class SpandexElasticSearchClient(
         client.prepareDelete(h.getIndex, h.getType, h.getId)
       }
 
-      sendBulkRequest(batch, refresh = false).foreach { response =>
+      sendBulkRequest(batch, refresh = Eventually).foreach { response =>
         resultCounts ++= response.deletions.map { case (k, v) => (k, resultCounts.getOrElse(k, 0) + v) }
       }
 
@@ -303,7 +313,7 @@ class SpandexElasticSearchClient(
       logSearchResponse(response)
     } while (response.getHits().getHits().length != 0)
 
-    if (refresh) this.refresh()
+    if (refresh != Eventually) this.refresh()
 
     resultCounts.toMap
   }
@@ -313,23 +323,23 @@ class SpandexElasticSearchClient(
       copyNumber: Long,
       dataVersion: Long,
       stage: LifecycleStage,
-      refresh: Boolean = false)
+      refresh: RefreshPolicy = Eventually)
     : Unit = {
     val id = DatasetCopy.makeDocId(datasetId, copyNumber)
     val source = JsonUtil.renderJson(DatasetCopy(datasetId, copyNumber, dataVersion, stage))
     val request = client.prepareIndex(indexName, DatasetCopyType, id)
       .setSource(source, XContentType.JSON)
-      .setRefreshPolicy(refreshPolicy(refresh))
+      .setRefreshPolicy(refresh)
     logDatasetCopyIndexRequest(id, source)
     request.execute.actionGet
   }
 
-  def updateDatasetCopyVersion(datasetCopy: DatasetCopy, refresh: Boolean = false): Unit = {
+  def updateDatasetCopyVersion(datasetCopy: DatasetCopy, refresh: RefreshPolicy = Eventually): Unit = {
     val source = JsonUtil.renderJson(datasetCopy)
     val request = client.prepareUpdate(indexName, DatasetCopyType, datasetCopy.docId)
       .setDoc(source, XContentType.JSON)
       .setUpsert()
-      .setRefreshPolicy(refreshPolicy(refresh))
+      .setRefreshPolicy(refresh)
     logDatasetCopyUpdateRequest(datasetCopy, source)
     val response = request.execute.actionGet
     checkForFailures(response)
@@ -384,15 +394,15 @@ class SpandexElasticSearchClient(
     datasetCopy
   }
 
-  def deleteDatasetCopy(datasetId: String, copyNumber: Long, refresh: Boolean = false): Unit =
+  def deleteDatasetCopy(datasetId: String, copyNumber: Long, refresh: RefreshPolicy = Eventually): Unit =
     deleteByQuery(byDatasetIdAndCopyNumber(datasetId, copyNumber), Seq(DatasetCopyType), refresh)
 
-  def deleteDatasetCopiesByDataset(datasetId: String, refresh: Boolean = false): Unit =
+  def deleteDatasetCopiesByDataset(datasetId: String, refresh: RefreshPolicy = Eventually): Unit =
     deleteByQuery(byDatasetId(datasetId), Seq(DatasetCopyType), refresh)
 
   private val allTypes = Seq(DatasetCopyType, ColumnType, ColumnValueType)
 
-  def deleteDatasetById(datasetId: String, refresh: Boolean = false): Map[String, Int] =
+  def deleteDatasetById(datasetId: String, refresh: RefreshPolicy = Eventually): Map[String, Int] =
     deleteByQuery(byDatasetId(datasetId), allTypes, refresh)
 
   def suggest(column: ColumnMap, size: Int, text: String): SearchResults[ColumnValue] = {

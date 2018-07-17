@@ -3,14 +3,15 @@ package com.socrata.spandex.secondary
 import com.typesafe.config.{ConfigFactory, Config}
 
 import com.socrata.spandex.common.SpandexConfig
-import com.socrata.spandex.common.client.SpandexElasticSearchClient
+import com.socrata.spandex.common.client.{Eventually, RefreshPolicy, SpandexElasticSearchClient}
 
 class SpandexSecondary(
-    val client: SpandexElasticSearchClient,
-    val index: String,
+    override val client: SpandexElasticSearchClient,
+    override val index: String,
     val batchSize: Int,
-    val maxValueLength: Int,
-    val resyncBatchSize: Int)
+    override val maxValueLength: Int,
+    override val resyncBatchSize: Int,
+    override val refresh: RefreshPolicy = Eventually)
   extends SpandexSecondaryLike {
 
   def this(config: SpandexConfig) = {
