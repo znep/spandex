@@ -19,7 +19,8 @@ class VersionEventsHandler(
     val startTime = Timings.now
 
     // First, handle any working copy events
-    val remainingEvents = new WorkingCopyCreatedHandler(client, refresh).go(datasetName, dataVersion, events)
+    val remainingEvents = new WorkingCopyCreatedHandler(client, BeforeReturning)
+      .go(datasetName, dataVersion, events)
 
     // Find the latest dataset copy number. This *should* exist since
     // we have already handled creation of any initial working copies.
@@ -42,7 +43,7 @@ class VersionEventsHandler(
         case WorkingCopyDropped =>
           new CopyDropHandler(client, refresh).dropWorkingCopy(datasetName, latest)
         case WorkingCopyPublished =>
-          new PublishHandler(client, refresh).go(datasetName, latest)
+          new PublishHandler(client, BeforeReturning).go(datasetName, latest)
           new CopyDropHandler(client, refresh).dropUnpublishedCopies(datasetName)
         case ColumnCreated(info) =>
           if (info.typ == SoQLText) {
