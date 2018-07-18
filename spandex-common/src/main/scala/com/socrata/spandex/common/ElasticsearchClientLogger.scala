@@ -6,7 +6,7 @@ import org.elasticsearch.action.bulk.BulkRequestBuilder
 import org.elasticsearch.action.search.{SearchRequestBuilder, SearchResponse}
 import org.elasticsearch.index.query.QueryBuilder
 
-import com.socrata.spandex.common.client.{DatasetCopy, RefreshPolicy, SpandexElasticSearchClient, SearchResults}
+import com.socrata.spandex.common.client._
 
 trait ElasticsearchClientLogger extends Logging {
   this: SpandexElasticSearchClient =>
@@ -74,6 +74,12 @@ trait ElasticsearchClientLogger extends Logging {
 
   def logColumnMapIndexRequest(id: String, source: String): Unit =
     logger.debug(s"executing index column map on id=$id with $source")
+
+  def logColumnMapGetRequest(id: String): Unit =
+    logger.debug(s"executing elasticsearch get request for column map on id = $id")
+
+  def logColumnMapGetResult(result: Option[ColumnMap]): Unit =
+    logger.debug(s"received column map $result")
 
   def logSearchResponse(response: SearchResponse): Unit =
     logger.debug(s"received ${response.getHits.getHits.length} hits out of ${response.getHits.totalHits} total")

@@ -124,7 +124,11 @@ class SpandexElasticSearchClient(
 
   def fetchColumnMap(datasetId: String, copyNumber: Long, userColumnId: String): Option[ColumnMap] = {
     val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
-    val response = client.prepareGet(indexName, ColumnType, id).execute.actionGet
+    val request = client.prepareGet(indexName, ColumnType, id)
+    logColumnMapGetRequest(id)
+    val response = request.execute.actionGet
+    val column = response.result[ColumnMap]
+    logColumnMapGetResult(column)
     response.result[ColumnMap]
   }
 
@@ -327,9 +331,11 @@ class SpandexElasticSearchClient(
     : Unit = {
     val id = DatasetCopy.makeDocId(datasetId, copyNumber)
     val source = JsonUtil.renderJson(DatasetCopy(datasetId, copyNumber, dataVersion, stage))
+
     val request = client.prepareIndex(indexName, DatasetCopyType, id)
       .setSource(source, XContentType.JSON)
       .setRefreshPolicy(refresh)
+
     logDatasetCopyIndexRequest(id, source)
     request.execute.actionGet
   }

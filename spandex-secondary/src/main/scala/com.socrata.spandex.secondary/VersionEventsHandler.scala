@@ -19,13 +19,13 @@ class VersionEventsHandler(
     val startTime = Timings.now
 
     // First, handle any working copy events
+    // NOTE: we wait for this update to be reflected in the index to avoid subsequent InvalidStateBeforeEvent
     val remainingEvents = new WorkingCopyCreatedHandler(client, BeforeReturning)
       .go(datasetName, dataVersion, events)
 
-    // Find the latest dataset copy number. This *should* exist since
-    // we have already handled creation of any initial working copies.
     val latest = client.datasetCopyLatest(datasetName).getOrElse(
-      throw InvalidStateBeforeEvent(s"Couldn't get latest copy number for dataset $datasetName"))
+      throw InvalidStateBeforeEvent(s"Couldn't get latest copy number for dataset $datasetName")
+    )
 
     // Now handle everything else
     remainingEvents.foreach { event =>
@@ -43,6 +43,7 @@ class VersionEventsHandler(
         case WorkingCopyDropped =>
           new CopyDropHandler(client, refresh).dropWorkingCopy(datasetName, latest)
         case WorkingCopyPublished =>
+          // NOTE: need to ensure index reflects working copy publication before proceeding to drop unpublished copies
           new PublishHandler(client, BeforeReturning).go(datasetName, latest)
           new CopyDropHandler(client, refresh).dropUnpublishedCopies(datasetName)
         case ColumnCreated(info) =>
@@ -52,8 +53,8 @@ class VersionEventsHandler(
           }
         case ColumnRemoved(info) =>
           logColumnRemoved(datasetName, latest.copyNumber, info.id.underlying)
-          client.deleteColumnValuesByColumnId(datasetName, latest.copyNumber, info.systemId.underlying, refresh)
           client.deleteColumnMap(datasetName, latest.copyNumber, info.id.underlying, refresh)
+          client.deleteColumnValuesByColumnId(datasetName, latest.copyNumber, info.systemId.underlying, refresh)
         case Truncated =>
           logTruncate(datasetName, latest.copyNumber)
           client.deleteColumnValuesByCopyNumber(datasetName, latest.copyNumber, refresh)
@@ -82,6 +83,9 @@ class VersionEventsHandler(
     val finalLatest = client.datasetCopyLatest(datasetName).getOrElse(
       throw InvalidStateAfterEvent(s"Couldn't get latest copy number for dataset $datasetName"))
     client.updateDatasetCopyVersion(finalLatest.copy(version = dataVersion), refresh)
+
+    // Refresh upon completion of version events
+    client.refresh()
 
     val timeElapsed = Timings.elapsedInMillis(startTime)
     logVersionEventsProcessed(datasetName, finalLatest.copyNumber, finalLatest.version, timeElapsed)
