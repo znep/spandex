@@ -177,7 +177,7 @@ object Deps {
   )
 
   lazy val secondary = Seq(
-    "com.socrata" %% "secondarylib" % "3.4.10"
+    "com.socrata" %% "secondarylib" % "3.4.30"
   )
 
   lazy val dataLoader = Seq(

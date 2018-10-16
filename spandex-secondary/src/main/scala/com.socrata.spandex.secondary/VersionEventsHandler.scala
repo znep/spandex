@@ -65,6 +65,8 @@ class VersionEventsHandler(
         case RollupCreatedOrUpdated(info) =>
         case RollupDropped(info) =>
         case FieldNameUpdated(info) =>
+        case ComputationStrategyCreated(_) =>
+        case ComputationStrategyRemoved(_) =>
         case RowsChangedPreview(truncated, inserted, updated, deleted) =>
         // These events don't result in changed data or publication status, so no-op.
         // The data version is updated below.
