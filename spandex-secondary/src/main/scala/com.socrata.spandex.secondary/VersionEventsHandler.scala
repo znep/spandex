@@ -19,7 +19,8 @@ class VersionEventsHandler(
     val startTime = Timings.now
 
     // First, handle any working copy events
-    val remainingEvents = new WorkingCopyCreatedHandler(client, refresh).go(datasetName, dataVersion, events)
+    // NOTE: do not return until refresh, since the subsequent call expects this dataset copy to be indexed
+    val remainingEvents = new WorkingCopyCreatedHandler(client, BeforeReturning).go(datasetName, dataVersion, events)
 
     // Find the latest dataset copy number. This *should* exist since
     // we have already handled creation of any initial working copies.
