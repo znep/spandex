@@ -20,7 +20,8 @@ class VersionEventsHandler(
 
     // First, handle any working copy events
     // NOTE: do not return until refresh, since the subsequent call expects this dataset copy to be indexed
-    val remainingEvents = new WorkingCopyCreatedHandler(client, BeforeReturning).go(datasetName, dataVersion, events)
+    val remainingEvents = new WorkingCopyCreatedHandler(client, refresh = BeforeReturning)
+      .go(datasetName, dataVersion, events)
 
     // Find the latest dataset copy number. This *should* exist since
     // we have already handled creation of any initial working copies.
@@ -43,7 +44,7 @@ class VersionEventsHandler(
         case WorkingCopyDropped =>
           new CopyDropHandler(client, refresh).dropWorkingCopy(datasetName, latest)
         case WorkingCopyPublished =>
-          new PublishHandler(client, refresh).go(datasetName, latest)
+          new PublishHandler(client, refresh = BeforeReturning).go(datasetName, latest)
           new CopyDropHandler(client, refresh).dropUnpublishedCopies(datasetName)
         case ColumnCreated(info) =>
           if (info.typ == SoQLText) {
@@ -58,7 +59,6 @@ class VersionEventsHandler(
           logTruncate(datasetName, latest.copyNumber)
           client.deleteColumnValuesByCopyNumber(datasetName, latest.copyNumber, refresh)
         case LastModifiedChanged(lm) =>
-        // TODO : Support if-modified-since one day
         case RowIdentifierSet(info) =>
         case RowIdentifierCleared(info) =>
         case SystemRowIdentifierChanged(info) =>
@@ -84,6 +84,7 @@ class VersionEventsHandler(
     val finalLatest = client.datasetCopyLatest(datasetName).getOrElse(
       throw InvalidStateAfterEvent(s"Couldn't get latest copy number for dataset $datasetName"))
     client.updateDatasetCopyVersion(finalLatest.copy(version = dataVersion), refresh)
+    client.refresh()
 
     val timeElapsed = Timings.elapsedInMillis(startTime)
     logVersionEventsProcessed(datasetName, finalLatest.copyNumber, finalLatest.version, timeElapsed)
