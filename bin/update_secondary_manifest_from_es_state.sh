@@ -35,6 +35,6 @@ t=`tempfile`
 echo "writing output to $t"
 
 while ( [ $page -le $lastpage ] ); do
-  curl -s "$CLUSTER/$INDEX/dataset_copy/_search?size=$size&page=$page" | jq '.hits.hits[]._source | "update secondary_manifest set latest_secondary_data_version = \(.version) where store_id like '\''spandex%fed'\'' and dataset_system_id = \(.dataset_id);"' |sed 's/"//g; s/alpha.//;' >> $t
+  curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -s "$CLUSTER/$INDEX/dataset_copy/_search?size=$size&page=$page" | jq '.hits.hits[]._source | "update secondary_manifest set latest_secondary_data_version = \(.version) where store_id like '\''spandex%fed'\'' and dataset_system_id = \(.dataset_id);"' |sed 's/"//g; s/alpha.//;' >> $t
   page=`echo "$page+1" |bc`
 done

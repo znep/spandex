@@ -6,6 +6,11 @@ com.socrata.spandex {
     port = {{ SPANDEX_SECONDARY_ES_PORT }}
     cluster-name = {{ SPANDEX_SECONDARY_ES_CLUSTER_NAME }}
     index = {{ SPANDEX_SECONDARY_ES_INDEX_ALIAS }}
+
+    {% if SPANDEX_ES_USER is defined and SPANDEX_ES_PASSWORD is defined -%}
+    username = {{ SPANDEX_ES_USER }}
+    password = {{ SPANDEX_ES_PASSWORD }}
+    {%- endif %}
   }
 
   log4j.rootLogger = [ {{ LOG_LEVEL }}, console ]

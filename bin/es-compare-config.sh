@@ -6,7 +6,7 @@ else
   KEY="settings"
 fi
 
-nodes=$(curl -s $ES/_nodes/settings |jq ".nodes[]" -Sc)
+nodes=$(curl $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -s $ES/_nodes/settings |jq ".nodes[]" -Sc)
 node_addrs=$(echo "$nodes" |jq ".ip" -Sc)
 confs=$(echo "$nodes" |jq "del(.settings.pidfile) |del(.settings.name) |del(.settings.node.name) |.$KEY" -Sc)
 

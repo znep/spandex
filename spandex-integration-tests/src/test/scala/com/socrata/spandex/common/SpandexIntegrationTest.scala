@@ -27,5 +27,5 @@ trait SpandexIntegrationTest extends BeforeAndAfterAll
   override def afterAll(): Unit = {
     client.deleteIndex()
     client.close()
-  }  
+  }
 }

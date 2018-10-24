@@ -138,7 +138,8 @@ object Deps {
 
   lazy val resolverList = Seq(
     "Scalaz Bintray Repo" at "https://dl.bintray.com/scalaz/releases", // scalaz-stream used in scalatra 2.4.x
-    "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release"
+    "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release",
+    "Elasticsearch releases" at "https://artifacts.elastic.co/maven"
   )
 
   lazy val socrata = Seq(
@@ -173,7 +174,7 @@ object Deps {
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.4",
     "org.elasticsearch" % "elasticsearch" % "5.4.1",
-    "org.elasticsearch.client" % "transport" % "5.4.1"
+    "org.elasticsearch.client" % "x-pack-transport" % "5.4.1"
   )
 
   lazy val secondary = Seq(

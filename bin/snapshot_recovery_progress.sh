@@ -22,7 +22,7 @@ if [ "$CLUSTER" == "" -o "$INDEX" == "" ]; then
   exit 1
 fi
 
-recovery=`curl -s $CLUSTER/$INDEX/_recovery`
+recovery=`curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -s $CLUSTER/$INDEX/_recovery`
 x=`echo $recovery |jq '.[].shards[].index.size.recovered_in_bytes' |tr '\n' '+'; echo 0`
 y=`echo $recovery |jq '.[].shards[].index.size.total_in_bytes' |tr '\n' '+'; echo 0`
 r=`echo "($x) / 1073741824" |bc`

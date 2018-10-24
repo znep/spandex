@@ -24,5 +24,5 @@ fi
 
 for garbage in "*.html" "*.exe" perl spipe jsonrpc; do
     echo "curl -s -XDELETE $CLUSTER/$garbage"
-    curl -s -XDELETE $CLUSTER/$garbage | jq .
+    curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -s -XDELETE $CLUSTER/$garbage | jq .
 done

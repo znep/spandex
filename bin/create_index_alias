@@ -33,7 +33,7 @@ ENV_SETTINGS=$(cat $HERE/spandex-common/src/main/resources/cluster_overrides.jso
 ES_CLUSTER_URL=$(echo $ENV_SETTINGS | $JQ -r '[.host, .port|tostring] | join(":")')
 
 echo "Creating alias $ALIAS_NAME to index $INDEX_NAME in $ENVIRONMENT environment..."
-curl -s -o /dev/null -XPOST "http://$ES_CLUSTER_URL/_aliases" -d "
+curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -s -o /dev/null -XPOST "http://$ES_CLUSTER_URL/_aliases" -d "
 {
     \"actions\" : [
         {\"add\" : {\"index\": \"$INDEX_NAME\", \"alias\": \"$ALIAS_NAME\"}}

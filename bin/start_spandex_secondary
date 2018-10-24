@@ -8,7 +8,12 @@ SUBPROJECT=spandex-secondary
 JARFILE="`$HERE/build.sh $SUBPROJECT`"
 DEBUG_PORT=${1:-8044}
 
-INDEX_NAME=$(curl -s -XGET localhost:9200/spandex | jq -r 'keys[0]')
+if [ -z "$SPANDEX_ES_USER" ]
+then
+      echo "\$SPANDEX_ES_USER is not set.  If auth is enabled on this elastic search cluster \$SPANDEX_ES_USER and \$SPANDEX_ES_PASSWORD must be set for this startup script to initialize the Elastic Search Index (if it is not already initialized)"
+fi
+
+INDEX_NAME=$(curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -s -XGET localhost:9200/spandex | jq -r 'keys[0]')
 
 if [[ $INDEX_NAME == "error" ]]; then
     $HERE/setup_index

@@ -9,4 +9,4 @@ if [ "" == "$dsid" ]; then
 fi
 
 query="{\"query\":{\"match\":{\"dataset_id\":\"alpha.$dsid\"}},\"_source\":\"value\"}"
-curl -s "$ES/spandex/column_value/_search?size=1000" -d $query |jq -r '.hits.hits[]._source.value|length' |sort |uniq -c |sort -nr -k2
+curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -s "$ES/spandex/column_value/_search?size=1000" -d $query |jq -r '.hits.hits[]._source.value|length' |sort |uniq -c |sort -nr -k2

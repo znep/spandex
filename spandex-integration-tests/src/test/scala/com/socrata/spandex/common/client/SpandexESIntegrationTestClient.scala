@@ -14,8 +14,7 @@ import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.index.query.QueryBuilders.{boolQuery, termQuery}
 import org.elasticsearch.transport.client.PreBuiltTransportClient
-
-import com.socrata.spandex.common.{TestData, Token}
+import com.socrata.spandex.common.{SpandexConfig, TestData, Token}
 import Queries._
 import ResponseExtensions._
 import SpandexElasticSearchClient.{ColumnType, ColumnValueType, DatasetCopyType}
@@ -166,11 +165,15 @@ object SpandexESIntegrationTestClient {
       .put("cluster.name", clusterName)
       .build()
 
-    val transportAddress = new InetSocketTransportAddress(InetAddress.getByName(host), port)
-    val transportClient: Client = new PreBuiltTransportClient(settings).addTransportAddress(transportAddress)
-
-    val client = new SpandexElasticSearchClient(
-      transportClient, indexName, dataCopyBatchSize, dataCopyTimeout, maxColumnValueLength)
+    val client = new SpandexElasticSearchClient(host,
+      port,
+      clusterName,
+      indexName,
+      dataCopyBatchSize,
+      dataCopyTimeout,
+      maxColumnValueLength,
+      Some("spandex_service"),
+      Some("password1")) // Needed if x-pack is enabled, ignored if it is not. see README for details
 
     new SpandexESIntegrationTestClient(client)
   }

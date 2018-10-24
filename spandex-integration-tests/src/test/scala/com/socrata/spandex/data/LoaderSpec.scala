@@ -20,7 +20,7 @@ class LoaderSpec extends FunSuiteLike
 
   test("The Loader should load the expected data with the correct counts") {
     val loader = new Loader(client)
-    val dataFile = new File(getClass.getResource("/brown_tokens.csv").getFile());
+    val dataFile = new File(getClass.getResource("/brown_tokens.csv").getFile())
     val copyNumber = 1L
     val version = 1L
     val datasetCopy = DatasetCopy(datasetId, copyNumber, version, LifecycleStage.Published)

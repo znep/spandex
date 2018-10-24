@@ -8,6 +8,12 @@ instances.{{ SPANDEX_SECONDARY_TYPE }} {
     port = "{{ SPANDEX_SECONDARY_ES_PORT }}"
     cluster-name = "{{ SPANDEX_SECONDARY_ES_CLUSTER_NAME }}"
     index = "{{ SPANDEX_SECONDARY_ES_INDEX_ALIAS }}"
+
+    {% if SPANDEX_ES_USER is defined and SPANDEX_ES_PASSWORD is defined -%}
+    username = "{{ SPANDEX_ES_USER }}"
+    password = "{{ SPANDEX_ES_PASSWORD }}"
+    {%- endif %}
+
     data-copy-batch-size = {{ SPANDEX_SECONDARY_DATA_COPY_BATCH_SIZE }}
     data-copy-timeout = {{ SPANDEX_SECONDARY_DATA_COPY_TIMEOUT }}
   }

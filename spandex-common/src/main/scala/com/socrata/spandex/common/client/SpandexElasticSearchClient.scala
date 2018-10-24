@@ -25,12 +25,12 @@ import org.elasticsearch.rest.RestStatus.{CREATED, OK}
 import org.elasticsearch.script.{Script, ScriptType}
 import org.elasticsearch.search.aggregations.AggregationBuilders.max
 import org.elasticsearch.search.sort.{FieldSortBuilder, SortOrder}
-import org.elasticsearch.transport.client.PreBuiltTransportClient
+import org.elasticsearch.xpack.client.PreBuiltXPackTransportClient
 
-import com.socrata.spandex.common.{ElasticSearchConfig, ElasticsearchClientLogger}
+import com.socrata.spandex.common.{ElasticSearchConfig, ElasticsearchClientLogger, SpandexConfig}
 import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.spandex.common.client.Queries._
-import SpandexElasticSearchClient.{DatasetCopyType, ColumnType, ColumnValueType}
+import SpandexElasticSearchClient.{ColumnType, ColumnValueType, DatasetCopyType}
 
 // scalastyle:off number.of.methods
 case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
@@ -42,20 +42,25 @@ class SpandexElasticSearchClient(
     val dataCopyTimeout: Long,
     val maxColumnValueLength: Int)
   extends Closeable
-  with ElasticsearchClientLogger {
+    with ElasticsearchClientLogger {
 
-  def this(
-    host: String,
-    port: Int,
-    clusterName: String,
-    indexName: String,
-    dataCopyBatchSize: Int,
-    dataCopyTimeout: Long,
-    maxColumnValueLength: Int
+  def this( // scalastyle:off
+      host: String,
+      port: Int,
+      clusterName: String,
+      indexName: String,
+      dataCopyBatchSize: Int,
+      dataCopyTimeout: Long,
+      maxColumnValueLength: Int,
+      userName: Option[String] = None,
+      password: Option[String] = None // scalastyle:on
   ) = {
     this(
-      new PreBuiltTransportClient(
-        Settings.builder().put("cluster.name", clusterName).put("client.transport.sniff", true).build()
+      new PreBuiltXPackTransportClient(
+        Settings.builder().put("cluster.name", clusterName)
+          .put("client.transport.sniff", true)
+          .put("xpack.security.user", "%s:%s".format(userName.getOrElse(" "), password.getOrElse(" ")))
+          .build()
       ).addTransportAddress(
         new InetSocketTransportAddress(InetAddress.getByName(host), port)
       ),
@@ -74,7 +79,9 @@ class SpandexElasticSearchClient(
       config.index,
       config.dataCopyBatchSize,
       config.dataCopyTimeout,
-      config.maxColumnValueLength
+      config.maxColumnValueLength,
+      config.username,
+      config.password
     )
   }
 

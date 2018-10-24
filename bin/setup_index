@@ -40,26 +40,26 @@ echo "Creating index $INDEX_NAME on cluster at $ES_CLUSTER_URL..."
 curl -s -o /dev/null -XPUT "http://$ES_CLUSTER_URL/$INDEX_NAME" -d @settings_full.json
 
 echo "Creating mappings..."
-curl -XPUT "http://$ES_CLUSTER_URL/$INDEX_NAME/_mapping/dataset_copy" --data-binary @$HERE/spandex-common/src/main/resources/mapping.dataset_copy.json
-curl -XPUT "http://$ES_CLUSTER_URL/$INDEX_NAME/_mapping/column" --data-binary @$HERE/spandex-common/src/main/resources/mapping.column.json
-curl -XPUT "http://$ES_CLUSTER_URL/$INDEX_NAME/_mapping/column_value" --data-binary @$HERE/spandex-common/src/main/resources/mapping.column_value.json
+curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -XPUT "http://$ES_CLUSTER_URL/$INDEX_NAME/_mapping/dataset_copy" --data-binary @$HERE/spandex-common/src/main/resources/mapping.dataset_copy.json
+curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -XPUT "http://$ES_CLUSTER_URL/$INDEX_NAME/_mapping/column" --data-binary @$HERE/spandex-common/src/main/resources/mapping.column.json
+curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -XPUT "http://$ES_CLUSTER_URL/$INDEX_NAME/_mapping/column_value" --data-binary @$HERE/spandex-common/src/main/resources/mapping.column_value.json
 
 if [[ $ENVIRONMENT == "local" ]]; then
-    status=$(curl -s -XGET http://$ES_CLUSTER_URL/spandex/_aliases | jq '.status')
+    status=$(curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -s -XGET http://$ES_CLUSTER_URL/spandex/_aliases | jq '.status')
     if [[ $status != 404 ]]; then
-        previous_index=$(curl -s -XGET http://$ES_CLUSTER_URL/spandex/_aliases | jq -r '.|keys[0]')
+        previous_index=$(curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -s -XGET http://$ES_CLUSTER_URL/spandex/_aliases | jq -r '.|keys[0]')
 
         echo
         echo "Removing existing index alias (spandex -> $previous_index)"
         jq -c -n \
            --arg previous_index "$previous_index" \
            '{"actions": [{"remove": {"index": $previous_index, "alias": "spandex"}}]}' | \
-            curl -s -XPOST "http://$ES_CLUSTER_URL/_aliases" --data-binary @-
+            curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -s -XPOST "http://$ES_CLUSTER_URL/_aliases" --data-binary @-
     fi
 
     echo
     echo "Adding new index alias (spandex -> $INDEX_NAME)"
     jq -c -n --arg new_index "$INDEX_NAME" \
        '{"actions": [{"add": {"index": $new_index, "alias": "spandex"}}]}' | \
-        curl -s -XPOST "http://$ES_CLUSTER_URL/_aliases" --data-binary @-
+        curl -u $SPANDEX_ES_USER:$SPANDEX_ES_PASSWORD -s -XPOST "http://$ES_CLUSTER_URL/_aliases" --data-binary @-
 fi

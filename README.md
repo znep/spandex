@@ -122,6 +122,25 @@ Follow the instructions here:
 https://www.elastic.co/guide/en/kibana/current/install.html
 ```
 
+
+### Optionally Install X-pack
+
+Spandex now uses basic auth to authenticate requests to Elasticsearch.  This security is provided by the X-Pack extension.  If xpack is not installed spandex will still work, however, if you're working on code related to the Elasticsearch client, it may be a good idea to install X-Pack locally to better simulate the production environment.  Instructions for installing X-Pack can be found here 
+
+````
+https://www.elastic.co/guide/en/x-pack/5.6/installing-xpack.html
+````
+
+Once X-pack is installed, create a user 
+
+````
+curl --header "Content-Type: application/json" -X POST -u elastic --data '{"password" : "password1", "roles" : [ "superuser" ]}' http://localhost:9200/_xpack/security/user/spandex_service
+````
+
+The default password for the super user ```elastic``` is ```changeme```
+
+If you have installed X-pack locally and want to use the scripts in the bin directory that interact with Elasticsearch, the environment variables ```SPANDEX_ES_USER``` and ```SPANDEX_ES_PASSWORD``` must be set.
+
 ### Start/stop/restart Elasticsearch
 
 ```sh

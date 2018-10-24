@@ -2,8 +2,7 @@ package com.socrata.spandex.common.client
 
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import org.elasticsearch.action.index.IndexRequestBuilder
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike, Matchers}
-
+import org.scalatest._
 import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.spandex.common.client.SpandexElasticSearchClient._
 import com.socrata.spandex.common.SpandexIntegrationTest
