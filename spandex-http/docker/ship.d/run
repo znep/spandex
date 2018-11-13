@@ -1,4 +1,10 @@
-#!/bin/sh
+#!/bin/bash
+
+
+if [ ! -z "$MARATHON_APP_ID" ]; then
+    source /dev/shm/spandex.conf
+fi
+
 
 set -evx
 
