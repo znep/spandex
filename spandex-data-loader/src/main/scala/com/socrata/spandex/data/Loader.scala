@@ -48,9 +48,12 @@ class Loader(val client: SpandexElasticSearchClient, val rowBatchSize: Int = Loa
 
       if (rowsProcessed % 100000 == 0) {
         // scalastyle:ignore regex
-        println(s"Processed $rowsProcessed rows")
+        println(Thread.currentThread.getName + s" Processed $rowsProcessed rows")
       }
     }
+    // This would happen automatically after a short amount of time,
+    // but we're going to be running assertions immediately so lets make sure they pass.
+    client.flushColumnValueCache()
   }
 }
 

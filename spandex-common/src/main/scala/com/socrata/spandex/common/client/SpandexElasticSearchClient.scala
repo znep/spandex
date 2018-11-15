@@ -1,13 +1,17 @@
 package com.socrata.spandex.common.client
 
-import scala.collection.mutable
-import scala.collection.JavaConverters._
-import scala.io.Source
 import java.io.Closeable
 import java.net.InetAddress
+import java.time.Instant
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.locks.ReentrantLock
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.io.Source
 
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.datacoordinator.secondary._
+import com.typesafe.scalalogging.slf4j.Logging
 import org.elasticsearch.ElasticsearchException
 import org.elasticsearch.action.ActionResponse
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest
@@ -27,10 +31,10 @@ import org.elasticsearch.search.aggregations.AggregationBuilders.max
 import org.elasticsearch.search.sort.{FieldSortBuilder, SortOrder}
 import org.elasticsearch.xpack.client.PreBuiltXPackTransportClient
 
-import com.socrata.spandex.common.{ElasticSearchConfig, ElasticsearchClientLogger, SpandexConfig}
-import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.spandex.common.client.Queries._
-import SpandexElasticSearchClient.{ColumnType, ColumnValueType, DatasetCopyType}
+import com.socrata.spandex.common.client.ResponseExtensions._
+import com.socrata.spandex.common.client.SpandexElasticSearchClient.{ColumnType, ColumnValueType, DatasetCopyType}
+import com.socrata.spandex.common.{ElasticSearchConfig, ElasticsearchClientLogger}
 
 // scalastyle:off number.of.methods
 case class ElasticSearchResponseFailed(msg: String) extends Exception(msg)
@@ -85,10 +89,45 @@ class SpandexElasticSearchClient(
     )
   }
 
+  /* We want to queue up multiple column values before doing an upsert request in elasticsearch... This data
+  structure will hold column values until they are flushed to ES by the Column Value Writer Thread */
+  private val columnValuesCache = new ArrayBlockingQueue[ColumnValue](dataCopyBatchSize * 2)
+
+  /* This lock is obtained by threads that want to write values from the columns value cache.
+  You should NOT get this lock to append TO the cache, doing so will cause a deadlock. */
+  private val columnValuesCacheWriter: ReentrantLock = new ReentrantLock()
+
+  /* Once a value is sent to this list, the writer thread will exit. */
+  private val shouldKillThreadList = new java.util.ArrayList[Boolean]
+
+  /* This thread is responsible for writing values put in the columnValuesCache to Elasticsearch.  It does this
+  once it detects that more than dataCopyBatchSize values have been added, or when enough time has
+  passed to justify a flush */
+  private val backgroundThread = new Thread(new ColumnValueCacheWriter(this,
+    shouldKillThreadList,
+    columnValuesCache))
+
+  backgroundThread.setName("ColumnValueWriterThread")
+  sys.addShutdownHook({
+    logger.info("ShutdownHook called, ColumnValueWriterThread")
+    shouldKillThreadList.add(true)
+  })
+  backgroundThread.start()
+
   logClientConnected()
   logClientHealthCheckStatus()
 
-  override def close(): Unit = client.close()
+  override def close(): Unit = {
+    shouldKillThreadList.add(true)
+    while (backgroundThread.isAlive) {
+      logger.info("Waiting for the Column Value Writer Thread to finish.")
+      // scalastyle:off magic.number
+      Thread.sleep(500)
+    }
+    /* Do one final flush to ensure all values have been written */
+    this.flushColumnValueCache()
+    client.close()
+  }
 
   private[this] def checkForFailures(response: ActionResponse): Unit = response match {
     case i: IndexResponse =>
@@ -108,8 +147,67 @@ class SpandexElasticSearchClient(
       throw new NotImplementedError(s"Haven't implemented failure check for ${response.getClass.getSimpleName}")
   }
 
-  def refresh(): Unit =
+  /**
+    * Writes records to Elasticsearch.  If maxWrite is supplied it will only
+    * write that many values from the columnValuesCache
+    *
+    * @param maxWrite the maximum amount of values to drain from the columnValuesCache
+    */
+  def flushColumnValueCache(maxWrite: Int = Integer.MAX_VALUE): Unit = {
+    val valuesToFlush = new java.util.ArrayList[ColumnValue]
+    try {
+      columnValuesCacheWriter.lock()
+      columnValuesCache.drainTo(valuesToFlush, maxWrite)
+    }
+    finally {
+      columnValuesCacheWriter.unlock()
+    }
+
+    if (!valuesToFlush.isEmpty) {
+      val vals = valuesToFlush.asScala
+      logger.info("Aggregating and writing %d values to ES".format(vals.size))
+      /* We can aggregate these already aggregated values to get even more aggregation */
+      ColumnValue.aggregate(vals).grouped(dataCopyBatchSize).foreach(indexColumnValues(_, Eventually))
+
+      vals.groupBy(cv => (cv.datasetId, cv.copyNumber)).foreach {
+        case (t, _) => {
+          /* We set flush cache to false because we're already doing that... otherwise we'll get an infinite loop */
+          deleteNonPositiveCountColumnValues(t._1, t._2, Eventually, false)
+        }
+      }
+    }
+    else {
+      logger.debug("flushColumnValueCache called but there were no records to flush, doing nothing.")
+    }
+  }
+
+  /**
+    * Gets the current size of the Column Values Cache
+    *
+    * @return
+    */
+  def getColumnValuesCacheSize: Int = {
+    columnValuesCache.size
+  }
+
+  /**
+    * Appends values to the column value cache.  If the column value cache is full, this method will
+    * block until the values can be added.
+    *
+    * @param columnValues The column values to append
+    * @param flushValues  Will flush the cache when set to true
+    */
+  def appendToColumnValueCache(columnValues: Iterable[ColumnValue], flushValues: Boolean = false): Unit = {
+    columnValues.foreach(columnValuesCache.put)
+    if (flushValues) {
+      flushColumnValueCache()
+    }
+  }
+
+  def refresh(): Unit = {
+    flushColumnValueCache()
     client.admin().indices().prepareRefresh(indexName).execute.actionGet
+  }
 
   def indexExists: Boolean = {
     logIndexExistsRequest(indexName)
@@ -125,12 +223,14 @@ class SpandexElasticSearchClient(
       .setSource(source, XContentType.JSON)
       .setRefreshPolicy(refresh)
     logColumnMapIndexRequest(columnMap.docId, source)
+    flushColumnValueCache()
     val response = request.execute.actionGet
     checkForFailures(response)
   }
 
   def fetchColumnMap(datasetId: String, copyNumber: Long, userColumnId: String): Option[ColumnMap] = {
     val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
+    flushColumnValueCache()
     val response = client.prepareGet(indexName, ColumnType, id).execute.actionGet
     response.result[ColumnMap]
   }
@@ -140,11 +240,12 @@ class SpandexElasticSearchClient(
       copyNumber: Long,
       userColumnId: String,
       refresh: RefreshPolicy = Eventually)
-    : Unit = {
+  : Unit = {
     val id = ColumnMap.makeDocId(datasetId, copyNumber, userColumnId)
     val delete = client.prepareDelete(indexName, ColumnType, id)
     delete.setRefreshPolicy(refresh)
 
+    flushColumnValueCache()
     checkForFailures(delete.execute.actionGet)
   }
 
@@ -153,12 +254,14 @@ class SpandexElasticSearchClient(
 
   // We don't expect the number of column maps to exceed dataCopyBatchSize.
   // As of April 2015 the widest dataset is ~1000 cols wide.
-  def searchLotsOfColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[ColumnMap] =
+  def searchLotsOfColumnMapsByCopyNumber(datasetId: String, copyNumber: Long): SearchResults[ColumnMap] = {
+    this.flushColumnValueCache()
     client.prepareSearch(indexName)
       .setTypes(ColumnType)
       .setQuery(byDatasetIdAndCopyNumber(datasetId, copyNumber))
       .setSize(dataCopyBatchSize)
       .execute.actionGet.results[ColumnMap]()
+  }
 
   def deleteColumnMapsByCopyNumber(datasetId: String, copyNumber: Long, refresh: RefreshPolicy = Eventually): Unit =
     deleteByQuery(byDatasetIdAndCopyNumber(datasetId, copyNumber), Seq(ColumnType), refresh)
@@ -187,13 +290,14 @@ class SpandexElasticSearchClient(
       datasetId: String,
       copyNumber: Long,
       columnValues: Iterable[ColumnValue],
-      refresh: RefreshPolicy = Eventually)
-    : Unit = {
-    columnValues.grouped(dataCopyBatchSize).foreach { batch =>
-      indexColumnValues(batch, Eventually)
-    }
+      refresh: RefreshPolicy = Eventually,
+      flushImmediately: Boolean = false)
+  : Unit = {
+    appendToColumnValueCache(columnValues, flushValues = refresh != Eventually || flushImmediately)
 
-    if (refresh != Eventually) this.refresh()
+    if (refresh != Eventually) {
+      this.refresh()
+    }
   }
 
   def columnValueIndexRequest(columnValue: ColumnValue): IndexRequestBuilder =
@@ -211,6 +315,8 @@ class SpandexElasticSearchClient(
       .setSize(calculateScrollSize(dataCopyBatchSize))
 
     logSearchRequest(request, Seq(ColumnValueType))
+
+    flushColumnValueCache()
     var response = request.execute.actionGet
 
     do {
@@ -221,6 +327,8 @@ class SpandexElasticSearchClient(
       if (batch.nonEmpty) {
         sendBulkRequest(batch, refresh = Eventually)
       }
+
+      flushColumnValueCache()
       response = client.prepareSearchScroll(response.getScrollId)
         .setScroll(timeout).execute.actionGet
       logSearchResponse(response)
@@ -238,19 +346,21 @@ class SpandexElasticSearchClient(
   def deleteNonPositiveCountColumnValues(
       datasetId: String,
       copyNumber: Long,
-      refresh: RefreshPolicy = Eventually)
-    : Unit =
+      refresh: RefreshPolicy = Eventually,
+      flushCache: Boolean = true)
+  : Unit =
     deleteByQuery(
       nonPositiveCountColumnValuesByDatasetIdAndCopyNumber(datasetId, copyNumber),
       Seq(ColumnValueType),
-      refresh)
+      refresh,
+      flushCache)
 
   def deleteColumnValuesByColumnId(
       datasetId: String,
       copyNumber: Long,
       columnId: Long,
       refresh: RefreshPolicy = Eventually)
-    : Unit =
+  : Unit =
     deleteByQuery(byDatasetIdCopyNumberAndColumnId(datasetId, copyNumber, columnId), Seq(ColumnValueType), refresh)
 
   // Yuk @ Seq[Any], but the number of types on ActionRequestBuilder is absurd.
@@ -271,7 +381,9 @@ class SpandexElasticSearchClient(
       val bulkResponse = bulkRequest.execute.actionGet
       checkForFailures(bulkResponse)
       Some(bulkResponse)
-    } else { None }
+    } else {
+      None
+    }
   }
 
   /**
@@ -281,8 +393,13 @@ class SpandexElasticSearchClient(
     * Note: the value `indexName` could be an alias, and it's possible to iterate over returned settings and find
     * a concrete index with corresponding alias. But *index* vs *total* primary shards is almost the same number.
     */
-  private def calculateScrollSize(desiredSize: Int): Int = {
+  private def calculateScrollSize(desiredSize: Int, flushCache: Boolean = true): Int = {
     val clusterHealthRequest = client.admin.cluster.prepareHealth()
+
+    if (flushCache) {
+      flushColumnValueCache()
+    }
+
     val clusterHealthResponse = clusterHealthRequest.execute.actionGet
     val primaryShardCount = clusterHealthResponse.getActivePrimaryShards
     math.max(1, desiredSize / primaryShardCount)
@@ -291,8 +408,9 @@ class SpandexElasticSearchClient(
   def deleteByQuery(
       queryBuilder: QueryBuilder,
       types: Seq[String] = Nil,
-      refresh: RefreshPolicy = Eventually)
-    : Map[String, Int] = {
+      refresh: RefreshPolicy = Eventually,
+      flushCache: Boolean = true)
+  : Map[String, Int] = {
 
     val timeout = new TimeValue(dataCopyTimeout)
     val request = client.prepareSearch(indexName)
@@ -300,9 +418,10 @@ class SpandexElasticSearchClient(
       .setQuery(queryBuilder)
       .setTypes(types: _*)
       .setScroll(timeout)
-      .setSize(calculateScrollSize(dataCopyBatchSize))
+      .setSize(calculateScrollSize(dataCopyBatchSize, flushCache))
 
     logDeleteByQueryRequest(queryBuilder, types, refresh)
+
     var response = request.execute.actionGet
     val resultCounts = mutable.Map[String, Int]()
 
@@ -331,13 +450,15 @@ class SpandexElasticSearchClient(
       dataVersion: Long,
       stage: LifecycleStage,
       refresh: RefreshPolicy = Eventually)
-    : Unit = {
+  : Unit = {
     val id = DatasetCopy.makeDocId(datasetId, copyNumber)
     val source = JsonUtil.renderJson(DatasetCopy(datasetId, copyNumber, dataVersion, stage))
     val request = client.prepareIndex(indexName, DatasetCopyType, id)
       .setSource(source, XContentType.JSON)
       .setRefreshPolicy(refresh)
     logDatasetCopyIndexRequest(id, source)
+
+    flushColumnValueCache()
     request.execute.actionGet
   }
 
@@ -348,6 +469,8 @@ class SpandexElasticSearchClient(
       .setUpsert()
       .setRefreshPolicy(refresh)
     logDatasetCopyUpdateRequest(datasetCopy, source)
+
+    flushColumnValueCache()
     val response = request.execute.actionGet
     checkForFailures(response)
   }
@@ -364,6 +487,7 @@ class SpandexElasticSearchClient(
       .addAggregation(max(latestCopyPlaceholder).field(SpandexFields.CopyNumber))
     logDatasetCopySearchRequest(request)
 
+    flushColumnValueCache()
     val response = request.execute.actionGet
     val results = response.results[DatasetCopy]()
     logDatasetCopySearchResults(results)
@@ -385,6 +509,7 @@ class SpandexElasticSearchClient(
       .setQuery(query)
       .setSize(count.getHits.totalHits.toInt)
 
+    flushColumnValueCache()
     val response = request.execute.actionGet
     val datasetCopies = response.results[DatasetCopy]()
 
@@ -395,6 +520,8 @@ class SpandexElasticSearchClient(
     val id = DatasetCopy.makeDocId(datasetId, copyNumber)
     val request = client.prepareGet(indexName, DatasetCopyType, id)
     logDatasetCopyGetRequest(id)
+
+    flushColumnValueCache()
     val response = request.execute.actionGet
     val datasetCopy = response.result[DatasetCopy]
     logDatasetCopyGetResult(datasetCopy)
@@ -432,6 +559,7 @@ class SpandexElasticSearchClient(
       case _ => (baseRequest, None)
     }
 
+    flushColumnValueCache()
     request.execute.actionGet.results[ColumnValue](scoringFn)
   }
 }
@@ -453,32 +581,32 @@ object SpandexElasticSearchClient {
 
   def ensureIndex(index: String, esClient: SpandexElasticSearchClient): Unit = {
     if (!esClient.indexExists) {
-       try {
-         esClient.logIndexCreateRequest(index)
+      try {
+        esClient.logIndexCreateRequest(index)
 
-         esClient.client.admin.indices.prepareCreate(index)
-           .setSettings(readSettings, XContentType.JSON)
-           .execute.actionGet
+        esClient.client.admin.indices.prepareCreate(index)
+          .setSettings(readSettings, XContentType.JSON)
+          .execute.actionGet
 
-         // Add column_value mapping
-         esClient.client.admin.indices.preparePutMapping(index)
-           .setType(ColumnValueType)
-           .setSource(readMapping(ColumnValueType), XContentType.JSON).execute.actionGet
+        // Add column_value mapping
+        esClient.client.admin.indices.preparePutMapping(index)
+          .setType(ColumnValueType)
+          .setSource(readMapping(ColumnValueType), XContentType.JSON).execute.actionGet
 
-         // Add column_map mapping
-         esClient.client.admin.indices.preparePutMapping(index)
-           .setType(ColumnType)
-           .setSource(readMapping(ColumnType), XContentType.JSON).execute.actionGet
+        // Add column_map mapping
+        esClient.client.admin.indices.preparePutMapping(index)
+          .setType(ColumnType)
+          .setSource(readMapping(ColumnType), XContentType.JSON).execute.actionGet
 
-         // Add dataset_copy mapping
-         esClient.client.admin.indices.preparePutMapping(index)
-           .setType(DatasetCopyType)
-           .setSource(readMapping(DatasetCopyType), XContentType.JSON).execute.actionGet
-       } catch {
-         // TODO: more error handling
-         case e: ElasticsearchException =>
-           esClient.logIndexAlreadyExists(index)
-       }
+        // Add dataset_copy mapping
+        esClient.client.admin.indices.preparePutMapping(index)
+          .setType(DatasetCopyType)
+          .setSource(readMapping(DatasetCopyType), XContentType.JSON).execute.actionGet
+      } catch {
+        // TODO: more error handling
+        case e: ElasticsearchException =>
+          esClient.logIndexAlreadyExists(index)
+      }
     }
   }
 }

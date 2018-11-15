@@ -41,8 +41,6 @@ class ResyncHandler(
 
     // Add/update column values for each row
     insertRows(datasetInfo, copyInfo, schema, rows)
-
-    client.deleteNonPositiveCountColumnValues(datasetInfo.internalName, copyInfo.copyNumber, refresh)
   }
 
   private def insertRows(
@@ -63,7 +61,8 @@ class ResyncHandler(
       val copyNumber = copyInfo.copyNumber
 
       columnValues.grouped(batchSize).foreach { batch =>
-        client.putColumnValues(datasetId, copyNumber, ColumnValue.aggregate(batch).toList, refresh)
+        client.putColumnValues(datasetId, copyNumber,
+          ColumnValue.aggregate(batch).toList, refresh, flushImmediately = true)
       }
     }
   }

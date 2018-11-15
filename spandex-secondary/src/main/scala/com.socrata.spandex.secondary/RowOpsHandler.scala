@@ -3,7 +3,7 @@ package com.socrata.spandex.secondary
 import com.socrata.datacoordinator.secondary.Row
 import com.socrata.soql.types.{SoQLText, SoQLValue}
 
-import com.socrata.spandex.common.client._
+import com.socrata.spandex.common.client.{ColumnValue, _}
 import com.socrata.spandex.secondary.RowOpsHandler.columnValuesForRow
 
 class RowOpsHandler(
@@ -13,9 +13,9 @@ class RowOpsHandler(
   extends SecondaryEventLogger {
 
   def go(datasetName: String, copyNumber: Long, ops: Seq[Operation]): Unit = {
+    val t0 = System.nanoTime()
     val columnValues: Seq[ColumnValue] = ops.flatMap { op =>
       logRowOperation(op)
-
       // TODO: determine when data is None in the case of updates or deletions
       op match {
         case insert: Insert =>
@@ -38,10 +38,16 @@ class RowOpsHandler(
       }
     }
 
-    // NOTE: row ops are already batched coming from DC, so there's no need to batch here.
-    // All column values are already materialized; the ES client handles batching indexing operations.
-    client.putColumnValues(datasetName, copyNumber, ColumnValue.aggregate(columnValues).toList, refresh)
-    client.deleteNonPositiveCountColumnValues(datasetName, copyNumber, refresh)
+    val aggregatedValues = ColumnValue.aggregate(columnValues).toList
+    client.putColumnValues(datasetName, copyNumber, aggregatedValues, refresh)
+
+    if(logger.underlying.isDebugEnabled()){
+      val t1 = System.nanoTime()
+      val listSize = columnValues.toList.size
+      logger.debug(("Row Operation performed on %s Column Values, aggregated to %s " +
+        "values, in %f seconds.  Aggregate handling %f values per second")
+        .format(listSize, aggregatedValues.size, (t1 - t0) / 1e9, listSize / ((t1 - t0) / 1e9)))
+    }
   }
 }
 

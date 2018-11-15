@@ -11,7 +11,7 @@ import com.socrata.datacoordinator.id.ColumnId
 import com.socrata.soql.types.SoQLText
 
 @JsonKeyStrategy(Strategy.Underscore)
-case class ColumnValue(datasetId: String, copyNumber: Long, columnId: Long, value: String, count: Long) {
+case class ColumnValue(datasetId: String, copyNumber: Long, columnId: Long, value: String, var count: Long) {
   val docId = ColumnValue.makeDocId(datasetId, copyNumber, columnId, value)
   val compositeId = ColumnValue.makeCompositeId(datasetId, copyNumber, columnId)
 
@@ -82,10 +82,11 @@ object ColumnValue {
     val columnValCountMap = mutable.Map.empty[ColumnIdValue, ColumnValue]
 
     columnValues.foreach { cv =>
-      val colIdVal = ColumnIdValue(cv.columnId, cv.value)
+      val colIdVal = ColumnIdValue(cv.datasetId, cv.columnId, cv.copyNumber, cv.value)
       val defaultColumnVal = ColumnValue(cv.datasetId, cv.copyNumber, cv.columnId, cv.value, 0)
       val columnVal = columnValCountMap.getOrElse(colIdVal, defaultColumnVal)
-      columnValCountMap += (colIdVal -> columnVal.copy(count = columnVal.count + cv.count))
+      columnVal.count += cv.count
+      columnValCountMap += (colIdVal -> columnVal)
     }
 
     columnValCountMap.valuesIterator

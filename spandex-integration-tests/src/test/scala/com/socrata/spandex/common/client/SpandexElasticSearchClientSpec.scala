@@ -1,8 +1,11 @@
 package com.socrata.spandex.common.client
 
+import java.util.concurrent.ArrayBlockingQueue
+
 import com.socrata.datacoordinator.secondary.LifecycleStage
 import org.elasticsearch.action.index.IndexRequestBuilder
 import org.scalatest._
+
 import com.socrata.spandex.common.client.ResponseExtensions._
 import com.socrata.spandex.common.client.SpandexElasticSearchClient._
 import com.socrata.spandex.common.SpandexIntegrationTest
@@ -34,7 +37,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.sendBulkRequest(inserts, refresh = Immediately)
 
     toInsert.foreach { fv =>
-      verifyColumnValue(fv) should be (Some(fv))
+      verifyColumnValue(fv) should be(Some(fv))
     }
 
     val toUpdate = Seq(
@@ -44,16 +47,16 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     val updates = toUpdate.map(client.columnValueIndexRequest)
     client.sendBulkRequest(updates, refresh = Immediately)
 
-    verifyColumnValue(toInsert(0)).get should be (toUpdate(0))
-    verifyColumnValue(toInsert(1)).get should be (toInsert(1))
-    verifyColumnValue(toInsert(2)).get should be (toUpdate(1))
+    verifyColumnValue(toInsert(0)).get should be(toUpdate(0))
+    verifyColumnValue(toInsert(1)).get should be(toInsert(1))
+    verifyColumnValue(toInsert(2)).get should be(toUpdate(1))
 
     val deletes = toUpdate.map(columnValue =>
       client.deleteColumnValuesByColumnId(
         columnValue.datasetId, columnValue.copyNumber, columnValue.columnId, refresh = Immediately))
 
     verifyColumnValue(toInsert(0)) should not be 'defined
-    verifyColumnValue(toInsert(1)).get should be (toInsert(1))
+    verifyColumnValue(toInsert(1)).get should be(toInsert(1))
     verifyColumnValue(toInsert(2)) should not be 'defined
   }
 
@@ -64,41 +67,55 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
   }
 
   test("Delete column values by dataset") {
-    client.searchColumnValuesByDataset(datasets(0)).totalHits should be (45)
-    client.searchColumnValuesByDataset(datasets(1)).totalHits should be (45)
+    client.searchColumnValuesByDataset(datasets(0)).totalHits should be(45)
+    client.searchColumnValuesByDataset(datasets(1)).totalHits should be(45)
 
     client.deleteColumnValuesByDataset(datasets(0), refresh = Immediately)
 
-    client.searchColumnValuesByDataset(datasets(0)).totalHits should be (0)
-    client.searchColumnValuesByDataset(datasets(1)).totalHits should be (45)
+    client.searchColumnValuesByDataset(datasets(0)).totalHits should be(0)
+    client.searchColumnValuesByDataset(datasets(1)).totalHits should be(45)
   }
 
   test("Delete column values by copy number") {
-    client.searchColumnValuesByCopyNumber(datasets(0), 1).totalHits should be (15)
-    client.searchColumnValuesByCopyNumber(datasets(0), 2).totalHits should be (15)
-    client.searchColumnValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
-    client.searchColumnValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+    client.searchColumnValuesByCopyNumber(datasets(0), 1).totalHits should be(15)
+    client.searchColumnValuesByCopyNumber(datasets(0), 2).totalHits should be(15)
+    client.searchColumnValuesByCopyNumber(datasets(1), 1).totalHits should be(15)
+    client.searchColumnValuesByCopyNumber(datasets(1), 2).totalHits should be(15)
 
     client.deleteColumnValuesByCopyNumber(datasets(0), 2, refresh = Immediately)
 
-    client.searchColumnValuesByCopyNumber(datasets(0), 1).totalHits should be (15)
-    client.searchColumnValuesByCopyNumber(datasets(0), 2).totalHits should be (0)
-    client.searchColumnValuesByCopyNumber(datasets(1), 1).totalHits should be (15)
-    client.searchColumnValuesByCopyNumber(datasets(1), 2).totalHits should be (15)
+    client.searchColumnValuesByCopyNumber(datasets(0), 1).totalHits should be(15)
+    client.searchColumnValuesByCopyNumber(datasets(0), 2).totalHits should be(0)
+    client.searchColumnValuesByCopyNumber(datasets(1), 1).totalHits should be(15)
+    client.searchColumnValuesByCopyNumber(datasets(1), 2).totalHits should be(15)
   }
 
   test("Delete column values by column") {
-    client.searchColumnValuesByColumnId(datasets(0), 1, 1).totalHits should be (5)
-    client.searchColumnValuesByColumnId(datasets(0), 2, 1).totalHits should be (5)
-    client.searchColumnValuesByColumnId(datasets(0), 2, 2).totalHits should be (5)
-    client.searchColumnValuesByColumnId(datasets(1), 2, 1).totalHits should be (5)
+    client.searchColumnValuesByColumnId(datasets(0), 1, 1).totalHits should be(5)
+    client.searchColumnValuesByColumnId(datasets(0), 2, 1).totalHits should be(5)
+    client.searchColumnValuesByColumnId(datasets(0), 2, 2).totalHits should be(5)
+    client.searchColumnValuesByColumnId(datasets(1), 2, 1).totalHits should be(5)
 
     client.deleteColumnValuesByColumnId(datasets(0), 2, 1, refresh = Immediately)
 
-    client.searchColumnValuesByColumnId(datasets(0), 1, 1).totalHits should be (5)
-    client.searchColumnValuesByColumnId(datasets(0), 2, 1).totalHits should be (0)
-    client.searchColumnValuesByColumnId(datasets(0), 2, 2).totalHits should be (5)
-    client.searchColumnValuesByColumnId(datasets(1), 2, 1).totalHits should be (5)
+    client.searchColumnValuesByColumnId(datasets(0), 1, 1).totalHits should be(5)
+    client.searchColumnValuesByColumnId(datasets(0), 2, 1).totalHits should be(0)
+    client.searchColumnValuesByColumnId(datasets(0), 2, 2).totalHits should be(5)
+    client.searchColumnValuesByColumnId(datasets(1), 2, 1).totalHits should be(5)
+  }
+
+  test("Writes are not flushed immediately to ES") {
+    // Make sure nothing is there initially
+    client.client.flushColumnValueCache()
+
+    val toInsert = Seq(
+      ColumnValue("alpha.1337", 1, 20, "axolotl", 1L),
+      ColumnValue("alpha.1337", 1, 21, "amphibious", 1L),
+      ColumnValue("alpha.1337", 1, 22, "Henry", 1L))
+
+    client.putColumnValues("whatever", 1L, toInsert)
+    client.client.getColumnValuesCacheSize should be(3)
+    client.client.flushColumnValueCache()
   }
 
   test("Copy column values from one dataset copy to another") {
@@ -113,13 +130,13 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     val inserts = toCopy.map(client.columnValueUpsertRequest)
     client.sendBulkRequest(inserts, refresh = Immediately)
 
-    client.searchColumnValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)
-    client.searchColumnValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be (0)
+    client.searchColumnValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be(100)
+    client.searchColumnValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be(0)
 
     client.copyColumnValues(from, to, refresh = Immediately)
 
-    client.searchColumnValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be (100)
-    client.searchColumnValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be (100)
+    client.searchColumnValuesByCopyNumber(from.datasetId, from.copyNumber).totalHits should be(100)
+    client.searchColumnValuesByCopyNumber(to.datasetId, to.copyNumber).totalHits should be(100)
   }
 
   test("Search lots of column maps by copy number") {
@@ -129,7 +146,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     columns.foreach(client.putColumnMap(_, refresh = Immediately))
 
     val retrieved = client.searchLotsOfColumnMapsByCopyNumber("wide-dataset", 1)
-    retrieved.thisPage.map(_.result).sortBy(_.systemColumnId) should be (columns)
+    retrieved.thisPage.map(_.result).sortBy(_.systemColumnId) should be(columns)
   }
 
   test("Put, get and delete column map") {
@@ -140,7 +157,7 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
     client.putColumnMap(colMap, refresh = Immediately)
 
     val colMap1 = client.fetchColumnMap(datasets(0), 1, "col1-1111")
-    colMap1 should be (Some(colMap))
+    colMap1 should be(Some(colMap))
     val colMap2 = client.fetchColumnMap(datasets(0), 1, "col2-2222")
     colMap2 should not be 'defined
 
@@ -150,88 +167,88 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
   }
 
   test("Delete column map by dataset") {
-    client.searchColumnMapsByDataset(datasets(0)).totalHits should be (9)
-    client.searchColumnMapsByDataset(datasets(1)).totalHits should be (9)
+    client.searchColumnMapsByDataset(datasets(0)).totalHits should be(9)
+    client.searchColumnMapsByDataset(datasets(1)).totalHits should be(9)
 
     client.deleteColumnMapsByDataset(datasets(0), refresh = Immediately)
 
-    client.searchColumnMapsByDataset(datasets(0)).totalHits should be (0)
-    client.searchColumnMapsByDataset(datasets(1)).totalHits should be (9)
+    client.searchColumnMapsByDataset(datasets(0)).totalHits should be(0)
+    client.searchColumnMapsByDataset(datasets(1)).totalHits should be(9)
   }
 
   test("Delete column map by copy number") {
-    client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (3)
-    client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
+    client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be(3)
+    client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be(3)
 
     client.deleteColumnMapsByCopyNumber(datasets(0), 1, refresh = Immediately)
 
-    client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be (0)
-    client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be (3)
+    client.searchColumnMapsByCopyNumber(datasets(0), 1).totalHits should be(0)
+    client.searchColumnMapsByCopyNumber(datasets(1), 1).totalHits should be(3)
   }
 
   test("Put, get, search, delete dataset copies") {
     val dsCopies = client.searchCopiesByDataset(datasets(0))
-    dsCopies.totalHits should be (3)
-    dsCopies.thisPage.map(_.result).sortBy(_.copyNumber) should be (copies(datasets(0)))
+    dsCopies.totalHits should be(3)
+    dsCopies.thisPage.map(_.result).sortBy(_.copyNumber) should be(copies(datasets(0)))
 
-    client.datasetCopy(datasets(0), 3) should be (Some(copies(datasets(0))(2)))
+    client.datasetCopy(datasets(0), 3) should be(Some(copies(datasets(0))(2)))
     client.datasetCopy(datasets(0), 4) should not be 'defined
 
     client.putDatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished, refresh = Immediately)
     client.datasetCopy(datasets(0), 4) should be
-      (Some(DatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished)))
+    (Some(DatasetCopy(datasets(0), 4, 20, LifecycleStage.Unpublished)))
 
     client.deleteDatasetCopy(datasets(0), 4, refresh = Immediately)
     client.datasetCopy(datasets(0), 4) should not be 'defined
-    client.searchCopiesByDataset(datasets(0)).totalHits should be (3)
+    client.searchCopiesByDataset(datasets(0)).totalHits should be(3)
 
     client.deleteDatasetCopiesByDataset(datasets(0), refresh = Immediately)
-    client.searchCopiesByDataset(datasets(0)).totalHits should be (0)
+    client.searchCopiesByDataset(datasets(0)).totalHits should be(0)
   }
 
   test("Get latest copy of dataset") {
-    client.datasetCopyLatest(datasets(0)) should be ('defined)
-    client.datasetCopyLatest(datasets(0)).get.copyNumber should be (3)
+    client.datasetCopyLatest(datasets(0)) should be('defined)
+    client.datasetCopyLatest(datasets(0)).get.copyNumber should be(3)
 
     client.datasetCopyLatest("foo") should not be 'defined
   }
 
   test("Get latest copy of dataset by stage") {
-    client.datasetCopyLatest(datasets(0), Some(Unpublished)) should be ('defined)
-    client.datasetCopyLatest(datasets(0), Some(Unpublished)).get.copyNumber should be (3)
-    client.datasetCopyLatest(datasets(0), Some(Published)) should be ('defined)
-    client.datasetCopyLatest(datasets(0), Some(Published)).get.copyNumber should be (2)
-    client.datasetCopyLatest(datasets(0), Some(Snapshotted)) should be ('defined)
-    client.datasetCopyLatest(datasets(0), Some(Snapshotted)).get.copyNumber should be (1)
+    client.datasetCopyLatest(datasets(0), Some(Unpublished)) should be('defined)
+    client.datasetCopyLatest(datasets(0), Some(Unpublished)).get.copyNumber should be(3)
+    client.datasetCopyLatest(datasets(0), Some(Published)) should be('defined)
+    client.datasetCopyLatest(datasets(0), Some(Published)).get.copyNumber should be(2)
+    client.datasetCopyLatest(datasets(0), Some(Snapshotted)) should be('defined)
+    client.datasetCopyLatest(datasets(0), Some(Snapshotted)).get.copyNumber should be(1)
   }
 
   test("Update dataset copy version") {
     client.putDatasetCopy(datasets(1), 1, 2, LifecycleStage.Unpublished, refresh = Immediately)
 
     val current = client.datasetCopy(datasets(1), 1)
-    current should be ('defined)
-    current.get.version should be (2)
-    current.get.stage should be (LifecycleStage.Unpublished)
+    current should be('defined)
+    current.get.version should be(2)
+    current.get.stage should be(LifecycleStage.Unpublished)
 
     client.updateDatasetCopyVersion(
       current.get.copy(version = 5, stage = LifecycleStage.Published),
       refresh = Immediately)
 
-    client.datasetCopy(datasets(1), 1) should be ('defined)
-    client.datasetCopy(datasets(1), 1).get.version should be (5)
-    client.datasetCopy(datasets(1), 1).get.stage should be (LifecycleStage.Published)
+    client.datasetCopy(datasets(1), 1) should be('defined)
+    client.datasetCopy(datasets(1), 1).get.version should be(5)
+    client.datasetCopy(datasets(1), 1).get.stage should be(LifecycleStage.Published)
   }
 
   test("Delete dataset copy by copy number") {
     client.putDatasetCopy(datasets(0), 1, 50L, LifecycleStage.Unpublished, refresh = Immediately)
     client.putDatasetCopy(datasets(0), 2, 100L, LifecycleStage.Published, refresh = Immediately)
 
-    client.datasetCopy(datasets(0), 1) should be ('defined)
-    client.datasetCopy(datasets(0), 2) should be ('defined)
+    client.datasetCopy(datasets(0), 1) should be('defined)
+    client.datasetCopy(datasets(0), 2) should be('defined)
 
     client.deleteDatasetCopy(datasets(0), 2, refresh = Immediately)
 
-    client.datasetCopy(datasets(0), 1) should be ('defined)
+    client.datasetCopy(datasets(0), 1) should be('defined)
     client.datasetCopy(datasets(0), 2) should not be ('defined)
   }
 
@@ -252,9 +269,9 @@ class SpandexElasticSearchClientSpec extends FunSuiteLike
   }
 
   test("Get a dataset's copies by stage") {
-    client.datasetCopiesByStage(datasets(0), Snapshotted) should be (
+    client.datasetCopiesByStage(datasets(0), Snapshotted) should be(
       List(DatasetCopy(datasets(0), 1, 5, LifecycleStage.Snapshotted)))
-    client.datasetCopiesByStage(datasets(0), Unpublished) should be (
+    client.datasetCopiesByStage(datasets(0), Unpublished) should be(
       List(DatasetCopy(datasets(0), 3, 15, LifecycleStage.Unpublished)))
   }
 

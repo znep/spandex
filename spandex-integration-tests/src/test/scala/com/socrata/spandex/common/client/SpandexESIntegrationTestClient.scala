@@ -59,6 +59,7 @@ class SpandexESIntegrationTestClient(val client: SpandexElasticSearchClient) ext
   }
 
   def removeBootstrapData(testData: TestData): Unit = {
+    client.flushColumnValueCache()
     testData.datasets.foreach { d =>
       client.deleteColumnValuesByDataset(d)
       client.deleteColumnMapsByDataset(d)
@@ -75,6 +76,7 @@ class SpandexESIntegrationTestClient(val client: SpandexElasticSearchClient) ext
     client.deleteByQuery(termQuery("_type", DatasetCopyType), refresh = Immediately)
 
   def searchColumnValuesByCopyNumber(datasetId: String, copyNumber: Long, size: Int = 10): SearchResults[ColumnValue] = {
+    client.flushColumnValueCache()
     val response = client.client.prepareSearch(client.indexName)
       .setTypes(ColumnValueType)
       .setQuery(byDatasetIdAndCopyNumber(datasetId, copyNumber))
@@ -84,6 +86,7 @@ class SpandexESIntegrationTestClient(val client: SpandexElasticSearchClient) ext
   }
 
   def searchColumnValuesByColumnId(datasetId: String, copyNumber: Long, columnId: Long): SearchResults[ColumnValue] = {
+    client.flushColumnValueCache()
     val response = client.client.prepareSearch(client.indexName)
       .setTypes(ColumnValueType)
       .setQuery(byDatasetIdCopyNumberAndColumnId(datasetId, copyNumber, columnId))
@@ -99,16 +102,20 @@ class SpandexESIntegrationTestClient(val client: SpandexElasticSearchClient) ext
     response.results[ColumnMap]()
   }
 
-  def indexColumnValue(columnValue: ColumnValue): Unit =
+  def indexColumnValue(columnValue: ColumnValue): Unit = {
+    client.flushColumnValueCache()
     client.indexColumnValues(Seq(columnValue), refresh = Immediately)
+  }
 
   def fetchColumnValue(columnValue: ColumnValue): Option[ColumnValue] = {
+    client.flushColumnValueCache()
     val response = client.client.prepareGet(client.indexName, ColumnValueType, columnValue.docId)
       .execute.actionGet
     response.result[ColumnValue]
   }
 
   def searchColumnValuesByDataset(datasetId: String): SearchResults[ColumnValue] = {
+    client.flushColumnValueCache()
     val response = client.client.prepareSearch(client.indexName)
       .setTypes(ColumnValueType)
       .setQuery(byDatasetId(datasetId))
@@ -117,6 +124,7 @@ class SpandexESIntegrationTestClient(val client: SpandexElasticSearchClient) ext
   }
 
   def searchColumnMapsByDataset(datasetId: String): SearchResults[ColumnMap] = {
+    client.flushColumnValueCache()
     val response = client.client.prepareSearch(client.indexName)
       .setTypes(ColumnType)
       .setQuery(byDatasetId(datasetId))
@@ -125,6 +133,7 @@ class SpandexESIntegrationTestClient(val client: SpandexElasticSearchClient) ext
   }
 
   def searchCopiesByDataset(datasetId: String): SearchResults[DatasetCopy] = {
+    client.flushColumnValueCache()
     val response = client.client.prepareSearch(client.indexName)
       .setTypes(DatasetCopyType)
       .setQuery(byDatasetId(datasetId))
@@ -133,6 +142,7 @@ class SpandexESIntegrationTestClient(val client: SpandexElasticSearchClient) ext
   }
 
   def fetchCountForColumnValue(datasetId: String, value: String): Option[Long] = {
+    client.flushColumnValueCache()
     val query = boolQuery().must(byDatasetId(datasetId)).must(termQuery("value", value))
 
     val response = client.client.prepareSearch(client.indexName)
