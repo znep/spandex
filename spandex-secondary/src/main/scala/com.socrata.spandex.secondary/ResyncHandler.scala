@@ -62,7 +62,7 @@ class ResyncHandler(
 
       columnValues.grouped(batchSize).foreach { batch =>
         client.putColumnValues(datasetId, copyNumber,
-          ColumnValue.aggregate(batch).toList, refresh, flushImmediately = true)
+          ColumnValue.aggregate(batch).toList, refresh)
       }
     }
   }
