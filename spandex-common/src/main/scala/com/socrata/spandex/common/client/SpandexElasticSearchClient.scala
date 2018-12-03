@@ -276,6 +276,7 @@ class SpandexElasticSearchClient(
     client.prepareUpdate(indexName, ColumnValueType, columnValue.docId)
       .setScript(script)
       .setUpsert(JsonUtil.renderJson(columnValue.truncate(maxColumnValueLength)), XContentType.JSON)
+      .setRetryOnConflict(5) // Retries up to 5 times on conflict, fine where order of operations does not matter.
   }
 
   def indexColumnValues(columnValues: Iterable[ColumnValue], refresh: RefreshPolicy = Eventually): Unit =
