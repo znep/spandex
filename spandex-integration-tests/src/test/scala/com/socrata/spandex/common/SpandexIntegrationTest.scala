@@ -11,7 +11,7 @@ trait SpandexIntegrationTest extends BeforeAndAfterAll
   this: Suite =>
 
   def indexName = getClass.getSimpleName.toLowerCase
-  lazy val client = SpandexESIntegrationTestClient("localhost", 9300, "es_dev", indexName, 10000, 60000, 64)
+  lazy val client = SpandexESIntegrationTestClient("localhost", 9300, "es_dev", indexName, 10000, 60000, 128)
 
   override protected def beforeAll(): Unit = {
     if (!client.isConnected) fail("Unable to connect to local Elasticsearch cluster")

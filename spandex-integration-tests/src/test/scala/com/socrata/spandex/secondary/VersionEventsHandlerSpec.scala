@@ -20,8 +20,8 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   with SpandexIntegrationTest {
 
   // Make batches teensy weensy to expose any batching issues
-  override lazy val client = SpandexESIntegrationTestClient("localhost", 9300, "es_dev", indexName, 10, 60000, 64)
-  val handler = new VersionEventsHandler(client, 64, refresh = Immediately)
+  override lazy val client = SpandexESIntegrationTestClient("localhost", 9300, "es_dev", indexName, 10, 60000, 128)
+  val handler = new VersionEventsHandler(client, 128, refresh = Immediately)
 
   test("All - throw an exception if data version is invalid") {
     val invalidDataVersion = 0
@@ -407,8 +407,23 @@ class VersionEventsHandlerSpec extends FunSuiteLike
   // I,m Ｊａｐａｎｅｓｅ　Otaku and Middle-aged man　and Patriot　and 　Conservatism.
   // My Tweets combines the honesty and odiousness
   test("strip value containing reserved control character x1F") {
-    val cv = ColumnValue.fromDatum(datasets(0), 1L, (new ColumnId(2L), new SoQLText("(((o(\u001F´▽`\u001F)o)))")), 64)
+    val cv = ColumnValue.fromDatum(datasets(0), 1L, (new ColumnId(2L), new SoQLText("(((o(\u001F´▽`\u001F)o)))")), 128)
     client.indexColumnValue(cv)
     client.fetchColumnValue(cv).map(_.value) should be(Some("(((o(´▽`)o)))"))
+  }
+
+
+  test(testName="Truncate long values to 128 characters"){
+    val cv = ColumnValue.fromDatum(datasets(0), 1L,
+      (new ColumnId(2L), new SoQLText("blah0blah1blah2blah3blah4blah5blah6blah7blah8bla" +
+        "h9blah10blah11blah12blah13blah14blah15blah16blah17blah18blah19blah20blah21blah22blah23blah24blah25" +
+        "blah26blah27blah28blah29blah30blah31blah32blah33blah34blah35blah36blah37blah38blah39blah40blah41blah" +
+        "42blah43blah44blah45blah46blah47blah48blah49blah50blah51blah52blah53blah54blah55blah56blah57blah58bla" +
+        "h59blah60blah61blah62blah63blah64blah65blah66blah67blah68blah69blah70blah71blah72blah73blah74blah75b" +
+        "lah76blah77blah78blah79blah80blah81blah82blah83blah84blah85blah86blah87blah88blah89blah90blah91blah9" +
+        "2blah93blah94blah95blah96blah97blah98blah99")), 128)
+    client.indexColumnValue(cv)
+    client.fetchColumnValue(cv).map(_.value) should be(Some("blah0blah1blah2blah3blah4blah5bla" +
+      "h6blah7blah8blah9blah10blah11blah12blah13blah14blah15blah16blah17blah18blah19blah20blah21blah22"))
   }
 }
