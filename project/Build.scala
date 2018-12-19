@@ -19,6 +19,7 @@ object SpandexBuild extends Build {
   val dependenciesSnippet = SettingKey[xml.NodeSeq]("dependencies-snippet")
 
   lazy val commonSettings = Seq(
+    organization := "com.socrata",
     scalaVersion := "2.10.5",
     fork in Test := true,
     testOptions in Test += Tests.Argument("-oF"),
@@ -138,7 +139,7 @@ object Deps {
 
   lazy val resolverList = Seq(
     "Scalaz Bintray Repo" at "https://dl.bintray.com/scalaz/releases", // scalaz-stream used in scalatra 2.4.x
-    "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release",
+    "socrata artifactory" at "https://repo.socrata.com/artifactory/libs-release",
     "Elasticsearch releases" at "https://artifacts.elastic.co/maven"
   )
 
@@ -146,7 +147,7 @@ object Deps {
     "com.rojoma" %% "rojoma-json-v3" % "3.3.0",
     "com.rojoma" %% "simple-arm" % "1.2.0",
     "com.rojoma" %% "simple-arm-v2" % "2.1.0",
-    "com.socrata" %% "soql-types" % "0.5.2"
+    "com.socrata" %% "soql-types" % "2.11.4"
       excludeAll(ExclusionRule(organization = "com.rojoma"),
                  ExclusionRule(organization = "commons-io"))
   )
@@ -178,7 +179,7 @@ object Deps {
   )
 
   lazy val secondary = Seq(
-    "com.socrata" %% "secondarylib" % "3.4.30"
+    "com.socrata" %% "secondarylib" % "3.4.36"
   )
 
   lazy val dataLoader = Seq(
