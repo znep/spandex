@@ -43,12 +43,10 @@ class Loader(val client: SpandexElasticSearchClient, val rowBatchSize: Int = Loa
         rowsProcessed += 1
       }
 
-      // scalastyle:ignore regex
       client.putColumnValues(datasetId, copyNumber, columnValCountMap.values.toList)
 
       if (rowsProcessed % 100000 == 0) {
-        // scalastyle:ignore regex
-        println(Thread.currentThread.getName + s" Processed $rowsProcessed rows")
+        println(Thread.currentThread.getName + s" Processed $rowsProcessed rows")  // scalastyle:ignore regex
       }
     }
     // This would happen automatically after a short amount of time,
@@ -87,8 +85,9 @@ object Loader {
     val LoaderConfig(dataFile: File, datasetId: String, columns: List[String]) =
       parser.parse(args, LoaderConfig()).getOrElse(LoaderConfig())
 
-    // scalastyle:ignore magic.number
+    // scalastyle:off magic.number
     val esClient = new SpandexElasticSearchClient("localhost", 9300, "es_dev", "spandex", 10000, 60000, 64)
+    // scalastyle:on magic.number
 
     val copyNumber = 1L
     val version = 1L

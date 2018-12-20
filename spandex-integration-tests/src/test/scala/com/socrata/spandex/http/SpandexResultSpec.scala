@@ -1,4 +1,4 @@
-package com.socrata.spandex.http
+package com.socrata.spandex.http 
 
 import com.rojoma.json.v3.util.JsonUtil
 import org.scalatest.{FunSuiteLike, ShouldMatchers}
@@ -51,5 +51,21 @@ class SpandexResultSpec extends FunSuiteLike
     val js = JsonUtil.renderJson(SpandexResult(suggest))
     js should include(optionsJson)
     js should include(rows(col)(0).value)
+  }
+
+  test("suggestions requests return 0 results if the query text includes terms that do not exist in any column values") {
+    val ds = datasets(0)
+    val copy = copies(ds)(1)
+    val col = columns(ds, copy)(2)
+    val suggest = SpandexResult(client.suggest(col, 10, "data column foo"))
+    suggest.options shouldBe empty
+  }
+
+  test("suggestions requests return only the results that contain all of the specified query terms") {
+    val ds = datasets(0)
+    val copy = copies(ds)(1)
+    val col = columns(ds, copy)(2)
+    val suggest = SpandexResult(client.suggest(col, 10, "data column 3 row 2"))
+    suggest.options.map(_.text) should contain theSameElementsInOrderAs List("data column 3 row 2")
   }
 }

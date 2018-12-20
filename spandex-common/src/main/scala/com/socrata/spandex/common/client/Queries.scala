@@ -39,9 +39,12 @@ object Queries {
       case _ => byDatasetId(datasetId)
     }
 
+  val AutocompleteMinimumShouldMatch = "100%"
+
   def byColumnValueAutocomplete(columnValue: Option[String]): QueryBuilder =
     columnValue match {
-      case Some(value) => matchQuery(SpandexFields.ValueAutocomplete, value)
+      case Some(value) =>
+        matchQuery(SpandexFields.ValueAutocomplete, value).minimumShouldMatch(AutocompleteMinimumShouldMatch)
       case None => matchAllQuery()
     }
 
