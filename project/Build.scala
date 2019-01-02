@@ -10,13 +10,29 @@ import sbtbuildinfo.BuildInfoPlugin
 import scoverage.ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages
 import sbtassembly.AssemblyKeys._
 import sbtassembly.{AssemblyPlugin, MergeStrategy}
-
+import sbtrelease.ReleasePlugin.autoImport._
+import ReleaseTransformations._
 
 object SpandexBuild extends Build {
   val Name = "com.socrata.spandex"
   val JettyListenPort = 8042 // required for container embedded jetty
 
   val dependenciesSnippet = SettingKey[xml.NodeSeq]("dependencies-snippet")
+
+  val releaseSettings = Seq(
+    releaseProcess := Seq[ReleaseStep](
+      checkSnapshotDependencies,
+      inquireVersions,
+      runClean,
+      runTest,
+      setReleaseVersion,
+      commitReleaseVersion,
+      tagRelease,
+      setNextVersion,
+      commitNextVersion,
+      pushChanges
+    )
+  )
 
   lazy val commonSettings = Seq(
     organization := "com.socrata",
@@ -46,7 +62,7 @@ object SpandexBuild extends Build {
   lazy val build = Project(
     "spandex",
     file("."),
-    settings = commonSettings
+    settings = commonSettings ++ releaseSettings
   ).aggregate(spandexCommon, spandexHttp, spandexSecondary, spandexDataLoader, spandexIntegrationTests)
     .dependsOn(spandexCommon, spandexHttp, spandexSecondary, spandexDataLoader, spandexIntegrationTests)
 
