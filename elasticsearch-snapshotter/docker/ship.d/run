@@ -1,5 +1,24 @@
-#!/bin/sh
+#!/bin/bash
 
-set -evx
+CONFIG_FILE=$(basename $CLORTHO_PATH)
+source "/dev/shm/$CONFIG_FILE"
 
-exec su socrata -c "exec  /etc/ship.d/snapshot.sh"
+set -e
+
+if [ -z "$SNAPSHOT_ID" ]; then
+    SNAPSHOT_ID=$(date +%Y%m%d%H%M%S)
+fi
+
+curl -s --fail -H 'Content-Type: application/json' -u $ES_USERNAME:$ES_PASSWORD -XPUT http://$ES_HOST:$ES_PORT/_snapshot/$SNAPSHOT_NAME \
+     -d "{ \"type\": \"s3\", \"settings\": { \"bucket\": \"$SNAPSHOT_NAME\", \"server_side_encryption\": true } }"
+echo
+
+curl -s --fail -H 'Content-Type: application/json' -u $ES_USERNAME:$ES_PASSWORD -XPUT http://$ES_HOST:$ES_PORT/_snapshot/$SNAPSHOT_NAME/$SNAPSHOT_ID \
+     -d "{ \"indices\": \"$INDICES\", \"ignore_unavailable\": $IGNORE_UNAVAILABLE, \"include_global_state\": $INCLUDE_GLOBAL_STATE }"
+echo
+
+response=$(curl -s -H 'Content-Type: application/json' -u $ES_USERNAME:$ES_PASSWORD -XGET http://$ES_HOST:$ES_PORT/_snapshot/$SNAPSHOT_NAME/$SNAPSHOT_ID/_status)
+snapshot_state=$(echo $response | jq -r '.snapshots|.[0]|.state')
+
+echo "Snapshot ID: $SNAPSHOT_ID"
+echo "Snapshot state: $snapshot_state"
