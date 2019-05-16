@@ -244,7 +244,7 @@ This should output a URL that you can use to query spandex-http. The example bel
 values starting with "j".
 
 ```sh
-curl http://localhost:8042/suggest/primus.195/2/9gid-5p8z/j
+curl http://localhost:8042/suggest/alpha.195/2/9gid-5p8z/j
 ```
 
 The response should look something like this:
@@ -261,7 +261,7 @@ The response should look something like this:
 The next example queries for some 10 values in that column, distinct but random.
 
 ```sh
-curl http://localhost:8042/suggest/primus.195/2/9gid-5p8z
+curl http://localhost:8042/suggest/alpha.195/2/9gid-5p8z
 ```
 
 The response has the same format, but score is meaningless.

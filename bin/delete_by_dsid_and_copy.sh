@@ -7,7 +7,7 @@ COPY_NUMBER=$3
 
 case $STACK in
   "local" )
-    DCU=primus
+    DCU=alpha
     CLUSTER="http://localhost:9200" ;;
   "staging" )
     CLUSTER="http://spandex.elasticsearch.aws-us-west-2-staging.socrata.net" ;;

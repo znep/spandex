@@ -4,7 +4,7 @@ import com.socrata.datacoordinator.secondary.LifecycleStage
 import com.socrata.spandex.common.client._
 
 trait TestData {
-  val datasets = Seq("primus.1234", "primus.9876")
+  val datasets = Seq("alpha.1234", "alpha.9876")
 
   def copies(dataset: String): Seq[DatasetCopy] = {
     val snapshot = DatasetCopy(dataset, 1, 5, LifecycleStage.Snapshotted) // scalastyle:ignore magic.number

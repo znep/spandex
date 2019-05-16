@@ -6,7 +6,7 @@ DSID=$2
 
 case $STACK in
   "local" )
-    DCU=primus
+    DCU=alpha
     DATACOORDINATOR="http://localhost:6020"
     SPANDEXHTTP="http://localhost:8042" ;;
   "staging" )
